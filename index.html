@@ -104,6 +104,7 @@
     align-items:center;
     justify-content:space-between;
     padding:18px 18px 10px;
+    padding-top:calc(18px + env(safe-area-inset-top, 0px));
   }
   .wordmark{
     font-size:22px;
@@ -323,25 +324,21 @@
     max-width:520px;margin:0 auto;
   }
   .full-player.hidden{display:none;}
-  .fp-top{display:flex;align-items:center;justify-content:space-between;padding:16px 16px 4px;}
+  .fp-top{display:flex;align-items:center;justify-content:space-between;padding:16px 16px 4px;padding-top:calc(16px + env(safe-area-inset-top, 0px));}
   .fp-top-actions{display:flex;align-items:center;gap:4px;}
   .fp-kicker{font-family:var(--font-mono);font-size:11px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:1px;}
   .fp-stage{
-    position:relative;
     flex:1;
+    display:flex;align-items:center;justify-content:center;
     padding:10px 22px;
     min-height:0;
   }
-  .stage-video{
-    position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
-    max-width:calc(100% - 44px);max-height:100%;
+  .fp-stage video{
+    max-width:100%;max-height:100%;
     border-radius:var(--radius-m);
     background:#000;
     box-shadow:var(--shadow);
-    opacity:0;
-    pointer-events:none;
   }
-  .stage-video.visible{opacity:1;}
   .fp-meta{padding:6px 24px 0;text-align:left;}
   .fp-title{font-size:21px;line-height:1.2;}
   .fp-context{font-family:var(--font-mono);font-size:12px;color:var(--ink-muted);margin-top:5px;}
@@ -390,30 +387,6 @@
   .pick-check svg{width:13px;height:13px;}
   .pick-thumb{width:36px;height:36px;border-radius:5px;object-fit:cover;background:var(--surface-2);flex-shrink:0;}
   .pick-name{font-size:13.5px;font-weight:500;text-align:left;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-
-  /* ---------- Settings sheet ---------- */
-  .settings-row{
-    display:flex;align-items:center;justify-content:space-between;gap:14px;
-    padding:16px 2px;border-bottom:1px solid var(--line);
-  }
-  .settings-row:last-child{border-bottom:none;}
-  .settings-row-col{flex-direction:column;align-items:stretch;}
-  .settings-row-title{font-size:14px;font-weight:600;}
-  .settings-row-desc{font-size:12px;color:var(--ink-muted);line-height:1.5;margin-top:3px;}
-  .switch{
-    width:44px;height:26px;border-radius:999px;background:var(--surface-2);
-    border:1px solid var(--line);position:relative;flex-shrink:0;
-    transition:background .15s ease;
-  }
-  .switch.on{background:var(--accent);border-color:var(--accent);}
-  .switch-knob{
-    position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:50%;
-    background:var(--ink-faint);transition:transform .15s ease,background .15s ease;
-  }
-  .switch.on .switch-knob{transform:translateX(18px);background:var(--accent-ink);}
-  .boost-control{display:flex;align-items:center;gap:10px;margin-top:12px;}
-  .boost-control input[type="range"]{flex:1;accent-color:var(--accent);}
-  .boost-control .mono{min-width:42px;text-align:right;color:var(--ink-muted);font-size:12px;}
 
   /* ---------- Toast ---------- */
   .toast{
@@ -475,7 +448,6 @@
         <div class="section-head-actions">
           <button id="newPlaylistBtn" class="btn ghost">Neu</button>
           <button id="newTrimmedPlaylistBtn" class="btn ghost">Verkürzt</button>
-          <button id="settingsBtn" class="icon-btn" aria-label="Einstellungen"></button>
         </div>
       </div>
       <ul id="playlistsList" class="track-list"></ul>
@@ -538,8 +510,7 @@
       </div>
     </div>
     <div class="fp-stage">
-      <video id="stageVideoA" class="stage-video" playsinline></video>
-      <video id="stageVideoB" class="stage-video" playsinline></video>
+      <video id="stageVideo" playsinline></video>
     </div>
     <div class="fp-meta">
       <h3 class="fp-title" id="fpTitle"></h3>
@@ -566,34 +537,6 @@
         <button id="pickSheetClose" class="icon-btn" aria-label="Schließen"></button>
       </div>
       <ul id="pickSheetList" class="sheet-body"></ul>
-    </div>
-  </div>
-
-  <div id="settingsSheetBackdrop" class="sheet-backdrop hidden">
-    <div class="sheet">
-      <div class="sheet-head">
-        <h3>Einstellungen</h3>
-        <button id="settingsSheetClose" class="icon-btn" aria-label="Schließen"></button>
-      </div>
-      <div class="sheet-body">
-        <div class="settings-row">
-          <div class="settings-row-text">
-            <div class="settings-row-title">Flüssiger Übergang</div>
-            <div class="settings-row-desc">Blendet beim Wechsel die Audiospur des nächsten Videos knapp über die des aktuellen – wie Crossfade bei Spotify. Gilt für Bibliothek und alle Playlists.</div>
-          </div>
-          <button id="crossfadeSwitch" class="switch" role="switch" aria-label="Flüssiger Übergang"><span class="switch-knob"></span></button>
-        </div>
-        <div class="settings-row settings-row-col">
-          <div class="settings-row-text">
-            <div class="settings-row-title">Verstärkung</div>
-            <div class="settings-row-desc">Hebt die Lautstärke zusätzlich an, unabhängig von der Handy-Lautstärke. Bei hohen Werten kann der Ton verzerren.</div>
-          </div>
-          <div class="boost-control">
-            <input type="range" id="boostSlider" min="100" max="300" step="10" value="100">
-            <span class="mono" id="boostValue">100%</span>
-          </div>
-        </div>
-      </div>
     </div>
   </div>
 
@@ -631,7 +574,6 @@
     film:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="4" width="18" height="16" rx="1.5"/><path d="M7 4v16M17 4v16M3 9h4M3 15h4M17 9h4M17 15h4"/></svg>`,
     check:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>`,
     listMusic:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h11M4 12h11M4 18h7"/><circle cx="19" cy="16" r="2.3"/><path d="M21.3 16V7l-3 1"/></svg>`,
-    gear:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>`,
     grip:`<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></svg>`
   };
 
@@ -694,13 +636,7 @@
     repeat: false,
     earlyAdvanceDone: false, // guards the "skip 5s before end" auto-advance from firing more than once per track
     playerExpanded: false,
-    // dual video elements (A/B) so the next track can start playing while the current one fades out
-    activeSlot: 'A',
-    crossfading: false,
-    objectUrlA: null, objectUrlB: null,
-    // settings
-    crossfadeEnabled: false,
-    boostLevel: 1 // gain multiplier applied via Web Audio, 1 = no boost
+    currentObjectUrl: null
   };
 
   const $ = (sel) => document.querySelector(sel);
@@ -708,7 +644,7 @@
     importBtn: $('#importBtn'), fileInput: $('#fileInput'),
     storageText: $('#storageText'), libCount: $('#libCount'),
     libraryList: $('#libraryList'), libraryEmpty: $('#libraryEmpty'),
-    playlistsList: $('#playlistsList'), playlistsEmpty: $('#playlistsEmpty'), newPlaylistBtn: $('#newPlaylistBtn'), newTrimmedPlaylistBtn: $('#newTrimmedPlaylistBtn'), settingsBtn: $('#settingsBtn'),
+    playlistsList: $('#playlistsList'), playlistsEmpty: $('#playlistsEmpty'), newPlaylistBtn: $('#newPlaylistBtn'), newTrimmedPlaylistBtn: $('#newTrimmedPlaylistBtn'),
     pdBack: $('#pdBack'), pdTitle: $('#pdTitle'), pdCount: $('#pdCount'), pdList: $('#pdList'), pdEmpty: $('#pdEmpty'),
     pdPlaySeq: $('#pdPlaySeq'), pdPlayShuffle: $('#pdPlayShuffle'), pdAddVideos: $('#pdAddVideos'), pdToggleTrim: $('#pdToggleTrim'), pdRename: $('#pdRename'), pdDelete: $('#pdDelete'),
     tabs: document.querySelectorAll('.tab'),
@@ -716,13 +652,11 @@
     miniPlayPause: $('#miniPlayPause'), miniNext: $('#miniNext'), miniStop: $('#miniStop'), miniProgress: $('#miniProgress'),
     fabWrap: $('#fabWrap'),
     fullPlayer: $('#fullPlayer'), fpClose: $('#fpClose'), fpImport: $('#fpImport'), fpKicker: $('#fpKicker'),
-    stageVideoA: $('#stageVideoA'), stageVideoB: $('#stageVideoB'),
+    stageVideo: $('#stageVideo'),
     fpTitle: $('#fpTitle'), fpContext: $('#fpContext'),
     fpProgressBar: $('#fpProgressBar'), fpProgressFill: $('#fpProgressFill'), fpTimeCur: $('#fpTimeCur'), fpTimeDur: $('#fpTimeDur'),
     fpShuffle: $('#fpShuffle'), fpPrev: $('#fpPrev'), fpPlayPause: $('#fpPlayPause'), fpNext: $('#fpNext'), fpRepeat: $('#fpRepeat'),
     pickSheetBackdrop: $('#pickSheetBackdrop'), pickSheetList: $('#pickSheetList'), pickSheetClose: $('#pickSheetClose'),
-    settingsSheetBackdrop: $('#settingsSheetBackdrop'), settingsSheetClose: $('#settingsSheetClose'),
-    crossfadeSwitch: $('#crossfadeSwitch'), boostSlider: $('#boostSlider'), boostValue: $('#boostValue'),
     dialogBackdrop: $('#dialogBackdrop'), dialogTitle: $('#dialogTitle'), dialogText: $('#dialogText'),
     dialogInput: $('#dialogInput'), dialogCancel: $('#dialogCancel'), dialogConfirm: $('#dialogConfirm'),
     toast: $('#toast')
@@ -744,8 +678,6 @@
   el.fpNext.innerHTML = ICONS.next;
   el.fpRepeat.innerHTML = ICONS.repeat;
   el.pickSheetClose.innerHTML = ICONS.close;
-  el.settingsBtn.innerHTML = ICONS.gear;
-  el.settingsSheetClose.innerHTML = ICONS.close;
   document.querySelector('.tab[data-view="library"]').innerHTML = ICONS.film + '<span>Bibliothek</span>';
   document.querySelector('.tab[data-view="playlists"]').innerHTML = ICONS.listMusic + '<span>Playlists</span>';
 
@@ -1178,69 +1110,7 @@
   el.views = $('.views');
   el.tabs.forEach(t => t.addEventListener('click', () => switchView(t.dataset.view)));
 
-  /* ================= Web Audio (boost slider + crossfade ramp) =================
-     Each video element gets its own GainNode (gainA/gainB) feeding a shared boostGain.
-     The crossfade ramp is scheduled on gainA/gainB via native AudioParam automation —
-     NOT requestAnimationFrame/setInterval, which browsers freeze on a hidden/locked-screen
-     tab. AudioParam scheduling runs on the audio thread and keeps working while backgrounded,
-     which matters here since that's exactly when this app is meant to be playing. */
-  const CROSSFADE_MS = 1600;
-  let audioCtx = null, boostGain = null, gainA = null, gainB = null, crossfadeToken = 0;
-  function ensureAudioGraph(){
-    if (audioCtx) return;
-    try {
-      const AC = window.AudioContext || window.webkitAudioContext;
-      if (!AC) return;
-      audioCtx = new AC();
-      boostGain = audioCtx.createGain();
-      boostGain.gain.value = state.boostLevel;
-      boostGain.connect(audioCtx.destination);
-      gainA = audioCtx.createGain(); gainA.gain.value = 1;
-      gainB = audioCtx.createGain(); gainB.gain.value = 1;
-      audioCtx.createMediaElementSource(el.stageVideoA).connect(gainA).connect(boostGain);
-      audioCtx.createMediaElementSource(el.stageVideoB).connect(gainB).connect(boostGain);
-    } catch (e) {
-      console.error('Verstärkung/Crossfade über Web Audio nicht verfügbar, normale Wiedergabe läuft weiter', e);
-      audioCtx = null; boostGain = null; gainA = null; gainB = null;
-    }
-  }
-  function resumeAudioGraph(){ if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume().catch(() => {}); }
-  function setBoostLevel(level){
-    state.boostLevel = level;
-    if (boostGain) boostGain.gain.value = level;
-  }
-  function gainFor(video){ if (!audioCtx) return null; return video === el.stageVideoA ? gainA : gainB; }
-  /* set an element's audible level (0..1) right now */
-  function setElementLevel(video, value){
-    const g = gainFor(video);
-    if (g) { g.gain.cancelScheduledValues(audioCtx.currentTime); g.gain.setValueAtTime(value, audioCtx.currentTime); }
-    video.volume = Math.min(1, Math.max(0, value)); // .volume only accepts [0,1]; the gain node above has no such limit
-  }
-  /* schedule a linear ramp on the audio thread — keeps running even while the tab is hidden */
-  function rampElementLevel(video, from, to, ms){
-    const g = gainFor(video);
-    if (!g) return false;
-    const now = audioCtx.currentTime;
-    g.gain.cancelScheduledValues(now);
-    g.gain.setValueAtTime(from, now);
-    g.gain.linearRampToValueAtTime(to, now + ms / 1000);
-    return true;
-  }
-
   /* ================= Playback engine ================= */
-  /* Two <video> elements (A/B) so a crossfade can play both tracks briefly at once;
-     activeVideo() is always "the track currently shown/controlled", inactiveVideo() is
-     idle, or mid-fade-in during a crossfade. */
-  function activeVideo(){ return state.activeSlot === 'A' ? el.stageVideoA : el.stageVideoB; }
-  function inactiveVideo(){ return state.activeSlot === 'A' ? el.stageVideoB : el.stageVideoA; }
-  function setSlotSrc(video, v){
-    const key = video === el.stageVideoA ? 'objectUrlA' : 'objectUrlB';
-    if (state[key]) URL.revokeObjectURL(state[key]);
-    state[key] = URL.createObjectURL(v.blob);
-    video.src = state[key];
-    return state[key];
-  }
-
   function shuffleArr(arr){
     const a = arr.slice();
     for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; }
@@ -1251,7 +1121,6 @@
   function playQueue(ids, label, startId, forceShuffle, trimmed){
     ids = ids.filter(id => videoById(id));
     if (!ids.length) return;
-    finishCrossfadeImmediately();
     state.queueBase = ids.slice();
     state.queueLabel = label;
     state.queueTrimmed = !!trimmed;
@@ -1267,94 +1136,20 @@
     loadCurrentTrack(true);
   }
 
-  /* hard cut: used for the first track of a queue, manual restarts and resume-from-storage */
   function loadCurrentTrack(autoplay){
     const id = getCurrentId();
     const v = videoById(id);
     if (!v) return;
-    const video = activeVideo();
-    inactiveVideo().pause();
-    inactiveVideo().classList.remove('visible');
-    setSlotSrc(video, v);
-    video.currentTime = 0;
+    if (state.currentObjectUrl) URL.revokeObjectURL(state.currentObjectUrl);
+    state.currentObjectUrl = URL.createObjectURL(v.blob);
+    el.stageVideo.src = state.currentObjectUrl;
+    el.stageVideo.currentTime = 0;
     state.earlyAdvanceDone = false;
-    // Only route audio through Web Audio when something actually needs it (the boost slider).
-    // Plain playback stays on the element's native audio path, which is the one iOS reliably
-    // keeps running with the screen locked — the Web Audio graph is not.
-    if (state.boostLevel !== 1) { ensureAudioGraph(); resumeAudioGraph(); }
-    setElementLevel(video, 1); // after ensureAudioGraph, so a slot reused from a faded-out crossfade is back at full level
-    video.classList.add('visible');
-    if (autoplay) video.play().catch(() => {});
+    if (autoplay) el.stageVideo.play().catch(() => {});
     refreshNowPlayingUI();
     updateMediaSession(v);
     markPlayingRow();
     saveState();
-  }
-
-  /* smooth cut: the incoming track fades in while the outgoing one fades out, both audible briefly */
-  function crossfadeToIndex(newIndex){
-    const newId = state.playOrder[newIndex];
-    const v = videoById(newId);
-    if (!v) return;
-    finishCrossfadeImmediately();
-    ensureAudioGraph();
-    resumeAudioGraph();
-
-    if (!audioCtx) {
-      // no Web Audio graph available on this browser: fall back to an instant cut
-      // rather than a volume ramp that would never actually move
-      state.posIndex = newIndex;
-      loadCurrentTrack(true);
-      return;
-    }
-
-    const myToken = ++crossfadeToken;
-    state.crossfading = true;
-    const from = activeVideo();
-    const to = inactiveVideo();
-    setSlotSrc(to, v);
-    to.currentTime = 0;
-    setElementLevel(to, 0);
-    to.classList.add('visible');
-    to.play().catch(() => {});
-
-    // flip bookkeeping to the incoming track right away so the UI / lock screen update immediately
-    state.posIndex = newIndex;
-    state.activeSlot = state.activeSlot === 'A' ? 'B' : 'A';
-    state.earlyAdvanceDone = false;
-    refreshNowPlayingUI();
-    updateMediaSession(v);
-    markPlayingRow();
-    saveState();
-
-    rampElementLevel(from, 1, 0, CROSSFADE_MS);
-    rampElementLevel(to, 0, 1, CROSSFADE_MS);
-
-    // cleanup runs off a timer, not rAF, so it still fires (perhaps a bit late) while backgrounded;
-    // harmless either way since the audio itself already faded via the scheduled ramp above
-    setTimeout(() => {
-      if (myToken !== crossfadeToken) return; // superseded or already force-finished
-      from.pause();
-      from.classList.remove('visible');
-      state.crossfading = false;
-    }, CROSSFADE_MS + 80);
-  }
-
-  /* interactions (pause/seek/skip/stop) during a fade just snap it to completion first */
-  function finishCrossfadeImmediately(){
-    if (!state.crossfading) return;
-    crossfadeToken++;
-    const from = inactiveVideo();
-    const to = activeVideo();
-    from.pause(); from.currentTime = 0; from.classList.remove('visible');
-    setElementLevel(from, 1); // reset so this slot is at full level next time it's reused
-    setElementLevel(to, 1);
-    state.crossfading = false;
-  }
-
-  function goToIndex(newIndex){
-    if (state.crossfadeEnabled) crossfadeToIndex(newIndex);
-    else { finishCrossfadeImmediately(); state.posIndex = newIndex; loadCurrentTrack(true); }
   }
 
   function refreshNowPlayingUI(){
@@ -1374,8 +1169,7 @@
   }
 
   function setPlayPauseIcon(){
-    const video = activeVideo();
-    const playing = !video.paused && !video.ended;
+    const playing = !el.stageVideo.paused && !el.stageVideo.ended;
     el.miniPlayPause.innerHTML = playing ? ICONS.pause : ICONS.play;
     el.fpPlayPause.innerHTML = playing ? ICONS.pause : ICONS.play;
   }
@@ -1387,32 +1181,26 @@
   }
 
   function togglePlayPause(){
-    if (state.crossfading) finishCrossfadeImmediately();
-    const video = activeVideo();
-    if (!video.src) return;
-    resumeAudioGraph();
-    if (video.paused) video.play().catch(() => {});
-    else video.pause();
+    if (!el.stageVideo.src) return;
+    if (el.stageVideo.paused) el.stageVideo.play().catch(() => {});
+    else el.stageVideo.pause();
   }
   function nextTrack(){
     if (!state.playOrder.length) return;
-    let newIndex;
-    if (state.posIndex < state.playOrder.length - 1) newIndex = state.posIndex + 1;
-    else if (state.repeat) newIndex = 0;
-    else { finishCrossfadeImmediately(); activeVideo().pause(); return; }
-    goToIndex(newIndex);
+    if (state.posIndex < state.playOrder.length - 1) state.posIndex++;
+    else if (state.repeat) state.posIndex = 0;
+    else { el.stageVideo.pause(); return; }
+    loadCurrentTrack(true);
   }
   function prevTrack(){
     if (!state.playOrder.length) return;
-    if (!state.crossfading && activeVideo().currentTime > 3) { activeVideo().currentTime = 0; return; }
-    let newIndex;
-    if (state.posIndex > 0) newIndex = state.posIndex - 1;
-    else if (state.repeat) newIndex = state.playOrder.length - 1;
-    else { activeVideo().currentTime = 0; return; }
-    goToIndex(newIndex);
+    if (el.stageVideo.currentTime > 3) { el.stageVideo.currentTime = 0; return; }
+    if (state.posIndex > 0) state.posIndex--;
+    else if (state.repeat) state.posIndex = state.playOrder.length - 1;
+    else { el.stageVideo.currentTime = 0; return; }
+    loadCurrentTrack(true);
   }
   function toggleShuffle(){
-    finishCrossfadeImmediately();
     state.shuffle = !state.shuffle;
     const curId = getCurrentId();
     if (state.shuffle) {
@@ -1433,10 +1221,10 @@
 
   /* fully stop playback and clear the now-playing bar (distinct from pause) */
   function stopPlayback(){
-    finishCrossfadeImmediately();
-    [el.stageVideoA, el.stageVideoB].forEach(v => { v.pause(); v.removeAttribute('src'); v.load(); v.classList.remove('visible'); });
-    if (state.objectUrlA) { URL.revokeObjectURL(state.objectUrlA); state.objectUrlA = null; }
-    if (state.objectUrlB) { URL.revokeObjectURL(state.objectUrlB); state.objectUrlB = null; }
+    el.stageVideo.pause();
+    el.stageVideo.removeAttribute('src');
+    el.stageVideo.load();
+    if (state.currentObjectUrl) { URL.revokeObjectURL(state.currentObjectUrl); state.currentObjectUrl = null; }
     state.queueBase = []; state.queueLabel = ''; state.queueTrimmed = false; state.playOrder = []; state.posIndex = -1;
     collapsePlayer();
     refreshNowPlayingUI();
@@ -1448,37 +1236,25 @@
     dbDelete('meta', 'lastState').catch(() => {});
   }
 
-  function bindVideoEvents(video){
-    video.addEventListener('play', () => { if (video !== activeVideo()) return; setPlayPauseIcon(); if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'playing'; });
-    video.addEventListener('pause', () => { if (video !== activeVideo()) return; setPlayPauseIcon(); if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'paused'; saveState(); });
-    video.addEventListener('ended', () => { if (video !== activeVideo()) return; nextTrack(); });
-    video.addEventListener('timeupdate', () => {
-      if (video !== activeVideo()) return;
-      const d = video.duration || videoById(getCurrentId())?.duration || 0;
-      const pct = d ? (video.currentTime / d) * 100 : 0;
-      el.fpProgressFill.style.width = pct + '%';
-      el.miniProgress.style.width = pct + '%';
-      el.fpTimeCur.textContent = fmtTime(video.currentTime);
-      if ('mediaSession' in navigator && navigator.mediaSession.setPositionState && isFinite(d) && d > 0) {
-        try { navigator.mediaSession.setPositionState({ duration: d, playbackRate: 1, position: Math.min(video.currentTime, d) }); } catch (e) {}
-      }
-      // trigger the next track a little early — 5s for "Verkürzt" playlists, or just enough
-      // head start for the crossfade to finish right as this track would have ended
-      if (!state.crossfading && !state.earlyAdvanceDone && isFinite(d) && d > 0) {
-        const hasNext = state.posIndex < state.playOrder.length - 1 || state.repeat;
-        const trimThreshold = (state.queueTrimmed && d >= 10) ? 5 : 0;
-        const fadeThreshold = (state.crossfadeEnabled && d >= 6) ? (CROSSFADE_MS / 1000) : 0;
-        const threshold = Math.max(trimThreshold, fadeThreshold);
-        if (hasNext && threshold > 0 && (d - video.currentTime) <= threshold) {
-          state.earlyAdvanceDone = true;
-          nextTrack();
-        }
-      }
-      throttledSave();
-    });
-  }
-  bindVideoEvents(el.stageVideoA);
-  bindVideoEvents(el.stageVideoB);
+  el.stageVideo.addEventListener('play', () => { setPlayPauseIcon(); if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'playing'; });
+  el.stageVideo.addEventListener('pause', () => { setPlayPauseIcon(); if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'paused'; saveState(); });
+  el.stageVideo.addEventListener('ended', nextTrack);
+  el.stageVideo.addEventListener('timeupdate', () => {
+    const d = el.stageVideo.duration || videoById(getCurrentId())?.duration || 0;
+    const pct = d ? (el.stageVideo.currentTime / d) * 100 : 0;
+    el.fpProgressFill.style.width = pct + '%';
+    el.miniProgress.style.width = pct + '%';
+    el.fpTimeCur.textContent = fmtTime(el.stageVideo.currentTime);
+    if ('mediaSession' in navigator && navigator.mediaSession.setPositionState && isFinite(d) && d > 0) {
+      try { navigator.mediaSession.setPositionState({ duration: d, playbackRate: 1, position: Math.min(el.stageVideo.currentTime, d) }); } catch (e) {}
+    }
+    // "Verkürzt" playlists only: skip to the next track 5s before this one ends (if there's a next track)
+    if (state.queueTrimmed && !state.earlyAdvanceDone && isFinite(d) && d >= 10 && (d - el.stageVideo.currentTime) <= 5) {
+      const hasNext = state.posIndex < state.playOrder.length - 1 || state.repeat;
+      if (hasNext) { state.earlyAdvanceDone = true; nextTrack(); }
+    }
+    throttledSave();
+  });
 
   /* mini / full player controls */
   el.miniPlayer.addEventListener('click', (e) => {
@@ -1495,49 +1271,14 @@
   el.fpShuffle.addEventListener('click', toggleShuffle);
   el.fpRepeat.addEventListener('click', toggleRepeat);
   el.fpProgressBar.addEventListener('click', (e) => {
-    if (state.crossfading) finishCrossfadeImmediately();
     const rect = el.fpProgressBar.getBoundingClientRect();
     const ratio = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width));
-    const video = activeVideo();
-    const d = video.duration || 0;
-    if (d) video.currentTime = ratio * d;
+    const d = el.stageVideo.duration || 0;
+    if (d) el.stageVideo.currentTime = ratio * d;
   });
 
   function expandPlayer(){ el.fullPlayer.classList.remove('hidden'); state.playerExpanded = true; }
   function collapsePlayer(){ el.fullPlayer.classList.add('hidden'); state.playerExpanded = false; }
-
-  /* ================= Settings (crossfade + boost) ================= */
-  async function saveSettings(){
-    try { await dbPut('meta', { key: 'settings', value: { crossfadeEnabled: state.crossfadeEnabled, boostLevel: state.boostLevel } }); } catch (e) {}
-  }
-  async function loadSettings(){
-    try {
-      const rec = await dbGet('meta', 'settings');
-      if (rec && rec.value) {
-        state.crossfadeEnabled = !!rec.value.crossfadeEnabled;
-        state.boostLevel = rec.value.boostLevel || 1;
-      }
-    } catch (e) {}
-    el.crossfadeSwitch.classList.toggle('on', state.crossfadeEnabled);
-    el.boostSlider.value = Math.round(state.boostLevel * 100);
-    el.boostValue.textContent = Math.round(state.boostLevel * 100) + '%';
-  }
-  el.settingsBtn.addEventListener('click', () => el.settingsSheetBackdrop.classList.remove('hidden'));
-  el.settingsSheetClose.addEventListener('click', () => el.settingsSheetBackdrop.classList.add('hidden'));
-  el.settingsSheetBackdrop.addEventListener('click', (e) => { if (e.target === el.settingsSheetBackdrop) el.settingsSheetBackdrop.classList.add('hidden'); });
-  el.crossfadeSwitch.addEventListener('click', () => {
-    state.crossfadeEnabled = !state.crossfadeEnabled;
-    el.crossfadeSwitch.classList.toggle('on', state.crossfadeEnabled);
-    saveSettings();
-    toast(state.crossfadeEnabled ? 'Flüssiger Übergang an' : 'Flüssiger Übergang aus');
-  });
-  el.boostSlider.addEventListener('input', () => {
-    const level = Number(el.boostSlider.value) / 100;
-    if (level !== 1) { ensureAudioGraph(); resumeAudioGraph(); }
-    setBoostLevel(level);
-    el.boostValue.textContent = el.boostSlider.value + '%';
-  });
-  el.boostSlider.addEventListener('change', () => saveSettings());
 
   /* ================= Media Session (lock screen controls) ================= */
   function updateMediaSession(v){
@@ -1548,13 +1289,13 @@
       album: state.queueLabel,
       artwork: v.thumbnail ? [{ src: v.thumbnail, sizes: '240x240', type: 'image/jpeg' }] : []
     });
-    navigator.mediaSession.setActionHandler('play', () => { resumeAudioGraph(); activeVideo().play().catch(()=>{}); });
-    navigator.mediaSession.setActionHandler('pause', () => activeVideo().pause());
+    navigator.mediaSession.setActionHandler('play', () => el.stageVideo.play().catch(()=>{}));
+    navigator.mediaSession.setActionHandler('pause', () => el.stageVideo.pause());
     navigator.mediaSession.setActionHandler('previoustrack', prevTrack);
     navigator.mediaSession.setActionHandler('nexttrack', nextTrack);
     try {
       navigator.mediaSession.setActionHandler('seekto', (details) => {
-        if (details.seekTime != null) activeVideo().currentTime = details.seekTime;
+        if (details.seekTime != null) el.stageVideo.currentTime = details.seekTime;
       });
     } catch (e) {}
   }
@@ -1569,16 +1310,13 @@
         value: {
           queueBase: state.queueBase, queueLabel: state.queueLabel, queueTrimmed: state.queueTrimmed, playOrder: state.playOrder,
           posIndex: state.posIndex, shuffle: state.shuffle, repeat: state.repeat,
-          positionSec: activeVideo().currentTime || 0
+          positionSec: el.stageVideo.currentTime || 0
         }
       });
     } catch (e) {}
   }
   window.addEventListener('pagehide', saveState);
-  document.addEventListener('visibilitychange', () => {
-    if (document.hidden) saveState();
-    else resumeAudioGraph(); // in case boost/crossfade's Web Audio graph got suspended while hidden
-  });
+  document.addEventListener('visibilitychange', () => { if (document.hidden) saveState(); });
 
   async function restoreState(){
     try {
@@ -1596,11 +1334,9 @@
       state.shuffle = !!s.shuffle; state.repeat = !!s.repeat;
       const v = videoById(getCurrentId());
       if (!v) return;
-      const video = activeVideo();
-      setSlotSrc(video, v);
-      video.classList.add('visible');
-      video.addEventListener('loadedmetadata', () => { video.currentTime = s.positionSec || 0; }, { once: true });
-      if (state.boostLevel !== 1) ensureAudioGraph();
+      state.currentObjectUrl = URL.createObjectURL(v.blob);
+      el.stageVideo.src = state.currentObjectUrl;
+      el.stageVideo.addEventListener('loadedmetadata', () => { el.stageVideo.currentTime = s.positionSec || 0; }, { once: true });
       refreshNowPlayingUI();
       updateMediaSession(v);
       markPlayingRow();
@@ -1624,7 +1360,6 @@
     renderLibrary();
     renderPlaylists();
     updateStorageLine();
-    await loadSettings();
     await restoreState();
   }
   boot();
