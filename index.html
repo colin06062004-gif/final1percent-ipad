@@ -2,9 +2,9 @@
 <html lang="de">
 <head>
 <meta charset="utf-8">
-<title>GymVault</title>
+<title>Final 1%</title>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#161310">
+<meta name="theme-color" content="#0E0909">
 <meta name="description" content="Lade Videos aus deiner Galerie, erstelle Playlists und spiele sie sortiert oder gemischt ab.">
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon-512.png" type="image/png">
@@ -12,61 +12,34 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="GymVault">
+<meta name="apple-mobile-web-app-title" content="Final 1%">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..800&family=Karla:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 
 <style>
-  /* ---------- Tokens ---------- */
+  /* ---------- Tokens ----------
+     Deliberately single-theme: a neon-on-black identity doesn't have a light-mode
+     equivalent worth making, so this commits to the dark palette outright. */
   :root{
-    --bg:#F5F1E8;
-    --surface:#FFFFFF;
-    --surface-2:#EEE7D8;
-    --ink:#211C16;
-    --ink-muted:#756B59;
-    --ink-faint:#A79C88;
-    --line:#E2D9C5;
-    --accent:#C1521C;
-    --accent-ink:#FFF6EC;
-    --danger:#B23A2E;
-    --danger-ink:#FFF6EC;
-    --shadow:0 12px 28px -14px rgba(33,28,22,.35);
+    --bg:#0E0909;
+    --surface:#181010;
+    --surface-2:#221717;
+    --ink:#F5E7E7;
+    --ink-muted:#A8898B;
+    --ink-faint:#6E5658;
+    --line:#301D1E;
+    --accent:#E4202C;
+    --accent-glow:#FF4D5E;
+    --accent-ink:#FCEAEA;
+    --danger:#E2604A;
+    --danger-ink:#1A0708;
+    --shadow:0 12px 28px -14px rgba(0,0,0,.7);
     --radius-s:6px;
     --radius-m:10px;
     --font-display:'Bricolage Grotesque',ui-sans-serif,system-ui,sans-serif;
     --font-body:'Karla',ui-sans-serif,system-ui,sans-serif;
     --font-mono:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
-  }
-  @media (prefers-color-scheme: dark){
-    :root:not([data-theme="light"]){
-      --bg:#161310;
-      --surface:#1F1B16;
-      --surface-2:#292319;
-      --ink:#F3ECDF;
-      --ink-muted:#A99C86;
-      --ink-faint:#6E6353;
-      --line:#332C22;
-      --accent:#F0913D;
-      --accent-ink:#1A1108;
-      --danger:#E2604A;
-      --danger-ink:#1A1108;
-      --shadow:0 12px 28px -14px rgba(0,0,0,.6);
-    }
-  }
-  :root[data-theme="dark"]{
-    --bg:#161310;
-    --surface:#1F1B16;
-    --surface-2:#292319;
-    --ink:#F3ECDF;
-    --ink-muted:#A99C86;
-    --ink-faint:#6E6353;
-    --line:#332C22;
-    --accent:#F0913D;
-    --accent-ink:#1A1108;
-    --danger:#E2604A;
-    --danger-ink:#1A1108;
-    --shadow:0 12px 28px -14px rgba(0,0,0,.6);
   }
 
   *{box-sizing:border-box;}
@@ -115,8 +88,8 @@
     gap:8px;
   }
   .wordmark .sprocket-dot{
-    width:9px;height:9px;border-radius:50%;background:var(--accent);
-    box-shadow:0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent);
+    width:8px;height:8px;border-radius:50%;background:var(--accent-glow);
+    box-shadow:0 0 8px 1px var(--accent), 0 0 2px var(--accent-glow);
   }
   .icon-btn{
     width:38px;height:38px;
@@ -176,7 +149,8 @@
   }
   .track-row.playing::before{
     border-color:var(--accent);
-    background:var(--accent);
+    background:var(--accent-glow);
+    box-shadow:0 0 6px 0 var(--accent);
   }
   .track-row:active{background:var(--surface-2);}
   .track-thumb{
@@ -218,20 +192,38 @@
     display:inline-flex;align-items:center;gap:7px;
   }
   .btn svg{width:16px;height:16px;}
-  .btn.solid{background:var(--accent);color:var(--accent-ink);}
-  .btn.solid:active{filter:brightness(.92);}
-  .btn.ghost{background:var(--surface-2);color:var(--ink);}
+  .btn.solid{
+    background:var(--surface-2);color:var(--accent-glow);
+    border:1px solid var(--accent);
+    box-shadow:0 0 10px -2px var(--accent);
+  }
+  .btn.solid:active{filter:brightness(1.25);}
+  .btn.ghost{background:var(--surface-2);color:var(--ink);border:1px solid transparent;}
   .btn.ghost:active{background:var(--line);}
-  .btn.danger-ghost{background:var(--surface-2);color:var(--danger);}
+  .btn.danger-ghost{background:var(--surface-2);color:var(--danger);border:1px solid transparent;}
 
   .empty-state{
-    padding:48px 12px;
+    position:relative;
+    padding:48px 12px 120px;
     text-align:center;
     color:var(--ink-muted);
+    min-height:320px;
+  }
+  .empty-state::before{
+    content:'';
+    position:absolute;
+    left:50%;top:56%;
+    transform:translate(-50%,-50%);
+    width:220px;height:284px;
+    background:url('watermark-helmet.png') center/contain no-repeat;
+    opacity:.16;
+    filter:drop-shadow(0 0 26px var(--accent));
+    pointer-events:none;
+    z-index:0;
   }
   .empty-state svg{width:34px;height:34px;color:var(--ink-faint);margin-bottom:12px;}
-  .empty-state p{margin:0;font-size:14px;line-height:1.5;}
-  .empty-state .hint{font-family:var(--font-mono);font-size:11.5px;color:var(--ink-faint);margin-top:6px;}
+  .empty-state p{position:relative;z-index:1;margin:0;font-size:14px;line-height:1.5;}
+  .empty-state .hint{position:relative;z-index:1;font-family:var(--font-mono);font-size:11.5px;color:var(--ink-faint);margin-top:6px;}
 
   /* Playlist detail */
   .back-row{display:flex;align-items:center;gap:10px;padding:10px 0 4px;color:var(--ink-muted);font-size:13.5px;font-weight:600;}
@@ -308,12 +300,13 @@
   .fab-import{
     pointer-events:auto;
     width:52px;height:52px;border-radius:50%;
-    background:var(--accent);color:var(--accent-ink);
+    background:var(--bg);color:var(--accent-glow);
+    border:1.5px solid var(--accent);
     display:flex;align-items:center;justify-content:center;
-    box-shadow:var(--shadow);
+    box-shadow:var(--shadow), 0 0 16px -3px var(--accent), 0 0 3px var(--accent-glow);
   }
   .fab-import svg{width:24px;height:24px;}
-  .fab-import:active{filter:brightness(.92);}
+  .fab-import:active{filter:brightness(1.3);}
 
   /* ---------- Full player ---------- */
   .full-player{
@@ -354,9 +347,14 @@
   }
   .fp-controls .icon-btn{width:44px;height:44px;color:var(--ink-muted);}
   .fp-controls .icon-btn svg{width:22px;height:22px;}
-  .fp-controls .icon-btn.big{width:62px;height:62px;background:var(--accent);color:var(--accent-ink);border-radius:50%;}
+  .fp-controls .icon-btn.big{
+    width:62px;height:62px;border-radius:50%;
+    background:var(--bg);color:var(--accent-glow);
+    border:1.5px solid var(--accent);
+    box-shadow:0 0 18px -3px var(--accent), 0 0 3px var(--accent-glow);
+  }
   .fp-controls .icon-btn.big svg{width:26px;height:26px;}
-  .fp-controls .icon-btn.toggled{color:var(--accent);}
+  .fp-controls .icon-btn.toggled{color:var(--accent-glow);filter:drop-shadow(0 0 5px var(--accent));}
   .fp-bottom-space{padding-bottom:calc(24px + env(safe-area-inset-bottom,0));}
 
   /* ---------- Sheet ---------- */
@@ -426,7 +424,7 @@
 <div class="app">
 
   <header class="topbar">
-    <div class="wordmark"><span class="sprocket-dot"></span>GymVault</div>
+    <div class="wordmark"><span class="sprocket-dot"></span>Final 1%</div>
   </header>
 
   <input id="fileInput" type="file" accept="video/*" multiple class="visually-hidden">
@@ -1285,7 +1283,7 @@
     if (!('mediaSession' in navigator)) return;
     navigator.mediaSession.metadata = new MediaMetadata({
       title: v.name,
-      artist: 'GymVault',
+      artist: 'Final 1%',
       album: state.queueLabel,
       artwork: v.thumbnail ? [{ src: v.thumbnail, sizes: '240x240', type: 'image/jpeg' }] : []
     });
