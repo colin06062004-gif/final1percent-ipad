@@ -1278,8 +1278,10 @@
     setSlotSrc(video, v);
     video.currentTime = 0;
     state.earlyAdvanceDone = false;
-    ensureAudioGraph();
-    resumeAudioGraph();
+    // Only route audio through Web Audio when something actually needs it (the boost slider).
+    // Plain playback stays on the element's native audio path, which is the one iOS reliably
+    // keeps running with the screen locked — the Web Audio graph is not.
+    if (state.boostLevel !== 1) { ensureAudioGraph(); resumeAudioGraph(); }
     setElementLevel(video, 1); // after ensureAudioGraph, so a slot reused from a faded-out crossfade is back at full level
     video.classList.add('visible');
     if (autoplay) video.play().catch(() => {});
@@ -1531,6 +1533,7 @@
   });
   el.boostSlider.addEventListener('input', () => {
     const level = Number(el.boostSlider.value) / 100;
+    if (level !== 1) { ensureAudioGraph(); resumeAudioGraph(); }
     setBoostLevel(level);
     el.boostValue.textContent = el.boostSlider.value + '%';
   });
@@ -1572,7 +1575,10 @@
     } catch (e) {}
   }
   window.addEventListener('pagehide', saveState);
-  document.addEventListener('visibilitychange', () => { if (document.hidden) saveState(); });
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) saveState();
+    else resumeAudioGraph(); // in case boost/crossfade's Web Audio graph got suspended while hidden
+  });
 
   async function restoreState(){
     try {
@@ -1594,7 +1600,7 @@
       setSlotSrc(video, v);
       video.classList.add('visible');
       video.addEventListener('loadedmetadata', () => { video.currentTime = s.positionSec || 0; }, { once: true });
-      ensureAudioGraph();
+      if (state.boostLevel !== 1) ensureAudioGraph();
       refreshNowPlayingUI();
       updateMediaSession(v);
       markPlayingRow();
