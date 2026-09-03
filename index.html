@@ -46,15 +46,12 @@
   @media (prefers-reduced-motion: reduce){
     *{animation-duration:.001ms !important;transition-duration:.001ms !important;}
   }
-  /* The shell is pinned to the viewport: the page itself never scrolls or rubber-bands,
-     only .views does. Together with the locked viewport meta and the pinch guards in JS
-     this keeps the app sitting still in the screen frame instead of drifting under a
-     zoom or an address bar that slides in and out. */
-  html,body{height:100%;overflow:hidden;}
+  /* Zoom is blocked (viewport meta, touch-action, gesture guards in JS) but the shell
+     is deliberately NOT position:fixed — that pins the tab bar to the small viewport and
+     leaves it floating above the home indicator instead of flush with the screen edge. */
+  html,body{height:100%;}
   body{
     margin:0;
-    position:fixed;
-    top:0;left:0;right:0;bottom:0;
     background:var(--bg);
     color:var(--ink);
     font-family:var(--font-body);
@@ -74,7 +71,7 @@
   .app{
     max-width:520px;
     margin:0 auto;
-    height:100%;
+    min-height:100dvh;
     display:flex;
     flex-direction:column;
     background:var(--bg);
@@ -110,18 +107,26 @@
   .icon-btn.primary{background:var(--accent);color:var(--accent-ink);}
   .icon-btn.primary:active{filter:brightness(.92);}
 
-  .views{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;padding:2px 18px 130px;}
+  /* Brand watermark: one fixed layer behind every view, so the helmet stays put once the
+     library fills up and is never cropped — background-size:contain always fits it whole. */
+  .app::before{
+    content:'';
+    position:fixed;
+    left:50%;top:50%;
+    transform:translate(-50%,-50%);
+    width:min(82vw, 350px);
+    height:min(59vw, 251px);
+    background:url('watermark-helmet.png') center/contain no-repeat;
+    opacity:.19;
+    filter:drop-shadow(0 0 26px var(--accent));
+    pointer-events:none;
+    z-index:0;
+  }
+  .topbar{position:relative;z-index:1;}
+  .views{position:relative;z-index:1;flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;padding:2px 18px 130px;}
   .view{display:none;}
   .view.active{display:block;}
 
-  .storage-line{
-    font-family:var(--font-mono);
-    font-size:12px;
-    color:var(--ink-faint);
-    padding:2px 2px 14px;
-    display:flex;
-    justify-content:space-between;
-  }
 
   /* sprocket rail: perforation motif running down the list edge */
   .track-list{
@@ -136,7 +141,9 @@
     padding:9px 8px;
     border-radius:var(--radius-s);
     transition:transform .15s ease;
-    background:var(--bg);
+    /* Deliberately transparent so the watermark stays visible behind a full list.
+       A row being dragged paints its own opaque background and rides above the rest. */
+    background:transparent;
   }
   .track-row.dragging{
     transition:none;
@@ -212,27 +219,13 @@
   .btn.danger-ghost{background:var(--surface-2);color:var(--danger);border:1px solid transparent;}
 
   .empty-state{
-    position:relative;
-    padding:48px 12px 120px;
+    padding:48px 12px;
     text-align:center;
     color:var(--ink-muted);
-    min-height:320px;
-  }
-  .empty-state::before{
-    content:'';
-    position:absolute;
-    left:50%;top:56%;
-    transform:translate(-50%,-50%);
-    width:220px;height:284px;
-    background:url('watermark-helmet.png') center/contain no-repeat;
-    opacity:.16;
-    filter:drop-shadow(0 0 26px var(--accent));
-    pointer-events:none;
-    z-index:0;
   }
   .empty-state svg{width:34px;height:34px;color:var(--ink-faint);margin-bottom:12px;}
-  .empty-state p{position:relative;z-index:1;margin:0;font-size:14px;line-height:1.5;}
-  .empty-state .hint{position:relative;z-index:1;font-family:var(--font-mono);font-size:11.5px;color:var(--ink-faint);margin-top:6px;}
+  .empty-state p{margin:0;font-size:14px;line-height:1.5;}
+  .empty-state .hint{font-family:var(--font-mono);font-size:11.5px;color:var(--ink-faint);margin-top:6px;}
 
   /* Playlist detail */
   .back-row{display:flex;align-items:center;gap:10px;padding:10px 0 4px;color:var(--ink-muted);font-size:13.5px;font-weight:600;}
@@ -469,7 +462,6 @@
   <main class="views">
 
     <section id="view-library" class="view active">
-      <div class="storage-line"><span id="storageText"></span><span id="libCount"></span></div>
       <ul id="libraryList" class="track-list"></ul>
       <div id="libraryEmpty" class="empty-state" hidden>
         <p>Noch keine Videos geladen.</p>
@@ -481,7 +473,7 @@
       <div class="section-head">
         <h2>Playlists</h2>
         <div class="section-head-actions">
-          <button id="newPlaylistBtn" class="btn ghost">Neue Playlist</button>
+          <button id="newPlaylistBtn" class="btn solid">Neue Playlist</button>
           <button id="newTrimmedPlaylistBtn" class="btn ghost">Verkürzt</button>
         </div>
       </div>
@@ -685,7 +677,6 @@
   const $ = (sel) => document.querySelector(sel);
   const el = {
     importBtn: $('#importBtn'), fileInput: $('#fileInput'), coverInput: $('#coverInput'),
-    storageText: $('#storageText'), libCount: $('#libCount'),
     libraryList: $('#libraryList'), libraryEmpty: $('#libraryEmpty'),
     playlistsList: $('#playlistsList'), playlistsEmpty: $('#playlistsEmpty'), newPlaylistBtn: $('#newPlaylistBtn'), newTrimmedPlaylistBtn: $('#newTrimmedPlaylistBtn'),
     pdBack: $('#pdBack'), pdTitle: $('#pdTitle'), pdCount: $('#pdCount'), pdList: $('#pdList'), pdEmpty: $('#pdEmpty'),
@@ -731,12 +722,6 @@
     if (!isFinite(sec) || sec < 0) sec = 0;
     const m = Math.floor(sec/60), s = Math.floor(sec%60);
     return m + ':' + String(s).padStart(2,'0');
-  }
-  function fmtBytes(n){
-    if (!n) return '0 MB';
-    const mb = n / (1024*1024);
-    if (mb < 1024) return mb.toFixed(mb < 10 ? 1 : 0) + ' MB';
-    return (mb/1024).toFixed(1) + ' GB';
   }
   let toastTimer = null;
   function toast(msg){
@@ -861,27 +846,11 @@
       } catch (e) { console.error('Import fehlgeschlagen', e); }
     }
     renderLibrary();
-    updateStorageLine();
     toast(ok + ' Video' + (ok !== 1 ? 's' : '') + ' hinzugefügt');
   });
 
-  async function updateStorageLine(){
-    try {
-      if (navigator.storage && navigator.storage.estimate) {
-        const { usage, quota } = await navigator.storage.estimate();
-        let note = '';
-        if (navigator.storage.persisted) {
-          const persisted = await navigator.storage.persisted();
-          note = persisted ? '' : ' · nicht dauerhaft gesichert';
-        }
-        el.storageText.textContent = fmtBytes(usage) + ' von ' + fmtBytes(quota) + ' belegt' + note;
-      } else { el.storageText.textContent = ''; }
-    } catch (e) { el.storageText.textContent = ''; }
-  }
-
   /* ================= Rendering: Library ================= */
   function renderLibrary(){
-    el.libCount.textContent = state.videos.length + (state.videos.length === 1 ? ' Video' : ' Videos');
     el.libraryList.innerHTML = '';
     el.libraryEmpty.hidden = state.videos.length > 0;
     state.videos.slice().sort((a,b) => a.addedAt - b.addedAt).forEach((v) => {
@@ -958,7 +927,6 @@
     }
     renderLibrary(); renderPlaylists();
     if (state.view === 'playlistDetail') renderPlaylistDetail();
-    updateStorageLine();
     toast('Video gelöscht');
   }
 
@@ -1225,6 +1193,8 @@
     document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
     $('#view-' + view).classList.add('active');
     el.tabs.forEach(t => t.classList.toggle('active', t.dataset.view === view || (view === 'playlistDetail' && t.dataset.view === 'playlists')));
+    // Import belongs to the library; playlists fill themselves from it via "+ Videos".
+    el.fabWrap.hidden = view !== 'library';
     el.views.scrollTop = 0;
   }
   el.views = $('.views');
@@ -1495,7 +1465,6 @@
     }
     renderLibrary();
     renderPlaylists();
-    updateStorageLine();
     await restoreState();
   }
   boot();
