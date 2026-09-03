@@ -135,6 +135,9 @@
   }
   .track-row{
     position:relative;
+    /* pan-y hands vertical scrolling to the browser and keeps horizontal drags for the
+       swipe-to-queue gesture below. */
+    touch-action:pan-y;
     display:flex;
     align-items:center;
     gap:12px;
@@ -191,6 +194,26 @@
     margin-top:2px;
   }
   .track-actions{display:flex;align-items:center;gap:2px;flex-shrink:0;}
+  /* Marker for a video sitting in the queue — same glyph as the queue button in the player. */
+  .queued-badge{
+    display:flex;align-items:center;justify-content:center;
+    width:24px;height:24px;flex-shrink:0;
+    color:var(--accent-glow);
+    filter:drop-shadow(0 0 5px var(--accent));
+  }
+  .queued-badge svg{width:15px;height:15px;}
+  /* Sits still while the row slides out from under it: the row sets --sw, the hint undoes it. */
+  .swipe-hint{
+    position:absolute;right:8px;top:50%;
+    transform:translate(calc(-1 * var(--sw, 0px)), -50%);
+    display:flex;align-items:center;gap:6px;
+    font-family:var(--font-mono);font-size:10.5px;letter-spacing:.6px;text-transform:uppercase;
+    color:var(--accent-glow);
+    opacity:0;pointer-events:none;white-space:nowrap;
+  }
+  .track-row.swiping .swipe-hint{opacity:.7;}
+  .track-row.will-queue .swipe-hint{opacity:1;filter:drop-shadow(0 0 6px var(--accent));}
+  .swipe-hint svg{width:15px;height:15px;}
   .track-actions .icon-btn{width:32px;height:32px;color:var(--ink-faint);}
   .track-actions .icon-btn svg{width:17px;height:17px;}
   .track-actions .icon-btn.danger:active{color:var(--danger);}
@@ -350,6 +373,7 @@
   .fp-top-actions{display:flex;align-items:center;gap:4px;}
   .fp-kicker{font-family:var(--font-mono);font-size:11px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:1px;}
   .fp-stage{
+    position:relative;
     flex:1;
     display:flex;align-items:center;justify-content:center;
     padding:10px 22px;
@@ -370,9 +394,16 @@
   }
   .fp-progress-fill{position:absolute;left:0;top:0;height:100%;border-radius:2px;background:var(--accent);width:0%;}
   .fp-times{display:flex;justify-content:space-between;font-family:var(--font-mono);font-size:11px;color:var(--ink-faint);padding-top:7px;}
+  /* Six controls now, so the gap gives way before the buttons do. */
   .fp-controls{
-    display:flex;align-items:center;justify-content:center;gap:22px;
-    padding:14px 24px 8px;
+    display:flex;align-items:center;justify-content:center;
+    gap:clamp(6px, 3.4vw, 20px);
+    padding:14px 16px 8px;
+  }
+  @media (max-width: 360px){
+    .fp-controls{gap:6px;padding:14px 8px 8px;}
+    .fp-controls .icon-btn{width:40px;height:40px;}
+    .fp-controls .icon-btn.big{width:56px;height:56px;}
   }
   .fp-controls .icon-btn{width:44px;height:44px;color:var(--ink-muted);}
   .fp-controls .icon-btn svg{width:22px;height:22px;}
@@ -384,6 +415,16 @@
   }
   .fp-controls .icon-btn.big svg{width:26px;height:26px;}
   .fp-controls .icon-btn.toggled{color:var(--accent-glow);filter:drop-shadow(0 0 5px var(--accent));}
+  /* Audio-only: the video keeps playing but is faded out behind the helmet, because
+     display:none on a playing <video> is what breaks audio on iOS. */
+  .fp-art{
+    position:absolute;inset:0;display:none;
+    background:url('watermark-helmet.png') center/contain no-repeat;
+    filter:drop-shadow(0 0 30px var(--accent));
+    opacity:.85;pointer-events:none;
+  }
+  body.audio-only .fp-art{display:block;}
+  body.audio-only #stageVideo{opacity:0;}
   .fp-bottom-space{padding-bottom:calc(24px + env(safe-area-inset-bottom,0));}
 
   /* ---------- Sheet ---------- */
@@ -413,6 +454,58 @@
   .pick-row.checked .pick-check{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);}
   .pick-check svg{width:13px;height:13px;}
   .pick-thumb{width:36px;height:36px;border-radius:5px;object-fit:cover;background:var(--surface-2);flex-shrink:0;}
+  .queue-list .track-row::before{display:none;}
+  .queue-list .track-row{padding:8px 2px;touch-action:pan-y;}
+  .queue-list{border:none;padding-left:0;}
+  .queue-note{
+    font-family:var(--font-mono);font-size:11px;color:var(--ink-faint);
+    padding:10px 18px 0;line-height:1.5;
+  }
+
+  /* ---------- Settings ---------- */
+  .settings-list{display:flex;flex-direction:column;}
+  .setting-row{display:flex;align-items:center;gap:14px;padding:15px 2px;border-bottom:1px solid var(--line);}
+  .setting-text{flex:1;min-width:0;}
+  .setting-label{font-size:14.5px;font-weight:600;}
+  .setting-hint{font-size:12.5px;color:var(--ink-muted);margin-top:4px;line-height:1.45;}
+  .switch{
+    width:50px;height:30px;flex-shrink:0;padding:0;position:relative;
+    border-radius:15px;background:var(--surface-2);border:1px solid var(--line);
+    transition:border-color .15s ease,box-shadow .15s ease;
+  }
+  .switch-knob{
+    position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;
+    background:var(--ink-faint);transition:transform .15s ease,background .15s ease;
+  }
+  .switch[aria-checked="true"]{border-color:var(--accent);box-shadow:0 0 10px -2px var(--accent);}
+  .switch[aria-checked="true"] .switch-knob{transform:translateX(20px);background:var(--accent-glow);box-shadow:0 0 8px 0 var(--accent);}
+
+  /* ---------- Cover cropper ---------- */
+  .crop-backdrop{
+    position:fixed;inset:0;z-index:40;
+    background:#000;
+    max-width:520px;margin:0 auto;
+    display:flex;flex-direction:column;
+  }
+  .crop-backdrop.hidden{display:none;}
+  .crop-title{
+    text-align:center;font-size:15px;font-weight:600;
+    padding:calc(16px + env(safe-area-inset-top,0px)) 16px 4px;
+  }
+  .crop-sub{text-align:center;font-family:var(--font-mono);font-size:11px;color:var(--ink-faint);padding-bottom:10px;}
+  .crop-stage{position:relative;flex:1;overflow:hidden;touch-action:none;}
+  .crop-stage img{position:absolute;left:0;top:0;transform-origin:0 0;user-select:none;-webkit-user-drag:none;}
+  .crop-frame{
+    position:absolute;border-radius:var(--radius-m);
+    box-shadow:0 0 0 9999px rgba(0,0,0,.74);
+    border:1px solid rgba(255,255,255,.55);
+    pointer-events:none;
+  }
+  .crop-actions{
+    display:flex;align-items:center;justify-content:space-between;gap:12px;
+    padding:14px 18px calc(16px + env(safe-area-inset-bottom,0px));
+  }
+
   .pick-name{font-size:13.5px;font-weight:500;text-align:left;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 
   /* ---------- Toast ---------- */
@@ -509,11 +602,25 @@
       </div>
     </section>
 
+    <section id="view-settings" class="view">
+      <div class="section-head"><h2>Einstellungen</h2></div>
+      <ul class="settings-list">
+        <li class="setting-row">
+          <div class="setting-text">
+            <div class="setting-label">Videobild ausblenden</div>
+            <div class="setting-hint">Spielt nur den Ton ab. Im Player erscheint statt des Videobilds der Helm.</div>
+          </div>
+          <button id="setAudioOnly" class="switch" role="switch" aria-checked="false" aria-label="Videobild ausblenden"><span class="switch-knob"></span></button>
+        </li>
+      </ul>
+    </section>
+
   </main>
 
   <nav class="tabbar">
     <button class="tab active" data-view="library"></button>
     <button class="tab" data-view="playlists"></button>
+    <button class="tab" data-view="settings"></button>
   </nav>
 
   <div id="fabWrap" class="fab-wrap">
@@ -544,6 +651,7 @@
     </div>
     <div class="fp-stage">
       <video id="stageVideo" playsinline></video>
+      <div class="fp-art" aria-hidden="true"></div>
     </div>
     <div class="fp-meta">
       <h3 class="fp-title" id="fpTitle"></h3>
@@ -559,6 +667,7 @@
       <button id="fpPlayPause" class="icon-btn big" aria-label="Abspielen/Pause"></button>
       <button id="fpNext" class="icon-btn" aria-label="Nächstes Video"></button>
       <button id="fpRepeat" class="icon-btn" aria-label="Wiederholen"></button>
+      <button id="fpQueue" class="icon-btn" aria-label="Warteschlange anzeigen"></button>
     </div>
     <div class="fp-bottom-space"></div>
   </div>
@@ -570,6 +679,29 @@
         <button id="pickSheetClose" class="icon-btn" aria-label="Schließen"></button>
       </div>
       <ul id="pickSheetList" class="sheet-body"></ul>
+    </div>
+  </div>
+
+  <div id="queueSheetBackdrop" class="sheet-backdrop hidden">
+    <div class="sheet">
+      <div class="sheet-head">
+        <h3>Warteschlange</h3>
+        <button id="queueSheetClose" class="icon-btn" aria-label="Schließen"></button>
+      </div>
+      <div class="queue-note" id="queueNote"></div>
+      <ul id="queueList" class="sheet-body queue-list"></ul>
+    </div>
+  </div>
+
+  <div id="cropBackdrop" class="crop-backdrop hidden">
+    <div class="crop-title">Bewegen und skalieren</div>
+    <div class="crop-sub">Ziehen zum Verschieben · zwei Finger zum Zoomen</div>
+    <div class="crop-stage" id="cropStage">
+      <div class="crop-frame" id="cropFrame"></div>
+    </div>
+    <div class="crop-actions">
+      <button id="cropCancel" class="btn ghost">Abbrechen</button>
+      <button id="cropConfirm" class="btn solid">Auswählen</button>
     </div>
   </div>
 
@@ -607,6 +739,8 @@
     film:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="4" width="18" height="16" rx="1.5"/><path d="M7 4v16M17 4v16M3 9h4M3 15h4M17 9h4M17 15h4"/></svg>`,
     check:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>`,
     listMusic:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h11M4 12h11M4 18h7"/><circle cx="19" cy="16" r="2.3"/><path d="M21.3 16V7l-3 1"/></svg>`,
+    queue:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h12M3 12h12M3 18h7"/><path d="M16.5 13.5l5.5 3.3-5.5 3.3z" fill="currentColor" stroke="none"/></svg>`,
+    settings:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.1"/><path d="M12 2.6l1.5 2.6 3-.4.5 3 2.7 1.4-1.4 2.7 1.4 2.7-2.7 1.4-.5 3-3-.4L12 21.4l-1.5-2.6-3 .4-.5-3-2.7-1.4L3.7 12 2.3 9.3l2.7-1.4.5-3 3 .4z"/></svg>`,
     image:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2.5"/><circle cx="8.6" cy="9.6" r="1.7"/><path d="M20.5 15.5L16 11l-8.5 8.5"/></svg>`,
     camera:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="2.5"/><path d="M9 7l1.4-2h3.2L15 7"/><circle cx="12" cy="13.5" r="3.2"/></svg>`,
     grip:`<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></svg>`
@@ -661,7 +795,11 @@
     playlists: [],     // {id,name,videoIds:[],createdAt,trimmed,cover?} — cover is a square JPEG data URL
     view: 'library',
     activePlaylistId: null,
+    settings: { audioOnly: false },
     // playback
+    currentId: null,    // id of the loaded track — may come from playOrder OR from the manual queue
+    queue: [],          // manual "play next" entries {id, marked}; marked = put there by the user
+    queueView: [],      // what the queue sheet currently shows, keyed so reordering can map back
     queueBase: [],      // array of video ids, natural order
     queueLabel: '',      // e.g. playlist name or "Bibliothek"
     queueTrimmed: false, // true only for playlists marked "Verkürzt" — library never trims
@@ -690,7 +828,10 @@
     stageVideo: $('#stageVideo'),
     fpTitle: $('#fpTitle'), fpContext: $('#fpContext'),
     fpProgressBar: $('#fpProgressBar'), fpProgressFill: $('#fpProgressFill'), fpTimeCur: $('#fpTimeCur'), fpTimeDur: $('#fpTimeDur'),
-    fpShuffle: $('#fpShuffle'), fpPrev: $('#fpPrev'), fpPlayPause: $('#fpPlayPause'), fpNext: $('#fpNext'), fpRepeat: $('#fpRepeat'),
+    fpShuffle: $('#fpShuffle'), fpPrev: $('#fpPrev'), fpPlayPause: $('#fpPlayPause'), fpNext: $('#fpNext'), fpRepeat: $('#fpRepeat'), fpQueue: $('#fpQueue'),
+    queueSheetBackdrop: $('#queueSheetBackdrop'), queueSheetClose: $('#queueSheetClose'), queueList: $('#queueList'), queueNote: $('#queueNote'),
+    cropBackdrop: $('#cropBackdrop'), cropStage: $('#cropStage'), cropFrame: $('#cropFrame'), cropCancel: $('#cropCancel'), cropConfirm: $('#cropConfirm'),
+    setAudioOnly: $('#setAudioOnly'),
     pickSheetBackdrop: $('#pickSheetBackdrop'), pickSheetList: $('#pickSheetList'), pickSheetClose: $('#pickSheetClose'),
     dialogBackdrop: $('#dialogBackdrop'), dialogTitle: $('#dialogTitle'), dialogText: $('#dialogText'),
     dialogInput: $('#dialogInput'), dialogCancel: $('#dialogCancel'), dialogConfirm: $('#dialogConfirm'),
@@ -712,9 +853,12 @@
   el.fpPlayPause.innerHTML = ICONS.play;
   el.fpNext.innerHTML = ICONS.next;
   el.fpRepeat.innerHTML = ICONS.repeat;
+  el.fpQueue.innerHTML = ICONS.queue;
   el.pickSheetClose.innerHTML = ICONS.close;
+  el.queueSheetClose.innerHTML = ICONS.close;
   document.querySelector('.tab[data-view="library"]').innerHTML = ICONS.film + '<span>Bibliothek</span>';
   document.querySelector('.tab[data-view="playlists"]').innerHTML = ICONS.listMusic + '<span>Playlists</span>';
+  document.querySelector('.tab[data-view="settings"]').innerHTML = ICONS.settings + '<span>Einstellungen</span>';
 
   /* ================= Helpers ================= */
   function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,9); }
@@ -792,37 +936,142 @@
     });
   }
 
-  /* Playlist cover: center-cropped to a square and downscaled, so a full-resolution
-     photo from the camera roll doesn't park several megabytes of data URL in IndexedDB. */
+  /* ================= Cover cropper =================
+     The picked photo is shown under a square frame that the user pans and pinches; only the
+     part inside the frame becomes the cover. Rendering and export both go through the same
+     <img>, so what the frame shows is exactly what gets written (EXIF rotation included). */
   const COVER_SIZE = 512;
-  function decodeViaImg(file){
+  const crop = { el: null, url: null, iw: 0, ih: 0, s: 1, sMin: 1, tx: 0, ty: 0, F: 0, fx: 0, fy: 0, resolve: null };
+
+  function loadImageForCrop(file){
     return new Promise((resolve, reject) => {
       const img = new Image();
       const url = URL.createObjectURL(file);
-      img.onload = () => { URL.revokeObjectURL(url); resolve(img); };
+      img.onload = () => resolve({ img, url });
       img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Bild konnte nicht gelesen werden')); };
       img.src = url;
     });
   }
-  function loadImageSource(file){
-    try {
-      if (window.createImageBitmap) {
-        return createImageBitmap(file, { imageOrientation: 'from-image' }).catch(() => decodeViaImg(file));
+
+  function clampCrop(){
+    const w = crop.iw * crop.s, h = crop.ih * crop.s;
+    crop.tx = Math.min(0, Math.max(crop.F - w, crop.tx));
+    crop.ty = Math.min(0, Math.max(crop.F - h, crop.ty));
+  }
+  function applyCrop(){
+    if (crop.el) crop.el.style.transform = `translate(${crop.fx + crop.tx}px, ${crop.fy + crop.ty}px) scale(${crop.s})`;
+  }
+  function layoutCrop(keepScale){
+    const st = el.cropStage.getBoundingClientRect();
+    const F = Math.max(120, Math.min(st.width - 36, st.height - 36, 340));
+    crop.F = F;
+    crop.fx = (st.width - F) / 2;
+    crop.fy = (st.height - F) / 2;
+    el.cropFrame.style.cssText = `left:${crop.fx}px;top:${crop.fy}px;width:${F}px;height:${F}px;`;
+    crop.sMin = Math.max(F / crop.iw, F / crop.ih);
+    if (!keepScale || crop.s < crop.sMin) {
+      crop.s = crop.sMin;
+      crop.tx = (F - crop.iw * crop.s) / 2;
+      crop.ty = (F - crop.ih * crop.s) / 2;
+    }
+    clampCrop(); applyCrop();
+  }
+
+  function closeCropper(result){
+    el.cropBackdrop.classList.add('hidden');
+    if (crop.el) crop.el.remove();
+    if (crop.url) URL.revokeObjectURL(crop.url);
+    crop.el = null; crop.url = null;
+    const done = crop.resolve; crop.resolve = null;
+    if (done) done(result);
+  }
+
+  async function openCropper(file){
+    let loaded;
+    try { loaded = await loadImageForCrop(file); }
+    catch (e) { toast('Bild konnte nicht geladen werden'); return null; }
+    const { img, url } = loaded;
+    crop.el = img; crop.url = url;
+    crop.iw = img.naturalWidth; crop.ih = img.naturalHeight;
+    if (!crop.iw || !crop.ih) { URL.revokeObjectURL(url); toast('Bild konnte nicht geladen werden'); return null; }
+    img.style.width = crop.iw + 'px';
+    img.style.height = crop.ih + 'px';
+    img.alt = '';
+    el.cropStage.insertBefore(img, el.cropFrame);
+    el.cropBackdrop.classList.remove('hidden');
+    layoutCrop(false);
+    return new Promise((resolve) => { crop.resolve = resolve; });
+  }
+
+  /* pan with one pointer, pinch with two — pointer events cover both touch and mouse */
+  const cropPointers = new Map();
+  let pinch = null;
+  el.cropStage.addEventListener('pointerdown', (e) => {
+    if (!crop.el) return;
+    el.cropStage.setPointerCapture(e.pointerId);
+    cropPointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (cropPointers.size === 2) {
+      const [a, b] = [...cropPointers.values()];
+      pinch = { dist: Math.hypot(a.x - b.x, a.y - b.y), s: crop.s,
+                mx: (a.x + b.x) / 2, my: (a.y + b.y) / 2, tx: crop.tx, ty: crop.ty };
+    }
+  });
+  el.cropStage.addEventListener('pointermove', (e) => {
+    if (!crop.el || !cropPointers.has(e.pointerId)) return;
+    const prev = cropPointers.get(e.pointerId);
+    cropPointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (cropPointers.size >= 2 && pinch) {
+      const [a, b] = [...cropPointers.values()];
+      const dist = Math.hypot(a.x - b.x, a.y - b.y);
+      if (pinch.dist > 0) {
+        const s = Math.max(crop.sMin, Math.min(crop.sMin * 8, pinch.s * (dist / pinch.dist)));
+        // keep the point under the pinch centre in place
+        const rect = el.cropStage.getBoundingClientRect();
+        const cx = pinch.mx - rect.left - crop.fx, cy = pinch.my - rect.top - crop.fy;
+        crop.tx = cx - (cx - pinch.tx) * (s / pinch.s);
+        crop.ty = cy - (cy - pinch.ty) * (s / pinch.s);
+        crop.s = s;
+        clampCrop(); applyCrop();
       }
-    } catch (e) {}
-    return decodeViaImg(file);
-  }
-  async function readCoverImage(file){
-    const src = await loadImageSource(file);
-    const w = src.naturalWidth || src.width, h = src.naturalHeight || src.height;
-    if (!w || !h) throw new Error('Bild ohne Abmessungen');
-    const side = Math.min(w, h);
-    const canvas = document.createElement('canvas');
-    canvas.width = COVER_SIZE; canvas.height = COVER_SIZE;
-    canvas.getContext('2d').drawImage(src, (w - side) / 2, (h - side) / 2, side, side, 0, 0, COVER_SIZE, COVER_SIZE);
-    if (src.close) src.close();
-    return canvas.toDataURL('image/jpeg', 0.82);
-  }
+      return;
+    }
+    crop.tx += e.clientX - prev.x;
+    crop.ty += e.clientY - prev.y;
+    clampCrop(); applyCrop();
+  });
+  const endCropPointer = (e) => {
+    cropPointers.delete(e.pointerId);
+    if (cropPointers.size < 2) pinch = null;
+  };
+  el.cropStage.addEventListener('pointerup', endCropPointer);
+  el.cropStage.addEventListener('pointercancel', endCropPointer);
+  el.cropStage.addEventListener('wheel', (e) => {
+    if (!crop.el) return;
+    e.preventDefault();
+    const rect = el.cropStage.getBoundingClientRect();
+    const cx = e.clientX - rect.left - crop.fx, cy = e.clientY - rect.top - crop.fy;
+    const s0 = crop.s;
+    const s = Math.max(crop.sMin, Math.min(crop.sMin * 8, s0 * (e.deltaY < 0 ? 1.12 : 1 / 1.12)));
+    crop.tx = cx - (cx - crop.tx) * (s / s0);
+    crop.ty = cy - (cy - crop.ty) * (s / s0);
+    crop.s = s;
+    clampCrop(); applyCrop();
+  }, { passive: false });
+  window.addEventListener('resize', () => { if (crop.el) layoutCrop(true); });
+
+  el.cropCancel.addEventListener('click', () => closeCropper(null));
+  el.cropConfirm.addEventListener('click', () => {
+    let out = null;
+    try {
+      const canvas = document.createElement('canvas');
+      canvas.width = canvas.height = COVER_SIZE;
+      canvas.getContext('2d').drawImage(crop.el,
+        -crop.tx / crop.s, -crop.ty / crop.s, crop.F / crop.s, crop.F / crop.s,
+        0, 0, COVER_SIZE, COVER_SIZE);
+      out = canvas.toDataURL('image/jpeg', 0.82);
+    } catch (e) { console.error('Zuschnitt fehlgeschlagen', e); toast('Bild konnte nicht verarbeitet werden'); }
+    closeCropper(out);
+  });
 
   /* ================= Import ================= */
   el.importBtn.addEventListener('click', () => el.fileInput.click());
@@ -881,10 +1130,22 @@
     main.appendChild(textCol);
     main.querySelector('.track-name').textContent = v.name;
     main.querySelector('.track-sub').textContent = fmtTime(v.duration);
-    main.addEventListener('click', onPlay);
+    main.addEventListener('click', () => { if (!li.dataset.swiped) onPlay(); });
+
+    const hint = document.createElement('span');
+    hint.className = 'swipe-hint';
+    hint.innerHTML = ICONS.queue + '<span>Warteschlange</span>';
+    li.appendChild(hint);
 
     const actions = document.createElement('div');
     actions.className = 'track-actions';
+
+    const badge = document.createElement('span');
+    badge.className = 'queued-badge';
+    badge.innerHTML = ICONS.queue;
+    badge.title = 'In der Warteschlange';
+    badge.hidden = true;
+    actions.appendChild(badge);
 
     if (onRemove) {
       const btn = document.createElement('button'); btn.className = 'icon-btn'; btn.innerHTML = ICONS.close;
@@ -904,7 +1165,7 @@
       actions.appendChild(handle);
     }
 
-    li.appendChild(main); if (actions.children.length) li.appendChild(actions);
+    li.appendChild(main); li.appendChild(actions);
     return li;
   }
 
@@ -1007,6 +1268,129 @@
     markPlayingRow();
   }
 
+  /* ================= Swipe a row to the left to queue it ================= */
+  function enableSwipeToQueue(listEl){
+    let sw = null;
+    const reset = () => {
+      if (!sw) return;
+      sw.row.classList.remove('swiping', 'will-queue');
+      sw.row.style.transform = '';
+      sw.row.style.removeProperty('--sw');
+      sw = null;
+    };
+    listEl.addEventListener('pointerdown', (e) => {
+      if (e.target.closest('.drag-handle') || e.target.closest('.icon-btn')) return;
+      const row = e.target.closest('.track-row');
+      if (!row || row.parentElement !== listEl || !row.dataset.id) return;
+      sw = { row, x0: e.clientX, y0: e.clientY, pointerId: e.pointerId, active: false, dx: 0 };
+    });
+    listEl.addEventListener('pointermove', (e) => {
+      if (!sw || e.pointerId !== sw.pointerId) return;
+      const dx = e.clientX - sw.x0, dy = e.clientY - sw.y0;
+      if (!sw.active) {
+        if (dx < -10 && Math.abs(dx) > Math.abs(dy) * 1.3) {
+          sw.active = true;
+          sw.row.classList.add('swiping');
+          try { listEl.setPointerCapture(e.pointerId); } catch (err) {}
+        } else if (Math.abs(dy) > 10 || dx > 10) { sw = null; }
+        return;
+      }
+      sw.dx = Math.max(-150, Math.min(0, dx));
+      sw.row.style.setProperty('--sw', sw.dx + 'px');
+      sw.row.style.transform = `translateX(${sw.dx}px)`;
+      sw.row.classList.toggle('will-queue', sw.dx <= -70);
+    });
+    const finish = (e) => {
+      if (!sw || (e.pointerId !== undefined && e.pointerId !== sw.pointerId)) return;
+      const { row, active, dx } = sw;
+      const id = row.dataset.id;
+      reset();
+      if (!active) return;
+      // swallow the click this drag would otherwise fire on the row
+      row.dataset.swiped = '1';
+      setTimeout(() => { delete row.dataset.swiped; }, 350);
+      if (dx <= -70) queueVideo(id);
+    };
+    listEl.addEventListener('pointerup', finish);
+    listEl.addEventListener('pointercancel', finish);
+  }
+
+  /* ================= Queue ================= */
+  function isPlayingFromQueue(){
+    return !!state.currentId && state.currentId !== state.playOrder[state.posIndex];
+  }
+  function queuedIdSet(){
+    return new Set(state.queue.filter(e => e.marked).map(e => e.id));
+  }
+  function markQueuedRows(){
+    const ids = queuedIdSet();
+    document.querySelectorAll('.track-row').forEach(row => {
+      const badge = row.querySelector('.queued-badge');
+      if (badge && !row.closest('.queue-list')) badge.hidden = !ids.has(row.dataset.id);
+    });
+  }
+  function queueVideo(id){
+    const v = videoById(id);
+    if (!v) return;
+    state.queue.push({ id, marked: true });
+    if (!state.playOrder.length || state.posIndex < 0 || !state.currentId) {
+      // nothing playing yet — the queue itself becomes the source so the swipe never dead-ends
+      if (!state.queueLabel) state.queueLabel = 'Warteschlange';
+      nextTrack();
+    }
+    markQueuedRows();
+    refreshNowPlayingUI();
+    if (!el.queueSheetBackdrop.classList.contains('hidden')) renderQueueSheet();
+    saveState();
+    toast('„' + v.name + '“ in die Warteschlange');
+  }
+
+  function buildQueueView(){
+    const view = [];
+    state.queue.forEach((e, i) => { if (videoById(e.id)) view.push({ key: 'q' + i, id: e.id, marked: !!e.marked }); });
+    for (let i = state.posIndex + 1; i < state.playOrder.length; i++) {
+      if (videoById(state.playOrder[i])) view.push({ key: 'p' + i, id: state.playOrder[i], marked: false });
+    }
+    return view;
+  }
+  function renderQueueSheet(){
+    state.queueView = buildQueueView();
+    el.queueList.innerHTML = '';
+    const cur = videoById(getCurrentId());
+    el.queueNote.textContent = cur
+      ? 'Läuft: ' + cur.name + (state.queue.length ? ' · ' + state.queue.length + ' in der Warteschlange' : '')
+      : 'Es läuft gerade nichts.';
+    if (!state.queueView.length) {
+      const li = document.createElement('li');
+      li.className = 'queue-empty';
+      li.style.cssText = 'padding:22px 2px;color:var(--ink-muted);font-size:13.5px;text-align:center;';
+      li.textContent = 'Nichts mehr in der Schlange.';
+      el.queueList.appendChild(li);
+      return;
+    }
+    state.queueView.forEach((entry) => {
+      const v = videoById(entry.id);
+      const li = buildTrackRow(v, { onPlay: () => jumpToQueueEntry(entry.key), dragHandle: true });
+      li.dataset.key = entry.key;
+      const badge = li.querySelector('.queued-badge');
+      if (badge) badge.hidden = !entry.marked;
+      el.queueList.appendChild(li);
+    });
+  }
+  /* Tapping an entry plays it now; everything above it is dropped from the queue. */
+  function jumpToQueueEntry(key){
+    const idx = state.queueView.findIndex(e => e.key === key);
+    if (idx < 0) return;
+    const rest = state.queueView.slice(idx);
+    state.queue = rest.map(e => ({ id: e.id, marked: e.marked }));
+    state.playOrder = state.playOrder.slice(0, state.posIndex + 1);
+    nextTrack();
+    renderQueueSheet(); markQueuedRows();
+  }
+  el.fpQueue.addEventListener('click', () => { renderQueueSheet(); el.queueSheetBackdrop.classList.remove('hidden'); });
+  el.queueSheetClose.addEventListener('click', () => el.queueSheetBackdrop.classList.add('hidden'));
+  el.queueSheetBackdrop.addEventListener('click', (e) => { if (e.target === el.queueSheetBackdrop) el.queueSheetBackdrop.classList.add('hidden'); });
+
   /* ================= Drag to reorder (press the grip handle, drag up/down) ================= */
   function enableDragReorder(listEl, { getOrder, onDrop }){
     let drag = null;
@@ -1102,15 +1486,13 @@
     el.coverInput.value = '';
     const p = playlistById(state.activePlaylistId);
     if (!file || !p) return;
-    try {
-      p.cover = await readCoverImage(file);
-      await dbPut('playlists', p);
-      renderPlaylistDetail(); renderPlaylists();
-      toast('Playlist-Bild gesetzt');
-    } catch (e) {
-      console.error('Bild konnte nicht verarbeitet werden', e);
-      toast('Bild konnte nicht geladen werden');
-    }
+    const cover = await openCropper(file);
+    if (!cover) return;
+    const target = playlistById(state.activePlaylistId) || p;
+    target.cover = cover;
+    await dbPut('playlists', target);
+    renderPlaylistDetail(); renderPlaylists();
+    toast('Playlist-Bild gesetzt');
   });
   el.pdCoverRemove.addEventListener('click', async () => {
     const p = playlistById(state.activePlaylistId);
@@ -1120,6 +1502,19 @@
     renderPlaylistDetail(); renderPlaylists();
     toast('Playlist-Bild entfernt');
   });
+
+  enableDragReorder(el.queueList, {
+    getOrder: () => state.queueView.map(e => e.key),
+    onDrop: (newKeys) => {
+      // The visible order becomes the queue outright, so a reordered list plays exactly as shown.
+      const byKey = new Map(state.queueView.map(e => [e.key, e]));
+      state.queue = newKeys.map(k => byKey.get(k)).filter(Boolean).map(e => ({ id: e.id, marked: e.marked }));
+      state.playOrder = state.playOrder.slice(0, state.posIndex + 1);
+      renderQueueSheet(); markQueuedRows(); refreshNowPlayingUI(); saveState();
+    }
+  });
+  enableSwipeToQueue(el.pdList);
+  enableSwipeToQueue(el.libraryList);
 
   el.pdBack.addEventListener('click', () => switchView('playlists'));
   el.pdPlaySeq.addEventListener('click', () => {
@@ -1187,6 +1582,27 @@
   el.pickSheetClose.addEventListener('click', () => el.pickSheetBackdrop.classList.add('hidden'));
   el.pickSheetBackdrop.addEventListener('click', (e) => { if (e.target === el.pickSheetBackdrop) el.pickSheetBackdrop.classList.add('hidden'); });
 
+  /* ================= Settings ================= */
+  function applySettings(){
+    document.body.classList.toggle('audio-only', !!state.settings.audioOnly);
+    el.setAudioOnly.setAttribute('aria-checked', state.settings.audioOnly ? 'true' : 'false');
+  }
+  async function saveSettings(){
+    try { await dbPut('meta', { key: 'settings', value: state.settings }); } catch (e) {}
+  }
+  async function loadSettings(){
+    try {
+      const rec = await dbGet('meta', 'settings');
+      if (rec && rec.value) state.settings = Object.assign(state.settings, rec.value);
+    } catch (e) {}
+    applySettings();
+  }
+  el.setAudioOnly.addEventListener('click', () => {
+    state.settings.audioOnly = !state.settings.audioOnly;
+    applySettings(); saveSettings();
+    toast(state.settings.audioOnly ? 'Videobild aus — nur Ton' : 'Videobild wieder an');
+  });
+
   /* ================= View switching ================= */
   function switchView(view){
     state.view = view;
@@ -1206,7 +1622,7 @@
     for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; }
     return a;
   }
-  function getCurrentId(){ return state.playOrder[state.posIndex]; }
+  function getCurrentId(){ return state.currentId || state.playOrder[state.posIndex]; }
 
   function playQueue(ids, label, startId, forceShuffle, trimmed){
     ids = ids.filter(id => videoById(id));
@@ -1223,6 +1639,7 @@
     }
     state.posIndex = startId ? state.playOrder.indexOf(startId) : 0;
     if (state.posIndex < 0) state.posIndex = 0;
+    state.currentId = state.playOrder[state.posIndex];
     loadCurrentTrack(true);
   }
 
@@ -1239,6 +1656,7 @@
     refreshNowPlayingUI();
     updateMediaSession(v);
     markPlayingRow();
+    markQueuedRows();
     saveState();
   }
 
@@ -1248,10 +1666,16 @@
     el.miniPlayer.classList.remove('hidden');
     el.fabWrap.classList.add('lifted');
     el.miniTitle.textContent = v.name;
-    el.miniSub.textContent = state.queueLabel + ' · ' + (state.posIndex+1) + '/' + state.playOrder.length;
+    const fromQueue = isPlayingFromQueue();
+    el.miniSub.textContent = state.queueLabel + ' · ' + (fromQueue ? 'Warteschlange' : (state.posIndex+1) + '/' + state.playOrder.length);
     if (v.thumbnail) el.miniThumb.src = v.thumbnail; else el.miniThumb.removeAttribute('src');
     el.fpTitle.textContent = v.name;
-    el.fpContext.textContent = state.queueLabel + ' — Titel ' + (state.posIndex+1) + ' von ' + state.playOrder.length + (state.shuffle ? ' · Zufallswiedergabe' : '') + (state.queueTrimmed ? ' · Verkürzt' : '');
+    el.fpContext.textContent = state.queueLabel
+      + ' — ' + (fromQueue ? 'aus der Warteschlange' : 'Titel ' + (state.posIndex+1) + ' von ' + state.playOrder.length)
+      + (state.shuffle ? ' · Zufallswiedergabe' : '')
+      + (state.queueTrimmed ? ' · Verkürzt' : '')
+      + (state.queue.length ? ' · ' + state.queue.length + ' wartet' + (state.queue.length === 1 ? '' : 'en') : '');
+    el.fpQueue.classList.toggle('toggled', state.queue.length > 0);
     el.fpTimeDur.textContent = fmtTime(v.duration);
     el.fpShuffle.classList.toggle('toggled', state.shuffle);
     el.fpRepeat.classList.toggle('toggled', state.repeat);
@@ -1276,32 +1700,48 @@
     else el.stageVideo.pause();
   }
   function nextTrack(){
+    // queued entries always come first, then playback resumes where the list left off
+    if (state.queue.length) {
+      const entry = state.queue.shift();
+      state.currentId = entry.id;
+      loadCurrentTrack(true);
+      markQueuedRows();
+      if (!el.queueSheetBackdrop.classList.contains('hidden')) renderQueueSheet();
+      return;
+    }
     if (!state.playOrder.length) return;
+    if (isPlayingFromQueue()) { state.currentId = state.playOrder[state.posIndex]; loadCurrentTrack(true); return; }
     if (state.posIndex < state.playOrder.length - 1) state.posIndex++;
     else if (state.repeat) state.posIndex = 0;
     else { el.stageVideo.pause(); return; }
+    state.currentId = state.playOrder[state.posIndex];
     loadCurrentTrack(true);
+    if (!el.queueSheetBackdrop.classList.contains('hidden')) renderQueueSheet();
   }
   function prevTrack(){
-    if (!state.playOrder.length) return;
     if (el.stageVideo.currentTime > 3) { el.stageVideo.currentTime = 0; return; }
+    if (!state.playOrder.length) { el.stageVideo.currentTime = 0; return; }
+    // stepping back leaves the queue alone and returns to the list track that was interrupted
+    if (isPlayingFromQueue()) { state.currentId = state.playOrder[state.posIndex]; loadCurrentTrack(true); return; }
     if (state.posIndex > 0) state.posIndex--;
     else if (state.repeat) state.posIndex = state.playOrder.length - 1;
     else { el.stageVideo.currentTime = 0; return; }
+    state.currentId = state.playOrder[state.posIndex];
     loadCurrentTrack(true);
   }
   function toggleShuffle(){
     state.shuffle = !state.shuffle;
-    const curId = getCurrentId();
+    const anchor = state.playOrder[state.posIndex] || getCurrentId();
     if (state.shuffle) {
-      const rest = state.queueBase.filter(id => id !== curId);
-      state.playOrder = [curId, ...shuffleArr(rest)];
+      const rest = state.queueBase.filter(id => id !== anchor);
+      state.playOrder = [anchor, ...shuffleArr(rest)];
       state.posIndex = 0;
     } else {
       state.playOrder = state.queueBase.slice();
-      state.posIndex = state.playOrder.indexOf(curId);
+      state.posIndex = Math.max(0, state.playOrder.indexOf(anchor));
     }
     refreshNowPlayingUI(); saveState();
+    if (!el.queueSheetBackdrop.classList.contains('hidden')) renderQueueSheet();
   }
   function toggleRepeat(){
     state.repeat = !state.repeat;
@@ -1316,6 +1756,9 @@
     el.stageVideo.load();
     if (state.currentObjectUrl) { URL.revokeObjectURL(state.currentObjectUrl); state.currentObjectUrl = null; }
     state.queueBase = []; state.queueLabel = ''; state.queueTrimmed = false; state.playOrder = []; state.posIndex = -1;
+    state.queue = []; state.currentId = null;
+    markQueuedRows();
+    el.queueSheetBackdrop.classList.add('hidden');
     collapsePlayer();
     refreshNowPlayingUI();
     markPlayingRow();
@@ -1340,7 +1783,7 @@
     }
     // "Verkürzt" playlists only: skip to the next track 5s before this one ends (if there's a next track)
     if (state.queueTrimmed && !state.earlyAdvanceDone && isFinite(d) && d >= 10 && (d - el.stageVideo.currentTime) <= 5) {
-      const hasNext = state.posIndex < state.playOrder.length - 1 || state.repeat;
+      const hasNext = state.queue.length > 0 || state.posIndex < state.playOrder.length - 1 || state.repeat;
       if (hasNext) { state.earlyAdvanceDone = true; nextTrack(); }
     }
     throttledSave();
@@ -1400,6 +1843,7 @@
         value: {
           queueBase: state.queueBase, queueLabel: state.queueLabel, queueTrimmed: state.queueTrimmed, playOrder: state.playOrder,
           posIndex: state.posIndex, shuffle: state.shuffle, repeat: state.repeat,
+          queue: state.queue, currentId: state.currentId,
           positionSec: el.stageVideo.currentTime || 0
         }
       });
@@ -1422,6 +1866,8 @@
       if (!state.playOrder.length) state.playOrder = validBase.slice();
       state.posIndex = Math.min(Math.max(0, s.posIndex || 0), state.playOrder.length - 1);
       state.shuffle = !!s.shuffle; state.repeat = !!s.repeat;
+      state.queue = (s.queue || []).filter(e => e && videoById(e.id)).map(e => ({ id: e.id, marked: !!e.marked }));
+      state.currentId = videoById(s.currentId) ? s.currentId : state.playOrder[state.posIndex];
       const v = videoById(getCurrentId());
       if (!v) return;
       state.currentObjectUrl = URL.createObjectURL(v.blob);
@@ -1430,6 +1876,7 @@
       refreshNowPlayingUI();
       updateMediaSession(v);
       markPlayingRow();
+      markQueuedRows();
     } catch (e) { console.error('Konnte letzten Stand nicht laden', e); }
   }
 
@@ -1443,7 +1890,8 @@
     document.addEventListener(type, (e) => e.preventDefault(), { passive: false });
   });
   document.addEventListener('touchmove', (e) => {
-    if (e.touches.length > 1) e.preventDefault();
+    // the cropper handles its own pinch, so cancelling there would kill its pointer events
+    if (e.touches.length > 1 && !(e.target.closest && e.target.closest('.crop-stage'))) e.preventDefault();
   }, { passive: false });
   document.addEventListener('wheel', (e) => {
     if (e.ctrlKey) e.preventDefault();
@@ -1463,6 +1911,7 @@
       console.error('IndexedDB nicht verfügbar', e);
       toast('Lokaler Speicher nicht verfügbar (privates Fenster?)');
     }
+    await loadSettings();
     renderLibrary();
     renderPlaylists();
     await restoreState();
