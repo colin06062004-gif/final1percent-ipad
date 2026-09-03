@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <title>Final 1%</title>
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#0E0909">
 <meta name="description" content="Lade Videos aus deiner Galerie, erstelle Playlists und spiele sie sortiert oder gemischt ab.">
 <link rel="manifest" href="manifest.json">
@@ -46,15 +46,23 @@
   @media (prefers-reduced-motion: reduce){
     *{animation-duration:.001ms !important;transition-duration:.001ms !important;}
   }
-  html,body{height:100%;}
+  /* The shell is pinned to the viewport: the page itself never scrolls or rubber-bands,
+     only .views does. Together with the locked viewport meta and the pinch guards in JS
+     this keeps the app sitting still in the screen frame instead of drifting under a
+     zoom or an address bar that slides in and out. */
+  html,body{height:100%;overflow:hidden;}
   body{
     margin:0;
+    position:fixed;
+    top:0;left:0;right:0;bottom:0;
     background:var(--bg);
     color:var(--ink);
     font-family:var(--font-body);
     -webkit-tap-highlight-color:transparent;
-    overscroll-behavior-y:none;
+    overscroll-behavior:none;
+    touch-action:manipulation;
   }
+  [hidden]{display:none !important;}
   button{font:inherit;color:inherit;background:none;border:none;cursor:pointer;}
   ul{list-style:none;margin:0;padding:0;}
   h1,h2,h3{font-family:var(--font-display);margin:0;text-wrap:balance;}
@@ -66,7 +74,7 @@
   .app{
     max-width:520px;
     margin:0 auto;
-    min-height:100dvh;
+    height:100%;
     display:flex;
     flex-direction:column;
     background:var(--bg);
@@ -102,7 +110,7 @@
   .icon-btn.primary{background:var(--accent);color:var(--accent-ink);}
   .icon-btn.primary:active{filter:brightness(.92);}
 
-  .views{flex:1;overflow-y:auto;padding:2px 18px 130px;}
+  .views{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;padding:2px 18px 130px;}
   .view{display:none;}
   .view.active{display:block;}
 
@@ -182,10 +190,11 @@
 
   .section-head{
     display:flex;align-items:center;justify-content:space-between;
+    flex-wrap:wrap;gap:8px;
     padding:6px 2px 14px;
   }
   .section-head h2{font-size:19px;}
-  .section-head-actions{display:flex;gap:8px;}
+  .section-head-actions{display:flex;gap:8px;flex-wrap:wrap;}
   .btn{
     font-family:var(--font-body);font-weight:600;font-size:13.5px;
     padding:9px 14px;border-radius:var(--radius-s);
@@ -228,8 +237,35 @@
   /* Playlist detail */
   .back-row{display:flex;align-items:center;gap:10px;padding:10px 0 4px;color:var(--ink-muted);font-size:13.5px;font-weight:600;}
   .back-row svg{width:17px;height:17px;}
-  .pd-title{font-size:23px;padding:6px 2px 2px;}
-  .pd-count{font-family:var(--font-mono);font-size:12px;color:var(--ink-faint);padding:2px 2px 16px;}
+  .pd-head{display:flex;align-items:center;gap:14px;padding:6px 2px 16px;}
+  .pd-headtext{flex:1;min-width:0;}
+  .pd-cover{
+    position:relative;
+    width:78px;height:78px;flex-shrink:0;
+    padding:0;
+    border-radius:var(--radius-m);
+    background:var(--surface-2);
+    border:1px solid var(--line);
+    overflow:hidden;
+    display:flex;align-items:center;justify-content:center;
+    color:var(--ink-faint);
+  }
+  .pd-cover img{width:100%;height:100%;object-fit:cover;display:block;}
+  .pd-cover svg{width:26px;height:26px;}
+  .pd-cover.has-image{border-color:var(--accent);box-shadow:0 0 12px -4px var(--accent);}
+  .pd-cover:active{filter:brightness(1.2);}
+  .pd-cover-badge{
+    position:absolute;right:0;bottom:0;
+    display:flex;
+    padding:3px 4px 2px;
+    background:var(--bg);color:var(--accent-glow);
+    border-top:1px solid var(--line);
+    border-left:1px solid var(--line);
+    border-top-left-radius:var(--radius-s);
+  }
+  .pd-cover-badge svg{width:14px;height:14px;}
+  .pd-title{font-size:23px;padding:0 0 3px;overflow-wrap:anywhere;}
+  .pd-count{font-family:var(--font-mono);font-size:12px;color:var(--ink-faint);padding:0;}
   .pd-actions{display:flex;gap:8px;flex-wrap:wrap;padding-bottom:18px;}
   .drag-handle{touch-action:none;cursor:grab;}
   .drag-handle:active{cursor:grabbing;}
@@ -428,6 +464,7 @@
   </header>
 
   <input id="fileInput" type="file" accept="video/*" multiple class="visually-hidden">
+  <input id="coverInput" type="file" accept="image/*" class="visually-hidden">
 
   <main class="views">
 
@@ -444,7 +481,7 @@
       <div class="section-head">
         <h2>Playlists</h2>
         <div class="section-head-actions">
-          <button id="newPlaylistBtn" class="btn ghost">Neu</button>
+          <button id="newPlaylistBtn" class="btn ghost">Neue Playlist</button>
           <button id="newTrimmedPlaylistBtn" class="btn ghost">Verkürzt</button>
         </div>
       </div>
@@ -457,14 +494,20 @@
 
     <section id="view-playlistDetail" class="view">
       <button class="back-row" id="pdBack"></button>
-      <h2 class="pd-title" id="pdTitle"></h2>
-      <div class="pd-count" id="pdCount"></div>
+      <div class="pd-head">
+        <button id="pdCover" class="pd-cover" aria-label="Playlist-Bild wählen"></button>
+        <div class="pd-headtext">
+          <h2 class="pd-title" id="pdTitle"></h2>
+          <div class="pd-count" id="pdCount"></div>
+        </div>
+      </div>
       <div class="pd-actions">
         <button id="pdPlaySeq" class="btn solid"></button>
         <button id="pdPlayShuffle" class="btn ghost"></button>
         <button id="pdAddVideos" class="btn ghost">+ Videos</button>
         <button id="pdToggleTrim" class="btn ghost"></button>
         <button id="pdRename" class="btn ghost">Umbenennen</button>
+        <button id="pdCoverRemove" class="btn ghost" hidden>Bild entfernen</button>
         <button id="pdDelete" class="btn danger-ghost">Löschen</button>
       </div>
       <ul id="pdList" class="track-list"></ul>
@@ -572,6 +615,8 @@
     film:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="4" width="18" height="16" rx="1.5"/><path d="M7 4v16M17 4v16M3 9h4M3 15h4M17 9h4M17 15h4"/></svg>`,
     check:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>`,
     listMusic:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h11M4 12h11M4 18h7"/><circle cx="19" cy="16" r="2.3"/><path d="M21.3 16V7l-3 1"/></svg>`,
+    image:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2.5"/><circle cx="8.6" cy="9.6" r="1.7"/><path d="M20.5 15.5L16 11l-8.5 8.5"/></svg>`,
+    camera:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="2.5"/><path d="M9 7l1.4-2h3.2L15 7"/><circle cx="12" cy="13.5" r="3.2"/></svg>`,
     grip:`<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></svg>`
   };
 
@@ -621,7 +666,7 @@
   /* ================= State ================= */
   const state = {
     videos: [],       // {id,name,blob,duration,thumbnail,addedAt}
-    playlists: [],     // {id,name,videoIds:[],createdAt}
+    playlists: [],     // {id,name,videoIds:[],createdAt,trimmed,cover?} — cover is a square JPEG data URL
     view: 'library',
     activePlaylistId: null,
     // playback
@@ -639,12 +684,13 @@
 
   const $ = (sel) => document.querySelector(sel);
   const el = {
-    importBtn: $('#importBtn'), fileInput: $('#fileInput'),
+    importBtn: $('#importBtn'), fileInput: $('#fileInput'), coverInput: $('#coverInput'),
     storageText: $('#storageText'), libCount: $('#libCount'),
     libraryList: $('#libraryList'), libraryEmpty: $('#libraryEmpty'),
     playlistsList: $('#playlistsList'), playlistsEmpty: $('#playlistsEmpty'), newPlaylistBtn: $('#newPlaylistBtn'), newTrimmedPlaylistBtn: $('#newTrimmedPlaylistBtn'),
     pdBack: $('#pdBack'), pdTitle: $('#pdTitle'), pdCount: $('#pdCount'), pdList: $('#pdList'), pdEmpty: $('#pdEmpty'),
     pdPlaySeq: $('#pdPlaySeq'), pdPlayShuffle: $('#pdPlayShuffle'), pdAddVideos: $('#pdAddVideos'), pdToggleTrim: $('#pdToggleTrim'), pdRename: $('#pdRename'), pdDelete: $('#pdDelete'),
+    pdCover: $('#pdCover'), pdCoverRemove: $('#pdCoverRemove'),
     tabs: document.querySelectorAll('.tab'),
     miniPlayer: $('#miniPlayer'), miniThumb: $('#miniThumb'), miniTitle: $('#miniTitle'), miniSub: $('#miniSub'),
     miniPlayPause: $('#miniPlayPause'), miniNext: $('#miniNext'), miniStop: $('#miniStop'), miniProgress: $('#miniProgress'),
@@ -759,6 +805,38 @@
       v.addEventListener('error', () => { clearTimeout(timeout); finish({ thumbnail: null, duration: 0 }); });
       v.src = url;
     });
+  }
+
+  /* Playlist cover: center-cropped to a square and downscaled, so a full-resolution
+     photo from the camera roll doesn't park several megabytes of data URL in IndexedDB. */
+  const COVER_SIZE = 512;
+  function decodeViaImg(file){
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+      img.onload = () => { URL.revokeObjectURL(url); resolve(img); };
+      img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Bild konnte nicht gelesen werden')); };
+      img.src = url;
+    });
+  }
+  function loadImageSource(file){
+    try {
+      if (window.createImageBitmap) {
+        return createImageBitmap(file, { imageOrientation: 'from-image' }).catch(() => decodeViaImg(file));
+      }
+    } catch (e) {}
+    return decodeViaImg(file);
+  }
+  async function readCoverImage(file){
+    const src = await loadImageSource(file);
+    const w = src.naturalWidth || src.width, h = src.naturalHeight || src.height;
+    if (!w || !h) throw new Error('Bild ohne Abmessungen');
+    const side = Math.min(w, h);
+    const canvas = document.createElement('canvas');
+    canvas.width = COVER_SIZE; canvas.height = COVER_SIZE;
+    canvas.getContext('2d').drawImage(src, (w - side) / 2, (h - side) / 2, side, side, 0, 0, COVER_SIZE, COVER_SIZE);
+    if (src.close) src.close();
+    return canvas.toDataURL('image/jpeg', 0.82);
   }
 
   /* ================= Import ================= */
@@ -894,7 +972,8 @@
       const thumbWrap = document.createElement('div');
       thumbWrap.className = 'track-thumb';
       const firstVid = p.videoIds.map(videoById).find(Boolean);
-      if (firstVid && firstVid.thumbnail) { const img = document.createElement('img'); img.src = firstVid.thumbnail; img.alt=''; img.style.cssText='width:100%;height:100%;object-fit:cover;'; thumbWrap.appendChild(img); }
+      const thumbSrc = p.cover || (firstVid && firstVid.thumbnail) || null;
+      if (thumbSrc) { const img = document.createElement('img'); img.src = thumbSrc; img.alt=''; img.style.cssText='width:100%;height:100%;object-fit:cover;'; thumbWrap.appendChild(img); }
       else thumbWrap.innerHTML = ICONS.listMusic;
       const main = document.createElement('button');
       main.style.cssText = 'display:flex;align-items:center;gap:12px;background:none;flex:1;min-width:0;text-align:left;';
@@ -942,6 +1021,7 @@
     const p = playlistById(state.activePlaylistId);
     if (!p) { switchView('playlists'); return; }
     el.pdTitle.textContent = p.name;
+    renderCover(p);
     el.pdCount.textContent = p.videoIds.length + (p.videoIds.length === 1 ? ' Video' : ' Videos') + (p.trimmed ? ' · Verkürzt (−5s)' : '');
     el.pdToggleTrim.textContent = p.trimmed ? 'Verkürzt: An' : 'Verkürzt: Aus';
     el.pdToggleTrim.className = 'btn ' + (p.trimmed ? 'solid' : 'ghost');
@@ -1029,6 +1109,48 @@
       }
       renderPlaylists();
     }
+  });
+
+  function renderCover(p){
+    el.pdCover.innerHTML = '';
+    el.pdCover.classList.toggle('has-image', !!p.cover);
+    if (p.cover) {
+      const img = document.createElement('img');
+      img.src = p.cover; img.alt = '';
+      el.pdCover.appendChild(img);
+    } else {
+      el.pdCover.insertAdjacentHTML('beforeend', ICONS.image);
+    }
+    el.pdCover.insertAdjacentHTML('beforeend', '<span class="pd-cover-badge">' + ICONS.camera + '</span>');
+    el.pdCover.setAttribute('aria-label', p.cover ? 'Playlist-Bild ändern' : 'Playlist-Bild wählen');
+    el.pdCoverRemove.hidden = !p.cover;
+  }
+
+  el.pdCover.addEventListener('click', () => {
+    if (playlistById(state.activePlaylistId)) el.coverInput.click();
+  });
+  el.coverInput.addEventListener('change', async () => {
+    const file = (el.coverInput.files || [])[0];
+    el.coverInput.value = '';
+    const p = playlistById(state.activePlaylistId);
+    if (!file || !p) return;
+    try {
+      p.cover = await readCoverImage(file);
+      await dbPut('playlists', p);
+      renderPlaylistDetail(); renderPlaylists();
+      toast('Playlist-Bild gesetzt');
+    } catch (e) {
+      console.error('Bild konnte nicht verarbeitet werden', e);
+      toast('Bild konnte nicht geladen werden');
+    }
+  });
+  el.pdCoverRemove.addEventListener('click', async () => {
+    const p = playlistById(state.activePlaylistId);
+    if (!p || !p.cover) return;
+    delete p.cover;
+    await dbPut('playlists', p);
+    renderPlaylistDetail(); renderPlaylists();
+    toast('Playlist-Bild entfernt');
   });
 
   el.pdBack.addEventListener('click', () => switchView('playlists'));
@@ -1340,6 +1462,22 @@
       markPlayingRow();
     } catch (e) { console.error('Konnte letzten Stand nicht laden', e); }
   }
+
+  /* ================= Viewport lock ================= */
+  /* iOS Safari ignores user-scalable=no, so pinch zoom is blocked by hand. Only multi-touch
+     and trackpad-zoom gestures are cancelled — single-finger scrolling, taps and the
+     drag-to-reorder handle are untouched. Double-tap zoom is handled by the CSS
+     touch-action:manipulation on <body> rather than by swallowing touchend, so tapping
+     a control twice in quick succession still registers as two taps. */
+  ['gesturestart','gesturechange','gestureend'].forEach((type) => {
+    document.addEventListener(type, (e) => e.preventDefault(), { passive: false });
+  });
+  document.addEventListener('touchmove', (e) => {
+    if (e.touches.length > 1) e.preventDefault();
+  }, { passive: false });
+  document.addEventListener('wheel', (e) => {
+    if (e.ctrlKey) e.preventDefault();
+  }, { passive: false });
 
   /* ================= Boot ================= */
   async function boot(){
