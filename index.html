@@ -391,8 +391,22 @@
   .fp-progress-wrap{padding:22px 24px 6px;}
   .fp-progress-bar{
     position:relative;height:4px;border-radius:2px;background:var(--line);cursor:pointer;
+    /* the gesture belongs to the bar, not to the browser */
+    touch-action:none;
   }
+  /* invisible grab area, so a thumb does not have to land on a 4px line */
+  .fp-progress-bar::after{content:'';position:absolute;left:0;right:0;top:-18px;bottom:-18px;}
   .fp-progress-fill{position:absolute;left:0;top:0;height:100%;border-radius:2px;background:var(--accent);width:0%;}
+  .fp-progress-knob{
+    position:absolute;top:50%;left:0;
+    width:13px;height:13px;border-radius:50%;
+    transform:translate(-50%,-50%);
+    background:var(--accent-glow);
+    box-shadow:0 0 10px -1px var(--accent), 0 0 3px var(--accent-glow);
+    transition:width .12s ease, height .12s ease;
+    pointer-events:none;
+  }
+  .fp-progress-bar.scrubbing .fp-progress-knob{width:20px;height:20px;}
   .fp-times{display:flex;justify-content:space-between;font-family:var(--font-mono);font-size:11px;color:var(--ink-faint);padding-top:7px;}
   /* Six controls now, so the gap gives way before the buttons do. */
   .fp-controls{
@@ -479,27 +493,6 @@
   }
   .switch[aria-checked="true"]{border-color:var(--accent);box-shadow:0 0 10px -2px var(--accent);}
   .switch[aria-checked="true"] .switch-knob{transform:translateX(20px);background:var(--accent-glow);box-shadow:0 0 8px 0 var(--accent);}
-
-  .rank-list{display:flex;flex-direction:column;list-style:none;margin:0;padding:0;}
-  .rank-list li{display:flex;}
-  .rank-row{
-    flex:1;width:100%;text-align:left;
-    display:flex;align-items:center;gap:12px;
-    padding:11px 2px;border-bottom:1px solid var(--line);
-  }
-  .rank-row:active{background:var(--surface-2);}
-  .rank-pos{
-    width:26px;height:26px;flex-shrink:0;border-radius:50%;
-    display:flex;align-items:center;justify-content:center;
-    font-family:var(--font-mono);font-size:11.5px;
-    background:var(--surface-2);color:var(--ink-muted);
-  }
-  .rank-list li:first-child .rank-pos{
-    color:var(--accent-glow);border:1px solid var(--accent);
-    box-shadow:0 0 8px -2px var(--accent);
-  }
-  .rank-name{flex:1;min-width:0;font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-  .rank-count{font-family:var(--font-mono);font-size:12px;color:var(--ink-faint);flex-shrink:0;}
 
   /* ---------- Cover cropper ---------- */
   .crop-backdrop{
@@ -633,18 +626,7 @@
           </div>
           <button id="setAudioOnly" class="switch" role="switch" aria-checked="false" aria-label="Videobild ausblenden"><span class="switch-knob"></span></button>
         </li>
-        <li class="setting-row">
-          <div class="setting-text">
-            <div class="setting-label">Creator automatisch erkennen</div>
-            <div class="setting-hint">Liest beim Import den @Namen aus dem Abspann und benennt das Video danach. Beim ersten Mal wird dafür einmalig die Texterkennung geladen, rund 7 MB.</div>
-          </div>
-          <button id="setCreatorOcr" class="switch" role="switch" aria-checked="true" aria-label="Creator automatisch erkennen"><span class="switch-knob"></span></button>
-        </li>
       </ul>
-
-      <div class="section-head" style="padding-top:24px"><h2>Top-Creator</h2></div>
-      <ol id="creatorRank" class="rank-list"></ol>
-      <div id="creatorRankEmpty" class="setting-hint" hidden>Noch kein Creator erkannt. Importiere Videos mit @Namen im Abspann.</div>
     </section>
 
   </main>
@@ -690,7 +672,10 @@
       <div class="fp-context" id="fpContext"></div>
     </div>
     <div class="fp-progress-wrap">
-      <div class="fp-progress-bar" id="fpProgressBar"><div class="fp-progress-fill" id="fpProgressFill"></div></div>
+      <div class="fp-progress-bar" id="fpProgressBar" role="slider" aria-label="Position im Video">
+        <div class="fp-progress-fill" id="fpProgressFill"></div>
+        <div class="fp-progress-knob" id="fpProgressKnob"></div>
+      </div>
       <div class="fp-times"><span id="fpTimeCur" class="mono">0:00</span><span id="fpTimeDur" class="mono">0:00</span></div>
     </div>
     <div class="fp-controls">
@@ -828,7 +813,7 @@
     playlists: [],     // {id,name,videoIds:[],createdAt,trimmed,cover?} — cover is a square JPEG data URL
     view: 'library',
     activePlaylistId: null,
-    settings: { audioOnly: false, creatorOcr: true },
+    settings: { audioOnly: false },
     // playback
     currentId: null,    // id of the loaded track — may come from playOrder OR from the manual queue
     queue: [],          // manual "play next" entries {id, marked}; marked = put there by the user
@@ -860,12 +845,11 @@
     fullPlayer: $('#fullPlayer'), fpClose: $('#fpClose'), fpImport: $('#fpImport'), fpKicker: $('#fpKicker'),
     stageVideo: $('#stageVideo'),
     fpTitle: $('#fpTitle'), fpContext: $('#fpContext'),
-    fpProgressBar: $('#fpProgressBar'), fpProgressFill: $('#fpProgressFill'), fpTimeCur: $('#fpTimeCur'), fpTimeDur: $('#fpTimeDur'),
+    fpProgressBar: $('#fpProgressBar'), fpProgressFill: $('#fpProgressFill'), fpProgressKnob: $('#fpProgressKnob'), fpTimeCur: $('#fpTimeCur'), fpTimeDur: $('#fpTimeDur'),
     fpShuffle: $('#fpShuffle'), fpPrev: $('#fpPrev'), fpPlayPause: $('#fpPlayPause'), fpNext: $('#fpNext'), fpRepeat: $('#fpRepeat'), fpQueue: $('#fpQueue'),
     queueSheetBackdrop: $('#queueSheetBackdrop'), queueSheetClose: $('#queueSheetClose'), queueList: $('#queueList'), queueNote: $('#queueNote'),
     cropBackdrop: $('#cropBackdrop'), cropStage: $('#cropStage'), cropFrame: $('#cropFrame'), cropCancel: $('#cropCancel'), cropConfirm: $('#cropConfirm'),
-    setAudioOnly: $('#setAudioOnly'), setCreatorOcr: $('#setCreatorOcr'),
-    creatorRank: $('#creatorRank'), creatorRankEmpty: $('#creatorRankEmpty'),
+    setAudioOnly: $('#setAudioOnly'),
     pickSheetBackdrop: $('#pickSheetBackdrop'), pickSheetList: $('#pickSheetList'), pickSheetClose: $('#pickSheetClose'),
     dialogBackdrop: $('#dialogBackdrop'), dialogTitle: $('#dialogTitle'), dialogText: $('#dialogText'),
     dialogInput: $('#dialogInput'), dialogCancel: $('#dialogCancel'), dialogConfirm: $('#dialogConfirm'),
@@ -1107,234 +1091,11 @@
     closeCropper(out);
   });
 
-  /* ================= Creator recognition =================
-     TikTok end cards close on a search pill holding the creator's @handle. The last
-     seconds are sampled, run through the bundled OCR engine and the first plausible
-     handle names the video, which is what makes the creator ranking add up by itself.
-     The engine lives in ocr/ rather than on a CDN, so recognition also works offline
-     and nothing about the library leaves the phone. */
-  const OCR = { worker: null, loading: null };
-
-  function loadScriptOnce(src){
-    return new Promise((resolve, reject) => {
-      const tag = document.createElement('script');
-      tag.src = src;
-      tag.onload = resolve;
-      tag.onerror = () => reject(new Error('Skript nicht geladen: ' + src));
-      document.head.appendChild(tag);
-    });
-  }
-  function getOcrWorker(){
-    if (OCR.worker) return Promise.resolve(OCR.worker);
-    if (!OCR.loading) {
-      OCR.loading = (async () => {
-        if (!window.Tesseract) await loadScriptOnce('ocr/tesseract.min.js');
-        const worker = await Tesseract.createWorker('eng', 1, {
-          workerPath: 'ocr/worker.min.js',
-          corePath: 'ocr/core',
-          langPath: 'ocr/lang',
-          gzip: true
-        });
-        await worker.setParameters({
-          tessedit_char_whitelist: '@._abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789',
-          tessedit_pageseg_mode: '11'   // sparse text: the handle sits alone on the card
-        });
-        OCR.worker = worker;
-        return worker;
-      })();
-      OCR.loading.catch(() => { OCR.loading = null; });
-    }
-    return OCR.loading;
-  }
-  async function releaseOcr(){
-    const worker = OCR.worker;
-    OCR.worker = null; OCR.loading = null;
-    if (worker) { try { await worker.terminate(); } catch (e) {} }
-  }
-
-  /* frames from the tail of the clip, newest moment first */
-  function grabEndFrames(file, duration, offsets){
-    return new Promise((resolve) => {
-      const v = document.createElement('video');
-      v.preload = 'auto'; v.muted = true; v.playsInline = true;
-      const url = URL.createObjectURL(file);
-      const frames = [];
-      let i = 0, settled = false;
-      const done = () => { if (settled) return; settled = true; clearTimeout(timer); URL.revokeObjectURL(url); resolve(frames); };
-      const timer = setTimeout(done, 20000);
-      const seekNext = () => {
-        if (i >= offsets.length) { done(); return; }
-        // some containers report no length until seeked past the end, so overshoot and let
-        // the browser clamp us to the last frame
-        const known = isFinite(v.duration) && v.duration > 0 ? v.duration
-                    : (isFinite(duration) && duration > 0 ? duration : 0);
-        const t = known ? Math.max(0, known - offsets[i]) : 1e5;
-        i++;
-        try { v.currentTime = t; } catch (e) { done(); }
-      };
-      v.addEventListener('loadeddata', seekNext);
-      v.addEventListener('seeked', () => {
-        try {
-          const target = 960;
-          const vw = v.videoWidth || target, vh = v.videoHeight || target;
-          const scale = Math.min(1.8, target / vw);
-          const c = document.createElement('canvas');
-          c.width = Math.round(vw * scale); c.height = Math.round(vh * scale);
-          c.getContext('2d').drawImage(v, 0, 0, c.width, c.height);
-          frames.push(c);
-        } catch (e) {}
-        seekNext();
-      });
-      v.addEventListener('error', done);
-      v.src = url;
-    });
-  }
-
-  /* grey, contrast-stretched and flipped to dark-on-light, which is what the engine reads best */
-  function prepareForOcr(canvas){
-    const ctx = canvas.getContext('2d');
-    const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
-    const d = img.data;
-    let sum = 0;
-    for (let i = 0; i < d.length; i += 4) {
-      const g = d[i] * 0.299 + d[i+1] * 0.587 + d[i+2] * 0.114;
-      d[i] = d[i+1] = d[i+2] = g;
-      sum += g;
-    }
-    const invert = (sum / (d.length / 4)) < 128;
-    for (let i = 0; i < d.length; i += 4) {
-      let g = invert ? 255 - d[i] : d[i];
-      g = Math.max(0, Math.min(255, (g - 128) * 1.9 + 128));
-      d[i] = d[i+1] = d[i+2] = g;
-    }
-    ctx.putImageData(img, 0, 0);
-    return canvas;
-  }
-
-  /* Handing the engine a whole frame makes it report the big TikTok wordmark and skip the
-     handle sitting inside its search pill — a box around text defeats its layout analysis.
-     So rows carrying a little ink are found here and each is recognised on its own. */
-  function findTextLines(canvas){
-    const W = canvas.width, H = canvas.height;
-    const d = canvas.getContext('2d').getImageData(0, 0, W, H).data;
-    const lines = [];
-    let start = -1;
-    const minH = Math.max(10, Math.round(H * 0.012));
-    for (let y = 0; y < H; y++) {
-      let dark = 0, seen = 0;
-      for (let x = 0; x < W; x += 2) { seen++; if (d[(y * W + x) * 4] < 110) dark++; }
-      const ratio = dark / seen;
-      const isText = ratio > 0.003 && ratio < 0.5;
-      if (isText) { if (start < 0) start = y; }
-      else if (start >= 0) { if (y - start >= minH) lines.push([start, y]); start = -1; }
-    }
-    if (start >= 0 && H - start >= minH) lines.push([start, H]);
-    return lines;
-  }
-  function cropLine(src, y0, y1, targetH){
-    const h = y1 - y0;
-    const scale = Math.min(4, Math.max(1, targetH / h));
-    const c = document.createElement('canvas');
-    c.width = Math.round(src.width * scale); c.height = Math.round(h * scale);
-    const ctx = c.getContext('2d');
-    ctx.imageSmoothingQuality = 'high';
-    ctx.drawImage(src, 0, y0, src.width, h, 0, 0, c.width, c.height);
-    return c;
-  }
-  /* strip a pill or frame line hugging the edge of a crop — it reads as a character otherwise */
-  function trimFrameLines(canvas){
-    const W = canvas.width, H = canvas.height;
-    const d = canvas.getContext('2d').getImageData(0, 0, W, H).data;
-    const col = (x) => { let n = 0; for (let y = 0; y < H; y++) if (d[(y * W + x) * 4] < 110) n++; return n / H; };
-    const row = (y) => { let n = 0; for (let x = 0; x < W; x++) if (d[(y * W + x) * 4] < 110) n++; return n / W; };
-    const lim = Math.max(3, Math.round(Math.min(W, H) * 0.12));
-    let x0 = 0, x1 = W, y0 = 0, y1 = H;
-    while (x0 < lim && col(x0) > 0.5) x0++;
-    while (W - x1 < lim && col(x1 - 1) > 0.5) x1--;
-    while (y0 < lim && row(y0) > 0.5) y0++;
-    while (H - y1 < lim && row(y1 - 1) > 0.5) y1--;
-    if (x0 === 0 && y0 === 0 && x1 === W && y1 === H) return canvas;
-    if (x1 - x0 < 20 || y1 - y0 < 10) return canvas;
-    const c = document.createElement('canvas');
-    c.width = x1 - x0; c.height = y1 - y0;
-    c.getContext('2d').drawImage(canvas, x0, y0, c.width, c.height, 0, 0, c.width, c.height);
-    return c;
-  }
-
-  const NOT_HANDLES = ['tiktok', 'instagram', 'youtube', 'snapchat', 'reels', 'shorts', 'foryou', 'fyp'];
-  function parseHandle(text){
-    if (!text) return null;
-    const flat = text.replace(/\s+/g, ' ');
-    const re = /@ ?([A-Za-z0-9][A-Za-z0-9._]{1,28}[A-Za-z0-9])/g;
-    let m;
-    while ((m = re.exec(flat)) !== null) {
-      const handle = m[1].toLowerCase().replace(/^[._]+|[._]+$/g, '');
-      if (handle.length < 3) continue;
-      if (/^\d+$/.test(handle)) continue;
-      if (NOT_HANDLES.includes(handle)) continue;
-      return handle;
-    }
-    return null;
-  }
-
-  async function detectCreator(file, duration){
-    const frames = await grabEndFrames(file, duration, [0.3, 1.2, 2.2]);
-    if (!frames.length) return null;
-    let worker;
-    try { worker = await getOcrWorker(); }
-    catch (e) { console.error('Texterkennung nicht verfügbar', e); return null; }
-    try {
-      for (const frame of frames) {
-        const prepped = prepareForOcr(frame);
-        await worker.setParameters({ tessedit_pageseg_mode: '7' });
-        for (const [y0, y1] of findTextLines(prepped).slice(0, 8)) {
-          const res = await worker.recognize(trimFrameLines(cropLine(prepped, y0, y1, 150)));
-          const handle = parseHandle(res && res.data && res.data.text);
-          if (handle) return handle;
-        }
-        // last resort for a handle that sits free on the frame rather than in a pill
-        await worker.setParameters({ tessedit_pageseg_mode: '11' });
-        const whole = await worker.recognize(prepped);
-        const loose = parseHandle(whole && whole.data && whole.data.text);
-        if (loose) return loose;
-      }
-    } catch (e) { console.error('Texterkennung fehlgeschlagen', e); }
-    return null;
-  }
-
-  /* One creator, one spelling: a reading that is a character or two off an already known
-     handle is filed under that one, so the ranking does not split over OCR noise. */
-  function editDistance(a, b){
-    if (a === b) return 0;
-    let prev = Array.from({ length: b.length + 1 }, (_, i) => i);
-    for (let i = 1; i <= a.length; i++) {
-      const cur = [i];
-      for (let j = 1; j <= b.length; j++) {
-        cur[j] = Math.min(prev[j] + 1, cur[j-1] + 1, prev[j-1] + (a[i-1] === b[j-1] ? 0 : 1));
-      }
-      prev = cur;
-    }
-    return prev[b.length];
-  }
-  function canonicalCreator(handle){
-    const known = [...new Set(state.videos.map(v => v.creator).filter(Boolean))];
-    if (known.includes(handle)) return handle;
-    let best = null, bestD = Infinity;
-    for (const k of known) {
-      if (Math.abs(k.length - handle.length) > 3) continue;
-      const d = editDistance(k, handle);
-      if (d < bestD) { bestD = d; best = k; }
-    }
-    if (!best) return handle;
-    const limit = Math.max(1, Math.floor(Math.min(handle.length, best.length) * 0.25));
-    return bestD <= limit ? best : handle;
-  }
-
   /* Every clip of a creator is numbered, so a second one never collides with the first. */
-  function nextCreatorIndex(creator){
+  function nextCreatorIndex(creator, exceptId){
     let max = 0;
     state.videos.forEach(v => {
-      if (v.creator !== creator) return;
+      if (v.creator !== creator || v.id === exceptId) return;
       const m = (v.name || '').match(/\s(\d+)$/);
       const n = m ? parseInt(m[1], 10) : 1;
       if (n > max) max = n;
@@ -1346,52 +1107,6 @@
     return m ? m[1].toLowerCase() : null;
   }
 
-  function renderCreatorRank(){
-    const counts = new Map();
-    state.videos.forEach(v => { if (v.creator) counts.set(v.creator, (counts.get(v.creator) || 0) + 1); });
-    const rows = [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
-    el.creatorRank.innerHTML = '';
-    el.creatorRankEmpty.hidden = rows.length > 0;
-    rows.forEach(([name, n], i) => {
-      const li = document.createElement('li');
-      const btn = document.createElement('button');
-      btn.className = 'rank-row';
-      btn.innerHTML = '<span class="rank-pos"></span><span class="rank-name"></span><span class="rank-count mono"></span>';
-      btn.querySelector('.rank-pos').textContent = i + 1;
-      btn.querySelector('.rank-name').textContent = '@' + name;
-      btn.querySelector('.rank-count').textContent = n + (n === 1 ? ' Video' : ' Videos');
-      btn.setAttribute('aria-label', 'Creator @' + name + ' umbenennen');
-      btn.addEventListener('click', () => renameCreator(name));
-      li.appendChild(btn);
-      el.creatorRank.appendChild(li);
-    });
-  }
-
-  /* Correcting a misread handle once re-files every clip of that creator. */
-  async function renameCreator(oldName){
-    const input = await showDialog({
-      title: 'Creator korrigieren',
-      text: 'Gilt für alle Videos von @' + oldName + '.',
-      placeholder: '@name', value: '@' + oldName, confirmLabel: 'Speichern'
-    });
-    if (!input) return;
-    const match = input.trim().toLowerCase().replace(/^@/, '').match(/[a-z0-9._]{2,30}/);
-    if (!match) { toast('Kein gültiger Name'); return; }
-    const next = match[0];
-    if (next === oldName) return;
-    const clips = state.videos.filter(v => v.creator === oldName);
-    let i = nextCreatorIndex(next);
-    for (const v of clips) {
-      v.creator = next;
-      v.name = '@' + next + ' ' + (i++);
-      await dbPut('videos', v);
-    }
-    renderLibrary(); renderCreatorRank();
-    if (state.view === 'playlistDetail') renderPlaylistDetail();
-    refreshNowPlayingUI(); markPlayingRow();
-    toast(clips.length + ' Video' + (clips.length === 1 ? '' : 's') + ' auf @' + next + ' geändert');
-  }
-
   /* ================= Import ================= */
   el.importBtn.addEventListener('click', () => el.fileInput.click());
   el.fpImport.addEventListener('click', () => el.fileInput.click());
@@ -1399,39 +1114,22 @@
     const files = Array.from(el.fileInput.files || []);
     el.fileInput.value = '';
     if (!files.length) return;
-    const withOcr = !!state.settings.creatorOcr;
     toast('Importiere ' + files.length + ' Video' + (files.length > 1 ? 's' : '') + ' …');
-    let ok = 0, named = 0;
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i];
+    let ok = 0;
+    for (const file of files) {
       try {
         const meta = await readVideoMeta(file);
-        let name = file.name.replace(/\.[^.]+$/, '');
-        let creator = null;
-        if (withOcr) {
-          toast('Suche den Creator … ' + (i + 1) + '/' + files.length);
-          const detected = await detectCreator(file, meta.duration);
-          if (detected) {
-            creator = canonicalCreator(detected);
-            name = '@' + creator + ' ' + nextCreatorIndex(creator);
-            named++;
-          }
-        }
         const rec = {
-          id: uid(), name, creator, blob: file,
+          id: uid(), name: file.name.replace(/\.[^.]+$/, ''), creator: null, blob: file,
           duration: meta.duration || 0, thumbnail: meta.thumbnail, addedAt: Date.now()
         };
         await dbPut('videos', rec);
         state.videos.push(rec);
         ok++;
-        renderLibrary();
       } catch (e) { console.error('Import fehlgeschlagen', e); }
     }
-    if (withOcr) releaseOcr();
     renderLibrary();
-    renderCreatorRank();
-    toast(ok + ' Video' + (ok !== 1 ? 's' : '') + ' hinzugefügt'
-      + (withOcr ? (named ? ' · ' + named + ' nach Creator benannt' : ' · kein Creator erkannt') : ''));
+    toast(ok + ' Video' + (ok !== 1 ? 's' : '') + ' hinzugefügt');
   });
 
   /* ================= Rendering: Library ================= */
@@ -1512,20 +1210,26 @@
     return li;
   }
 
-  /* Renaming keeps the ranking honest: a corrected @name re-files the video under it. */
+  /* Typing "@creator" without a number continues that creator's count by itself,
+     so a second clip from the same account lands as "@creator 2" rather than a clash. */
   async function renameVideo(v){
-    const name = await showDialog({
+    const input = await showDialog({
       title: 'Video umbenennen',
-      text: 'Ein Name, der mit @creator beginnt, zählt für die Rangliste.',
+      text: 'Mit „@creator“ ohne Zahl wird automatisch weitergezählt: @name 1, @name 2 …',
       placeholder: 'Name des Videos', value: v.name, confirmLabel: 'Speichern'
     });
-    if (!name) return;
+    if (!input) return;
+    let name = input.trim();
+    const creator = creatorFromName(name);
+    if (creator) {
+      const rest = name.slice(name.toLowerCase().indexOf(creator) + creator.length).trim();
+      if (!/^\d+$/.test(rest)) name = '@' + creator + ' ' + nextCreatorIndex(creator, v.id);
+    }
     v.name = name;
-    v.creator = creatorFromName(name);
+    v.creator = creator;
     await dbPut('videos', v);
     renderLibrary();
     if (state.view === 'playlistDetail') renderPlaylistDetail();
-    renderCreatorRank();
     refreshNowPlayingUI();
     markPlayingRow();
   }
@@ -1547,7 +1251,7 @@
       state.playOrder = state.playOrder.filter(x => x !== id);
       if (wasCurrent) nextTrack();
     }
-    renderLibrary(); renderPlaylists(); renderCreatorRank();
+    renderLibrary(); renderPlaylists();
     if (state.view === 'playlistDetail') renderPlaylistDetail();
     toast('Video gelöscht');
   }
@@ -1947,7 +1651,6 @@
   function applySettings(){
     document.body.classList.toggle('audio-only', !!state.settings.audioOnly);
     el.setAudioOnly.setAttribute('aria-checked', state.settings.audioOnly ? 'true' : 'false');
-    el.setCreatorOcr.setAttribute('aria-checked', state.settings.creatorOcr ? 'true' : 'false');
   }
   async function saveSettings(){
     try { await dbPut('meta', { key: 'settings', value: state.settings }); } catch (e) {}
@@ -1963,11 +1666,6 @@
     state.settings.audioOnly = !state.settings.audioOnly;
     applySettings(); saveSettings();
     toast(state.settings.audioOnly ? 'Videobild aus — nur Ton' : 'Videobild wieder an');
-  });
-  el.setCreatorOcr.addEventListener('click', () => {
-    state.settings.creatorOcr = !state.settings.creatorOcr;
-    applySettings(); saveSettings();
-    toast(state.settings.creatorOcr ? 'Creator wird beim Import erkannt' : 'Erkennung aus — Dateiname bleibt');
   });
 
   /* ================= View switching ================= */
@@ -2044,6 +1742,7 @@
       + (state.queue.length ? ' · ' + state.queue.length + ' wartet' + (state.queue.length === 1 ? '' : 'en') : '');
     el.fpQueue.classList.toggle('toggled', state.queue.length > 0);
     el.fpTimeDur.textContent = fmtTime(v.duration);
+    if (!scrub) paintProgress(videoDuration() ? el.stageVideo.currentTime / videoDuration() : 0);
     el.fpShuffle.classList.toggle('toggled', state.shuffle);
     el.fpRepeat.classList.toggle('toggled', state.repeat);
     setPlayPauseIcon();
@@ -2142,9 +1841,11 @@
   el.stageVideo.addEventListener('timeupdate', () => {
     const d = el.stageVideo.duration || videoById(getCurrentId())?.duration || 0;
     const pct = d ? (el.stageVideo.currentTime / d) * 100 : 0;
-    el.fpProgressFill.style.width = pct + '%';
     el.miniProgress.style.width = pct + '%';
-    el.fpTimeCur.textContent = fmtTime(el.stageVideo.currentTime);
+    if (!scrub) {
+      paintProgress(d ? el.stageVideo.currentTime / d : 0);
+      el.fpTimeCur.textContent = fmtTime(el.stageVideo.currentTime);
+    }
     if ('mediaSession' in navigator && navigator.mediaSession.setPositionState && isFinite(d) && d > 0) {
       try { navigator.mediaSession.setPositionState({ duration: d, playbackRate: 1, position: Math.min(el.stageVideo.currentTime, d) }); } catch (e) {}
     }
@@ -2170,12 +1871,65 @@
   el.fpPrev.addEventListener('click', prevTrack);
   el.fpShuffle.addEventListener('click', toggleShuffle);
   el.fpRepeat.addEventListener('click', toggleRepeat);
-  el.fpProgressBar.addEventListener('click', (e) => {
+  /* Scrubbing: press anywhere on the bar and drag. The picture follows the thumb because
+     seeks are coalesced into one per frame, and timeupdate keeps its hands off the bar
+     while a drag is running so the fill does not snap back under the finger. */
+  let scrub = null, seekFrame = 0, seekTo = null;
+  function progressRatio(e){
     const rect = el.fpProgressBar.getBoundingClientRect();
-    const ratio = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width));
-    const d = el.stageVideo.duration || 0;
-    if (d) el.stageVideo.currentTime = ratio * d;
+    if (!rect.width) return 0;
+    return Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width));
+  }
+  function paintProgress(ratio){
+    const pct = Math.max(0, Math.min(1, ratio)) * 100;
+    el.fpProgressFill.style.width = pct + '%';
+    el.fpProgressKnob.style.left = pct + '%';
+  }
+  function requestSeek(time){
+    seekTo = time;
+    if (seekFrame) return;
+    seekFrame = requestAnimationFrame(() => {
+      seekFrame = 0;
+      if (seekTo != null && isFinite(seekTo)) { try { el.stageVideo.currentTime = seekTo; } catch (e) {} }
+      seekTo = null;
+    });
+  }
+  function videoDuration(){
+    const d = el.stageVideo.duration;
+    if (isFinite(d) && d > 0) return d;
+    const v = videoById(getCurrentId());
+    return v && isFinite(v.duration) ? v.duration : 0;
+  }
+  el.fpProgressBar.addEventListener('pointerdown', (e) => {
+    const d = videoDuration();
+    if (!d) return;
+    e.preventDefault();
+    scrub = { pointerId: e.pointerId, ratio: progressRatio(e) };
+    try { el.fpProgressBar.setPointerCapture(e.pointerId); } catch (err) {}
+    el.fpProgressBar.classList.add('scrubbing');
+    paintProgress(scrub.ratio);
+    el.fpTimeCur.textContent = fmtTime(scrub.ratio * d);
+    requestSeek(scrub.ratio * d);
   });
+  el.fpProgressBar.addEventListener('pointermove', (e) => {
+    if (!scrub || e.pointerId !== scrub.pointerId) return;
+    const d = videoDuration();
+    scrub.ratio = progressRatio(e);
+    paintProgress(scrub.ratio);
+    el.fpTimeCur.textContent = fmtTime(scrub.ratio * d);
+    requestSeek(scrub.ratio * d);
+  });
+  function endScrub(e){
+    if (!scrub || (e.pointerId !== undefined && e.pointerId !== scrub.pointerId)) return;
+    const d = videoDuration();
+    const ratio = scrub.ratio;
+    scrub = null;
+    el.fpProgressBar.classList.remove('scrubbing');
+    if (d) { try { el.stageVideo.currentTime = ratio * d; } catch (err) {} }
+    saveState();
+  }
+  el.fpProgressBar.addEventListener('pointerup', endScrub);
+  el.fpProgressBar.addEventListener('pointercancel', endScrub);
 
   function expandPlayer(){ el.fullPlayer.classList.remove('hidden'); state.playerExpanded = true; }
   function collapsePlayer(){ el.fullPlayer.classList.add('hidden'); state.playerExpanded = false; }
@@ -2281,7 +2035,6 @@
     await loadSettings();
     renderLibrary();
     renderPlaylists();
-    renderCreatorRank();
     await restoreState();
   }
   boot();
