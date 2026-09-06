@@ -707,9 +707,15 @@
       </div>
     </div>
     <div class="fp-stage">
-      <video id="stageVideo" playsinline></video>
+      <video id="stageVideo" playsinline muted></video>
       <div class="fp-art" aria-hidden="true"></div>
     </div>
+    <!-- The actual sound source, always. #stageVideo is muted and purely visual — iOS reliably
+         keeps a genuinely audible <audio> element playing across a screen lock, but not a <video>,
+         and (per two earlier failed attempts, see the Obsidian writeup) not an element that was
+         only ever muted before the lock either. Routing real audio through anything other than
+         this one element, continuously, from the first tap onward, is what to avoid. -->
+    <audio id="audioPlayer" playsinline style="display:none"></audio>
     <div class="fp-meta">
       <h3 class="fp-title" id="fpTitle"></h3>
       <div class="fp-context" id="fpContext"></div>
@@ -887,7 +893,7 @@
     miniPlayPause: $('#miniPlayPause'), miniNext: $('#miniNext'), miniStop: $('#miniStop'), miniProgress: $('#miniProgress'),
     fabWrap: $('#fabWrap'),
     fullPlayer: $('#fullPlayer'), fpClose: $('#fpClose'), fpImport: $('#fpImport'), fpKicker: $('#fpKicker'),
-    stageVideo: $('#stageVideo'),
+    stageVideo: $('#stageVideo'), audioPlayer: $('#audioPlayer'),
     fpTitle: $('#fpTitle'), fpContext: $('#fpContext'),
     fpProgressBar: $('#fpProgressBar'), fpProgressFill: $('#fpProgressFill'), fpProgressKnob: $('#fpProgressKnob'), fpTimeCur: $('#fpTimeCur'), fpTimeDur: $('#fpTimeDur'),
     fpShuffle: $('#fpShuffle'), fpPrev: $('#fpPrev'), fpPlayPause: $('#fpPlayPause'), fpNext: $('#fpNext'), fpRepeat: $('#fpRepeat'), fpQueue: $('#fpQueue'),
@@ -1798,6 +1804,16 @@
   el.tabs.forEach(t => t.addEventListener('click', () => switchView(t.dataset.view)));
 
   /* ================= Playback engine ================= */
+  /* #audioPlayer is the one real, always-audible sound source, from the very first tap onward —
+     never paused/muted/restarted independently of what the user actually did. #stageVideo is
+     permanently muted and purely visual, kept in sync with it. See the HTML comment above
+     #audioPlayer for why: a video's audio (or an element that was only ever muted before the
+     lock) does not reliably survive an iOS screen lock, but a genuinely audible <audio> element
+     that was already playing does. */
+  function seekBoth(time){
+    try { el.audioPlayer.currentTime = time; } catch (e) {}
+    try { el.stageVideo.currentTime = time; } catch (e) {}
+  }
 
   function shuffleArr(arr){
     const a = arr.slice();
@@ -1873,10 +1889,15 @@
     if (!v) return;
     if (state.currentObjectUrl) URL.revokeObjectURL(state.currentObjectUrl);
     state.currentObjectUrl = URL.createObjectURL(v.blob);
+    el.audioPlayer.src = state.currentObjectUrl;
+    el.audioPlayer.currentTime = 0;
     el.stageVideo.src = state.currentObjectUrl;
     el.stageVideo.currentTime = 0;
     state.earlyAdvanceDone = false;
-    if (autoplay) el.stageVideo.play().catch(() => {});
+    if (autoplay) {
+      el.audioPlayer.play().catch(() => {});
+      el.stageVideo.play().catch(() => {}); // muted, so this never needs a gesture
+    }
     refreshNowPlayingUI();
     updateMediaSession(v);
     markPlayingRow();
@@ -1901,7 +1922,7 @@
       + (state.queue.length ? ' · ' + state.queue.length + ' wartet' + (state.queue.length === 1 ? '' : 'en') : '');
     el.fpQueue.classList.toggle('toggled', state.queue.length > 0);
     el.fpTimeDur.textContent = fmtTime(v.duration);
-    if (!scrub) paintProgress(videoDuration() ? el.stageVideo.currentTime / videoDuration() : 0);
+    if (!scrub) paintProgress(videoDuration() ? el.audioPlayer.currentTime / videoDuration() : 0);
     el.fpShuffle.classList.toggle('toggled', state.shuffle);
     el.fpRepeat.classList.toggle('toggled', state.repeat);
     if (el.pdPlayShuffle) el.pdPlayShuffle.classList.toggle('active-toggle', state.shuffle);
@@ -1909,7 +1930,7 @@
   }
 
   function setPlayPauseIcon(){
-    const p = el.stageVideo;
+    const p = el.audioPlayer;
     const playing = !p.paused && !p.ended;
     el.miniPlayPause.innerHTML = playing ? ICONS.pause : ICONS.play;
     el.fpPlayPause.innerHTML = playing ? ICONS.pause : ICONS.play;
@@ -1922,10 +1943,10 @@
   }
 
   function togglePlayPause(){
-    const p = el.stageVideo;
+    const p = el.audioPlayer;
     if (!p.src) return;
-    if (p.paused) p.play().catch(() => {});
-    else p.pause();
+    if (p.paused) { p.play().catch(() => {}); el.stageVideo.play().catch(() => {}); }
+    else { p.pause(); el.stageVideo.pause(); }
   }
   function nextTrack(){
     // queued entries always come first, then playback resumes where the list left off
@@ -1941,19 +1962,19 @@
     if (isPlayingFromQueue()) { state.currentId = state.playOrder[state.posIndex]; loadCurrentTrack(true); return; }
     if (state.posIndex < state.playOrder.length - 1) state.posIndex++;
     else if (state.repeat) state.posIndex = 0;
-    else { el.stageVideo.pause(); return; }
+    else { el.audioPlayer.pause(); el.stageVideo.pause(); return; }
     state.currentId = state.playOrder[state.posIndex];
     loadCurrentTrack(true);
     if (!el.queueSheetBackdrop.classList.contains('hidden')) renderQueueSheet();
   }
   function prevTrack(){
-    if (el.stageVideo.currentTime > 3) { el.stageVideo.currentTime = 0; return; }
-    if (!state.playOrder.length) { el.stageVideo.currentTime = 0; return; }
+    if (el.audioPlayer.currentTime > 3) { seekBoth(0); return; }
+    if (!state.playOrder.length) { seekBoth(0); return; }
     // stepping back leaves the queue alone and returns to the list track that was interrupted
     if (isPlayingFromQueue()) { state.currentId = state.playOrder[state.posIndex]; loadCurrentTrack(true); return; }
     if (state.posIndex > 0) state.posIndex--;
     else if (state.repeat) state.posIndex = state.playOrder.length - 1;
-    else { el.stageVideo.currentTime = 0; return; }
+    else { seekBoth(0); return; }
     state.currentId = state.playOrder[state.posIndex];
     loadCurrentTrack(true);
   }
@@ -1979,6 +2000,9 @@
 
   /* fully stop playback and clear the now-playing bar (distinct from pause) */
   function stopPlayback(){
+    el.audioPlayer.pause();
+    el.audioPlayer.removeAttribute('src');
+    el.audioPlayer.load();
     el.stageVideo.pause();
     el.stageVideo.removeAttribute('src');
     el.stageVideo.load();
@@ -1997,26 +2021,37 @@
     dbDelete('meta', 'lastState').catch(() => {});
   }
 
-  el.stageVideo.addEventListener('play', () => { setPlayPauseIcon(); if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'playing'; });
-  el.stageVideo.addEventListener('pause', () => { setPlayPauseIcon(); if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'paused'; saveState(); });
-  el.stageVideo.addEventListener('ended', nextTrack);
-  el.stageVideo.addEventListener('timeupdate', () => {
-    const d = el.stageVideo.duration || videoById(getCurrentId())?.duration || 0;
-    const pct = d ? (el.stageVideo.currentTime / d) * 100 : 0;
+  el.audioPlayer.addEventListener('play', () => { setPlayPauseIcon(); if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'playing'; });
+  el.audioPlayer.addEventListener('pause', () => { setPlayPauseIcon(); if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'paused'; saveState(); });
+  el.audioPlayer.addEventListener('ended', nextTrack);
+  el.audioPlayer.addEventListener('timeupdate', () => {
+    const d = el.audioPlayer.duration || videoById(getCurrentId())?.duration || 0;
+    const pct = d ? (el.audioPlayer.currentTime / d) * 100 : 0;
     el.miniProgress.style.width = pct + '%';
     if (!scrub) {
-      paintProgress(d ? el.stageVideo.currentTime / d : 0);
-      el.fpTimeCur.textContent = fmtTime(el.stageVideo.currentTime);
+      paintProgress(d ? el.audioPlayer.currentTime / d : 0);
+      el.fpTimeCur.textContent = fmtTime(el.audioPlayer.currentTime);
     }
     if ('mediaSession' in navigator && navigator.mediaSession.setPositionState && isFinite(d) && d > 0) {
-      try { navigator.mediaSession.setPositionState({ duration: d, playbackRate: 1, position: Math.min(el.stageVideo.currentTime, d) }); } catch (e) {}
+      try { navigator.mediaSession.setPositionState({ duration: d, playbackRate: 1, position: Math.min(el.audioPlayer.currentTime, d) }); } catch (e) {}
     }
     // "Verkürzt" playlists only: skip to the next track 5s before this one ends (if there's a next track)
-    if (state.queueTrimmed && !state.earlyAdvanceDone && isFinite(d) && d >= 10 && (d - el.stageVideo.currentTime) <= 5) {
+    if (state.queueTrimmed && !state.earlyAdvanceDone && isFinite(d) && d >= 10 && (d - el.audioPlayer.currentTime) <= 5) {
       const hasNext = state.queue.length > 0 || state.posIndex < state.playOrder.length - 1 || state.repeat;
       if (hasNext) { state.earlyAdvanceDone = true; nextTrack(); }
     }
+    // keep the muted visual roughly in sync — cheap drift correction, not frame-accurate
+    if (Math.abs(el.stageVideo.currentTime - el.audioPlayer.currentTime) > 0.5) el.stageVideo.currentTime = el.audioPlayer.currentTime;
     throttledSave();
+  });
+  /* #stageVideo is muted and purely decorative — iOS will pause it whenever it likes (hidden tab,
+     resource pressure, whatever) and that's fine, nobody's looking at it then. Just try to resume
+     it, silently, whenever the app is back in view and #audioPlayer (the real player) is running. */
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden && !el.audioPlayer.paused) {
+      el.stageVideo.currentTime = el.audioPlayer.currentTime;
+      el.stageVideo.play().catch(() => {});
+    }
   });
 
   /* mini / full player controls */
@@ -2052,12 +2087,12 @@
     if (seekFrame) return;
     seekFrame = requestAnimationFrame(() => {
       seekFrame = 0;
-      if (seekTo != null && isFinite(seekTo)) { try { el.stageVideo.currentTime = seekTo; } catch (e) {} }
+      if (seekTo != null && isFinite(seekTo)) seekBoth(seekTo);
       seekTo = null;
     });
   }
   function videoDuration(){
-    const d = el.stageVideo.duration;
+    const d = el.audioPlayer.duration;
     if (isFinite(d) && d > 0) return d;
     const v = videoById(getCurrentId());
     return v && isFinite(v.duration) ? v.duration : 0;
@@ -2087,7 +2122,7 @@
     const ratio = scrub.ratio;
     scrub = null;
     el.fpProgressBar.classList.remove('scrubbing');
-    if (d) { try { el.stageVideo.currentTime = ratio * d; } catch (err) {} }
+    if (d) seekBoth(ratio * d);
     saveState();
   }
   el.fpProgressBar.addEventListener('pointerup', endScrub);
@@ -2105,13 +2140,13 @@
       album: state.queueLabel,
       artwork: v.thumbnail ? [{ src: v.thumbnail, sizes: '240x240', type: 'image/jpeg' }] : []
     });
-    navigator.mediaSession.setActionHandler('play', () => el.stageVideo.play().catch(()=>{}));
-    navigator.mediaSession.setActionHandler('pause', () => el.stageVideo.pause());
+    navigator.mediaSession.setActionHandler('play', () => { el.audioPlayer.play().catch(()=>{}); el.stageVideo.play().catch(()=>{}); });
+    navigator.mediaSession.setActionHandler('pause', () => { el.audioPlayer.pause(); el.stageVideo.pause(); });
     navigator.mediaSession.setActionHandler('previoustrack', prevTrack);
     navigator.mediaSession.setActionHandler('nexttrack', nextTrack);
     try {
       navigator.mediaSession.setActionHandler('seekto', (details) => {
-        if (details.seekTime != null) el.stageVideo.currentTime = details.seekTime;
+        if (details.seekTime != null) seekBoth(details.seekTime);
       });
     } catch (e) {}
   }
@@ -2127,7 +2162,7 @@
           queueBase: state.queueBase, queueLabel: state.queueLabel, queueTrimmed: state.queueTrimmed, playOrder: state.playOrder,
           posIndex: state.posIndex, shuffle: state.shuffle, repeat: state.repeat,
           queue: state.queue, currentId: state.currentId, queueSourceId: state.queueSourceId,
-          positionSec: el.stageVideo.currentTime || 0
+          positionSec: el.audioPlayer.currentTime || 0
         }
       });
     } catch (e) {}
@@ -2155,6 +2190,8 @@
       const v = videoById(getCurrentId());
       if (!v) return;
       state.currentObjectUrl = URL.createObjectURL(v.blob);
+      el.audioPlayer.src = state.currentObjectUrl;
+      el.audioPlayer.addEventListener('loadedmetadata', () => { el.audioPlayer.currentTime = s.positionSec || 0; }, { once: true });
       el.stageVideo.src = state.currentObjectUrl;
       el.stageVideo.addEventListener('loadedmetadata', () => { el.stageVideo.currentTime = s.positionSec || 0; }, { once: true });
       refreshNowPlayingUI();
