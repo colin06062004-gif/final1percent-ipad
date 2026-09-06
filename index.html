@@ -294,8 +294,22 @@
   .empty-state .hint{font-family:var(--font-mono);font-size:11.5px;color:var(--ink-faint);margin-top:6px;}
 
   /* Playlist detail */
-  .back-row{display:flex;align-items:center;gap:10px;padding:10px 0 4px;color:var(--ink-muted);font-size:13.5px;font-weight:600;}
-  .back-row svg{width:17px;height:17px;}
+  /* .views doesn't actually clip/scroll internally (the shell is min-height, not height — see
+     the app-shell comment above — so the whole page scrolls as one unit, same as everything
+     else here), which rules out position:sticky. Fixed to the real viewport instead, same
+     approach .tabbar already uses; #view-playlistDetail reserves room for it below via
+     padding-top, and switchView() hides .topbar's "Final 1%" wordmark while this view is active
+     so the two don't sit on top of each other when the page is scrolled to the top. */
+  .back-row{
+    position:fixed;top:0;left:50%;transform:translateX(-50%);
+    width:100%;max-width:520px;z-index:20;
+    padding:14px 18px;padding-top:calc(14px + env(safe-area-inset-top, 0px));
+    display:flex;align-items:center;gap:10px;
+    background:var(--bg);
+    color:var(--ink-muted);font-size:15px;font-weight:600;
+  }
+  .back-row svg{width:20px;height:20px;}
+  #view-playlistDetail{padding-top:calc(58px + env(safe-area-inset-top, 0px));}
   .pd-head{display:flex;align-items:center;gap:14px;padding:6px 2px 16px;}
   .pd-headtext{flex:1;min-width:0;}
   .pd-cover{
@@ -882,6 +896,7 @@
 
   const $ = (sel) => document.querySelector(sel);
   const el = {
+    topbar: $('.topbar'),
     importBtn: $('#importBtn'), fileInput: $('#fileInput'), coverInput: $('#coverInput'),
     libraryList: $('#libraryList'), libraryEmpty: $('#libraryEmpty'),
     playlistsList: $('#playlistsList'), playlistsEmpty: $('#playlistsEmpty'), newPlaylistBtn: $('#newPlaylistBtn'), newTrimmedPlaylistBtn: $('#newTrimmedPlaylistBtn'),
@@ -1798,9 +1813,12 @@
     el.tabs.forEach(t => t.classList.toggle('active', t.dataset.view === view || (view === 'playlistDetail' && t.dataset.view === 'playlists')));
     // Import belongs to the library; playlists fill themselves from it via "+ Videos".
     el.fabWrap.hidden = view !== 'library';
-    el.views.scrollTop = 0;
+    // the fixed back-row is this view's own header, in the same spot — showing both would overlap
+    el.topbar.hidden = view === 'playlistDetail';
+    // the page scrolls as a whole (.views doesn't clip its own content), so this is what actually
+    // needs resetting when switching views — .views.scrollTop never moves in the first place
+    window.scrollTo(0, 0);
   }
-  el.views = $('.views');
   el.tabs.forEach(t => t.addEventListener('click', () => switchView(t.dataset.view)));
 
   /* ================= Playback engine ================= */
@@ -1831,8 +1849,15 @@
     state.queueSourceId = sourceId || null;
     if (forceShuffle !== undefined) state.shuffle = forceShuffle;
     if (state.shuffle) {
-      const rest = ids.filter(id => id !== (startId || ids[0]));
-      state.playOrder = [startId || ids[0], ...shuffleArr(rest)];
+      if (startId) {
+        // a specific video was requested to start with — keep it first, shuffle the rest
+        const rest = ids.filter(id => id !== startId);
+        state.playOrder = [startId, ...shuffleArr(rest)];
+      } else {
+        // no specific start requested (e.g. the shuffle-play button) — shuffle the whole thing,
+        // so the first video played is random too, not always the playlist's first entry
+        state.playOrder = shuffleArr(ids);
+      }
     } else {
       state.playOrder = ids.slice();
     }
@@ -1959,7 +1984,9 @@
       return;
     }
     if (!state.playOrder.length) return;
-    if (isPlayingFromQueue()) { state.currentId = state.playOrder[state.posIndex]; loadCurrentTrack(true); return; }
+    // whether we were playing the list normally or a manually-queued track that just finished
+    // (isPlayingFromQueue()), posIndex still marks the last list position that actually played —
+    // either way, moving on means advancing past it, not reloading it again.
     if (state.posIndex < state.playOrder.length - 1) state.posIndex++;
     else if (state.repeat) state.posIndex = 0;
     else { el.audioPlayer.pause(); el.stageVideo.pause(); return; }
