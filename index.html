@@ -1803,38 +1803,51 @@
   el.tabs.forEach(t => t.addEventListener('click', () => switchView(t.dataset.view)));
 
   /* ================= Playback engine ================= */
-  /* Two playback elements share one job: #stageVideo is what's on screen; #bgAudio is a
-     silent standby that takes over the instant the tab is hidden, because iOS pauses a
-     playing <video> on screen-lock but leaves a plain <audio> element running. Exactly one
-     of them is ever actually playing — activePlayer() says which. */
+  /* Two playback elements share one job: #stageVideo is what's on screen; #bgAudio is a MUTED
+     shadow that plays the same content in perfect sync the whole time #stageVideo does — see the
+     mirror listeners below. iOS only keeps an <audio> element going across a screen lock if it
+     was ALREADY playing beforehand; starting one fresh from the (non-gesture) visibilitychange
+     handler is not enough and gets silently blocked, however "unlocked" the element otherwise is.
+     Muted playback itself needs no gesture at all, so the shadow can run continuously for free —
+     locking the screen then only has to unmute it, which is always allowed. activePlayer() says
+     which element's events currently drive the UI/progress/ended-advance logic; the "idle" one is
+     still actually playing in the background (muted), it's just not the one being listened to. */
   function activePlayer(){ return state.usingBgAudio ? el.bgAudio : el.stageVideo; }
   function idlePlayer(){ return state.usingBgAudio ? el.stageVideo : el.bgAudio; }
-  /* iOS/Safari only grants an element permission to play() without a fresh user gesture once
-     that exact element has already played during a real gesture. #bgAudio otherwise never plays
-     until the screen locks — which is not a gesture — so its very first play() would be silently
-     blocked and background audio would need a manual tap to start, same bug as before. Call this
-     alongside every user-initiated play so #bgAudio stays "unlocked" for that handoff. */
-  function primeIdlePlayer(){
-    const idle = idlePlayer();
-    const p = idle.play();
-    if (p && p.then) p.then(() => idle.pause()).catch(() => {});
-  }
   function switchToBgAudio(){
     if (state.usingBgAudio || !el.stageVideo.src) return;
-    const wasPlaying = !el.stageVideo.paused;
-    el.bgAudio.currentTime = el.stageVideo.currentTime;
     state.usingBgAudio = true;
+    el.bgAudio.muted = false; // was already playing muted — just make it audible, no play() needed
     el.stageVideo.pause();
-    if (wasPlaying) el.bgAudio.play().catch(() => {});
   }
   function switchToVideo(){
     if (!state.usingBgAudio) return;
-    const wasPlaying = !el.bgAudio.paused;
     el.stageVideo.currentTime = el.bgAudio.currentTime;
-    state.usingBgAudio = false;
-    el.bgAudio.pause();
-    if (wasPlaying) el.stageVideo.play().catch(() => {});
+    const p = el.stageVideo.play();
+    // Only hand back to the video — and mute #bgAudio — once it has actually confirmed it's
+    // playing again. If the resume gets blocked (returning to foreground isn't always a strong
+    // enough gesture), keep #bgAudio as the audible player rather than risk going silent; the
+    // video image just stays on its last frame until the user taps play themselves.
+    const finish = () => { state.usingBgAudio = false; el.bgAudio.muted = true; };
+    if (p && p.then) p.then(finish).catch(() => {});
+    else finish();
   }
+  // Keep #bgAudio silently mirroring #stageVideo whenever the video is the one on screen, so it's
+  // always mid-playback (see the note above) instead of only being started at the moment of lock.
+  el.stageVideo.addEventListener('play', () => {
+    if (state.usingBgAudio || !el.bgAudio.src) return;
+    if (Math.abs(el.bgAudio.currentTime - el.stageVideo.currentTime) > 0.3) el.bgAudio.currentTime = el.stageVideo.currentTime;
+    el.bgAudio.muted = true;
+    el.bgAudio.play().catch(() => {});
+  });
+  el.stageVideo.addEventListener('pause', () => {
+    if (state.usingBgAudio) return;
+    el.bgAudio.pause();
+  });
+  el.stageVideo.addEventListener('seeked', () => {
+    if (state.usingBgAudio) return;
+    if (Math.abs(el.bgAudio.currentTime - el.stageVideo.currentTime) > 0.3) el.bgAudio.currentTime = el.stageVideo.currentTime;
+  });
 
   function shuffleArr(arr){
     const a = arr.slice();
@@ -1910,15 +1923,19 @@
     if (!v) return;
     if (state.currentObjectUrl) URL.revokeObjectURL(state.currentObjectUrl);
     state.currentObjectUrl = URL.createObjectURL(v.blob);
-    // both elements get the source so a handoff never has to load anything on the fly —
-    // only the active one is seeked to 0 and (maybe) started, the idle one just stands by.
+    // both elements get the source so a handoff never has to load anything on the fly.
     el.stageVideo.src = state.currentObjectUrl;
     el.bgAudio.src = state.currentObjectUrl;
-    const player = activePlayer();
-    player.currentTime = 0;
-    idlePlayer().pause();
     state.earlyAdvanceDone = false;
-    if (autoplay) { player.play().catch(() => {}); primeIdlePlayer(); }
+    if (autoplay) {
+      if (state.usingBgAudio) {
+        // backgrounded: only #bgAudio can actually keep playing — see the note above
+        el.bgAudio.play().catch(() => {});
+      } else {
+        // foreground: play the video; the mirror listener above starts #bgAudio muted+in sync
+        el.stageVideo.play().catch(() => {});
+      }
+    }
     refreshNowPlayingUI();
     updateMediaSession(v);
     markPlayingRow();
@@ -1966,7 +1983,7 @@
   function togglePlayPause(){
     const p = activePlayer();
     if (!p.src) return;
-    if (p.paused) { p.play().catch(() => {}); primeIdlePlayer(); }
+    if (p.paused) p.play().catch(() => {});
     else p.pause();
   }
   function nextTrack(){
