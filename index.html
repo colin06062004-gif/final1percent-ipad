@@ -204,7 +204,7 @@
   .queued-badge svg{width:15px;height:15px;}
   /* Sits still while the row slides out from under it: the row sets --sw, the hint undoes it. */
   .swipe-hint{
-    position:absolute;left:8px;top:50%;
+    position:absolute;right:8px;top:50%;
     transform:translate(calc(-1 * var(--sw, 0px)), -50%);
     display:flex;align-items:center;gap:6px;
     font-family:var(--font-mono);font-size:10.5px;letter-spacing:.6px;text-transform:uppercase;
@@ -217,48 +217,6 @@
   .track-actions .icon-btn{width:32px;height:32px;color:var(--ink-faint);}
   .track-actions .icon-btn svg{width:17px;height:17px;}
   .track-actions .icon-btn.danger:active{color:var(--danger);}
-
-  /* TikTok-style thumbnail grid for the library, in place of the sprocket list */
-  .library-grid{
-    display:grid;grid-template-columns:repeat(3, 1fr);gap:4px;
-  }
-  .track-row.grid-tile{
-    display:block;padding:0;gap:0;
-    aspect-ratio:9/16;
-    border-radius:var(--radius-s);
-    overflow:hidden;
-    background:var(--surface-2);
-  }
-  .track-row.grid-tile::before{display:none;}
-  .track-row.grid-tile.playing{box-shadow:0 0 0 2px var(--accent), 0 0 14px -3px var(--accent);}
-  .grid-tile .track-thumb{
-    position:absolute;inset:0;width:100%;height:100%;
-    border-radius:0;
-  }
-  .grid-tile .track-thumb img{width:100%;height:100%;object-fit:cover;display:block;}
-  .grid-tile .queued-badge{
-    position:absolute;top:6px;left:6px;z-index:2;
-    width:22px;height:22px;border-radius:50%;
-    background:rgba(0,0,0,.5);
-  }
-  .grid-tile-delete{
-    position:absolute;top:4px;right:4px;z-index:2;
-    width:26px;height:26px;border-radius:50%;
-    background:rgba(0,0,0,.5);color:var(--ink-faint);
-  }
-  .grid-tile-delete svg{width:15px;height:15px;}
-  .grid-tile-caption{
-    position:absolute;left:0;right:0;bottom:0;z-index:1;
-    padding:16px 6px 6px;
-    background:linear-gradient(to top, rgba(0,0,0,.85), rgba(0,0,0,.4) 55%, transparent);
-  }
-  .grid-tile-name{
-    display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
-    font-size:12px;font-weight:600;color:var(--ink);text-align:left;line-height:1.3;
-    background:none;padding:0;width:100%;
-  }
-  .track-row.grid-tile.playing .grid-tile-name{color:var(--accent-glow);}
-  .grid-tile .swipe-hint span{display:none;}
 
   .section-head{
     display:flex;align-items:center;justify-content:space-between;
@@ -282,7 +240,6 @@
   .btn.ghost{background:var(--surface-2);color:var(--ink);border:1px solid transparent;}
   .btn.ghost:active{background:var(--line);}
   .btn.danger-ghost{background:var(--surface-2);color:var(--danger);border:1px solid transparent;}
-  .btn.active-toggle{color:var(--accent-glow);border:1px solid var(--accent);box-shadow:0 0 10px -2px var(--accent);}
 
   .empty-state{
     padding:48px 12px;
@@ -612,7 +569,7 @@
   <main class="views">
 
     <section id="view-library" class="view active">
-      <ul id="libraryList" class="library-grid"></ul>
+      <ul id="libraryList" class="track-list"></ul>
       <div id="libraryEmpty" class="empty-state" hidden>
         <p>Noch keine Videos geladen.</p>
         <p class="hint">Tippe unten auf + und wähle Videos aus deiner Galerie.</p>
@@ -710,10 +667,6 @@
       <video id="stageVideo" playsinline></video>
       <div class="fp-art" aria-hidden="true"></div>
     </div>
-    <!-- iOS pauses a playing <video> when the screen locks, but keeps a plain <audio>
-         element running. This silent element takes over playback whenever the app is
-         hidden, and hands it back to the video on return — see switchToBgAudio/switchToVideo. -->
-    <audio id="bgAudio" playsinline style="display:none"></audio>
     <div class="fp-meta">
       <h3 class="fp-title" id="fpTitle"></h3>
       <div class="fp-context" id="fpContext"></div>
@@ -868,15 +821,13 @@
     queueBase: [],      // array of video ids, natural order
     queueLabel: '',      // e.g. playlist name or "Bibliothek"
     queueTrimmed: false, // true only for playlists marked "Verkürzt" — library never trims
-    queueSourceId: null, // playlist id the current queue was built from (null = library); lets live edits to that playlist update playback immediately
     playOrder: [],       // possibly shuffled array of ids
     posIndex: -1,
     shuffle: false,
     repeat: false,
     earlyAdvanceDone: false, // guards the "skip 5s before end" auto-advance from firing more than once per track
     playerExpanded: false,
-    currentObjectUrl: null,
-    usingBgAudio: false  // true once the screen has locked and #bgAudio has taken over from #stageVideo
+    currentObjectUrl: null
   };
 
   const $ = (sel) => document.querySelector(sel);
@@ -892,7 +843,7 @@
     miniPlayPause: $('#miniPlayPause'), miniNext: $('#miniNext'), miniStop: $('#miniStop'), miniProgress: $('#miniProgress'),
     fabWrap: $('#fabWrap'),
     fullPlayer: $('#fullPlayer'), fpClose: $('#fpClose'), fpImport: $('#fpImport'), fpKicker: $('#fpKicker'),
-    stageVideo: $('#stageVideo'), bgAudio: $('#bgAudio'),
+    stageVideo: $('#stageVideo'),
     fpTitle: $('#fpTitle'), fpContext: $('#fpContext'),
     fpProgressBar: $('#fpProgressBar'), fpProgressFill: $('#fpProgressFill'), fpProgressKnob: $('#fpProgressKnob'), fpTimeCur: $('#fpTimeCur'), fpTimeDur: $('#fpTimeDur'),
     fpShuffle: $('#fpShuffle'), fpPrev: $('#fpPrev'), fpPlayPause: $('#fpPlayPause'), fpNext: $('#fpNext'), fpRepeat: $('#fpRepeat'), fpQueue: $('#fpQueue'),
@@ -1186,7 +1137,7 @@
     el.libraryList.innerHTML = '';
     el.libraryEmpty.hidden = state.videos.length > 0;
     state.videos.slice().sort((a,b) => a.addedAt - b.addedAt).forEach((v) => {
-      el.libraryList.appendChild(buildGridTile(v, {
+      el.libraryList.appendChild(buildTrackRow(v, {
         onRename: () => renameVideo(v),
         onPlay: () => playQueue(state.videos.map(x => x.id), 'Bibliothek', v.id),
         onDelete: () => deleteVideo(v.id)
@@ -1195,57 +1146,7 @@
     markPlayingRow();
   }
 
-  /* TikTok-style grid tile for the library: full-bleed thumbnail, editable name
-     overlaid at the bottom in place of a view count. Keeps the .track-row/data-id/
-     .queued-badge/.swipe-hint contract so markPlayingRow/markQueuedRows/enableSwipeToQueue
-     keep working on it unchanged. */
-  function buildGridTile(v, { onPlay, onDelete, onRename }){
-    const li = document.createElement('li');
-    li.className = 'track-row grid-tile';
-    li.dataset.id = v.id;
-    li.addEventListener('click', () => { if (!li.dataset.swiped) onPlay(); });
-
-    const thumb = document.createElement('div');
-    thumb.className = 'track-thumb';
-    if (v.thumbnail) { const img = document.createElement('img'); img.src = v.thumbnail; img.alt = ''; thumb.appendChild(img); }
-    else { thumb.innerHTML = ICONS.film; }
-    li.appendChild(thumb);
-
-    const badge = document.createElement('span');
-    badge.className = 'queued-badge';
-    badge.innerHTML = ICONS.queue;
-    badge.title = 'In der Warteschlange';
-    badge.hidden = true;
-    li.appendChild(badge);
-
-    if (onDelete) {
-      const del = document.createElement('button');
-      del.className = 'icon-btn grid-tile-delete';
-      del.innerHTML = ICONS.trash;
-      del.setAttribute('aria-label', 'Video löschen');
-      del.addEventListener('click', (e) => { e.stopPropagation(); onDelete(); });
-      li.appendChild(del);
-    }
-
-    const caption = document.createElement('div');
-    caption.className = 'grid-tile-caption';
-    const nameBtn = document.createElement('button');
-    nameBtn.className = 'grid-tile-name';
-    nameBtn.textContent = v.name;
-    nameBtn.setAttribute('aria-label', 'Videoname bearbeiten');
-    nameBtn.addEventListener('click', (e) => { e.stopPropagation(); onRename(); });
-    caption.appendChild(nameBtn);
-    li.appendChild(caption);
-
-    const hint = document.createElement('span');
-    hint.className = 'swipe-hint';
-    hint.innerHTML = ICONS.queue + '<span>Warteschlange</span>';
-    li.appendChild(hint);
-
-    return li;
-  }
-
-  function buildTrackRow(v, { onPlay, onRemove, onDelete, onRename, dragHandle, swipeHint }){
+  function buildTrackRow(v, { onPlay, onRemove, onDelete, onRename, dragHandle }){
     const li = document.createElement('li');
     li.className = 'track-row';
     li.dataset.id = v.id;
@@ -1268,7 +1169,7 @@
 
     const hint = document.createElement('span');
     hint.className = 'swipe-hint';
-    hint.innerHTML = ICONS.queue + '<span>' + (swipeHint || 'Warteschlange') + '</span>';
+    hint.innerHTML = ICONS.queue + '<span>Warteschlange</span>';
     li.appendChild(hint);
 
     const actions = document.createElement('div');
@@ -1418,25 +1319,22 @@
     el.pdCount.textContent = p.videoIds.length + (p.videoIds.length === 1 ? ' Video' : ' Videos') + (p.trimmed ? ' · Verkürzt (−5s)' : '');
     el.pdToggleTrim.textContent = p.trimmed ? 'Verkürzt: An' : 'Verkürzt: Aus';
     el.pdToggleTrim.className = 'btn ' + (p.trimmed ? 'solid' : 'ghost');
-    el.pdPlayShuffle.classList.toggle('active-toggle', state.shuffle);
     el.pdEmpty.hidden = p.videoIds.length > 0;
     el.pdList.innerHTML = '';
     p.videoIds.forEach((vid) => {
       const v = videoById(vid);
       if (!v) return;
       el.pdList.appendChild(buildTrackRow(v, {
-        onPlay: () => playQueue(p.videoIds.filter(id => videoById(id)), p.name, vid, undefined, p.trimmed, p.id),
-        onRemove: async () => { p.videoIds = p.videoIds.filter(x => x !== vid); await dbPut('playlists', p); syncLiveQueueFromPlaylist(p); renderPlaylistDetail(); renderPlaylists(); },
+        onPlay: () => playQueue(p.videoIds.filter(id => videoById(id)), p.name, vid, undefined, p.trimmed),
+        onRemove: async () => { p.videoIds = p.videoIds.filter(x => x !== vid); await dbPut('playlists', p); renderPlaylistDetail(); renderPlaylists(); },
         dragHandle: true
       }));
     });
     markPlayingRow();
   }
 
-  /* ================= Swipe a row to the right to act on it ================= */
-  /* Generic rightward-swipe gesture shared by "add to queue" (library/playlist rows)
-     and "promote to next" (queue-sheet rows) — onSwiped(id, row) fires past the threshold. */
-  function enableSwipeGesture(listEl, onSwiped){
+  /* ================= Swipe a row to the left to queue it ================= */
+  function enableSwipeToQueue(listEl){
     let sw = null;
     const reset = () => {
       if (!sw) return;
@@ -1455,17 +1353,17 @@
       if (!sw || e.pointerId !== sw.pointerId) return;
       const dx = e.clientX - sw.x0, dy = e.clientY - sw.y0;
       if (!sw.active) {
-        if (dx > 10 && Math.abs(dx) > Math.abs(dy) * 1.3) {
+        if (dx < -10 && Math.abs(dx) > Math.abs(dy) * 1.3) {
           sw.active = true;
           sw.row.classList.add('swiping');
           try { listEl.setPointerCapture(e.pointerId); } catch (err) {}
-        } else if (Math.abs(dy) > 10 || dx < -10) { sw = null; }
+        } else if (Math.abs(dy) > 10 || dx > 10) { sw = null; }
         return;
       }
-      sw.dx = Math.max(0, Math.min(150, dx));
+      sw.dx = Math.max(-150, Math.min(0, dx));
       sw.row.style.setProperty('--sw', sw.dx + 'px');
       sw.row.style.transform = `translateX(${sw.dx}px)`;
-      sw.row.classList.toggle('will-queue', sw.dx >= 70);
+      sw.row.classList.toggle('will-queue', sw.dx <= -70);
     });
     const finish = (e) => {
       if (!sw || (e.pointerId !== undefined && e.pointerId !== sw.pointerId)) return;
@@ -1476,13 +1374,10 @@
       // swallow the click this drag would otherwise fire on the row
       row.dataset.swiped = '1';
       setTimeout(() => { delete row.dataset.swiped; }, 350);
-      if (dx >= 70) onSwiped(id, row);
+      if (dx <= -70) queueVideo(id);
     };
     listEl.addEventListener('pointerup', finish);
     listEl.addEventListener('pointercancel', finish);
-  }
-  function enableSwipeToQueue(listEl){
-    enableSwipeGesture(listEl, (id) => queueVideo(id));
   }
 
   /* ================= Queue ================= */
@@ -1540,25 +1435,12 @@
     }
     state.queueView.forEach((entry) => {
       const v = videoById(entry.id);
-      const li = buildTrackRow(v, { onPlay: () => jumpToQueueEntry(entry.key), dragHandle: true, swipeHint: 'Als nächstes' });
+      const li = buildTrackRow(v, { onPlay: () => jumpToQueueEntry(entry.key), dragHandle: true });
       li.dataset.key = entry.key;
       const badge = li.querySelector('.queued-badge');
       if (badge) badge.hidden = !entry.marked;
       el.queueList.appendChild(li);
     });
-  }
-  /* Swiping a queue-sheet entry moves it straight to the front, so it plays next. */
-  function promoteQueueEntry(key){
-    const idx = state.queueView.findIndex(e => e.key === key);
-    if (idx <= 0) return;
-    const entry = state.queueView[idx];
-    const rest = state.queueView.slice(0, idx).concat(state.queueView.slice(idx + 1));
-    const newView = [entry, ...rest];
-    state.queue = newView.map(e => ({ id: e.id, marked: e.marked }));
-    state.playOrder = state.playOrder.slice(0, state.posIndex + 1);
-    renderQueueSheet(); markQueuedRows(); refreshNowPlayingUI(); saveState();
-    const v = videoById(entry.id);
-    if (v) toast('„' + v.name + '“ ist jetzt als nächstes dran');
   }
   /* Tapping an entry plays it now; everything above it is dropped from the queue. */
   function jumpToQueueEntry(key){
@@ -1698,17 +1580,16 @@
   });
   enableSwipeToQueue(el.pdList);
   enableSwipeToQueue(el.libraryList);
-  enableSwipeGesture(el.queueList, (id, row) => { if (row.dataset.key) promoteQueueEntry(row.dataset.key); });
 
   el.pdBack.addEventListener('click', () => switchView('playlists'));
   el.pdPlaySeq.addEventListener('click', () => {
     const p = playlistById(state.activePlaylistId);
-    if (p && p.videoIds.length) playQueue(p.videoIds, p.name, p.videoIds[0], false, p.trimmed, p.id);
+    if (p && p.videoIds.length) playQueue(p.videoIds, p.name, p.videoIds[0], false, p.trimmed);
     else toast('Playlist ist leer');
   });
   el.pdPlayShuffle.addEventListener('click', () => {
     const p = playlistById(state.activePlaylistId);
-    if (p && p.videoIds.length) playQueue(p.videoIds, p.name, null, true, p.trimmed, p.id);
+    if (p && p.videoIds.length) playQueue(p.videoIds, p.name, null, true, p.trimmed);
     else toast('Playlist ist leer');
   });
   el.pdToggleTrim.addEventListener('click', async () => {
@@ -1716,7 +1597,6 @@
     if (!p) return;
     p.trimmed = !p.trimmed;
     await dbPut('playlists', p);
-    syncLiveQueueFromPlaylist(p);
     renderPlaylistDetail();
     renderPlaylists();
     toast(p.trimmed ? 'Playlist verkürzt jetzt automatisch' : 'Playlist spielt Videos wieder vollständig');
@@ -1758,7 +1638,6 @@
         else p.videoIds.push(v.id);
         li.classList.toggle('checked', !has);
         await dbPut('playlists', p);
-        syncLiveQueueFromPlaylist(p);
         renderPlaylistDetail(); renderPlaylists();
       });
       el.pickSheetList.appendChild(li);
@@ -1803,52 +1682,6 @@
   el.tabs.forEach(t => t.addEventListener('click', () => switchView(t.dataset.view)));
 
   /* ================= Playback engine ================= */
-  /* Two playback elements share one job: #stageVideo is what's on screen; #bgAudio is a MUTED
-     shadow that plays the same content in perfect sync the whole time #stageVideo does — see the
-     mirror listeners below. iOS only keeps an <audio> element going across a screen lock if it
-     was ALREADY playing beforehand; starting one fresh from the (non-gesture) visibilitychange
-     handler is not enough and gets silently blocked, however "unlocked" the element otherwise is.
-     Muted playback itself needs no gesture at all, so the shadow can run continuously for free —
-     locking the screen then only has to unmute it, which is always allowed. activePlayer() says
-     which element's events currently drive the UI/progress/ended-advance logic; the "idle" one is
-     still actually playing in the background (muted), it's just not the one being listened to. */
-  function activePlayer(){ return state.usingBgAudio ? el.bgAudio : el.stageVideo; }
-  function idlePlayer(){ return state.usingBgAudio ? el.stageVideo : el.bgAudio; }
-  function switchToBgAudio(){
-    if (state.usingBgAudio || !el.stageVideo.src) return;
-    state.usingBgAudio = true;
-    el.bgAudio.muted = false; // was already playing muted — just make it audible, no play() needed
-    el.stageVideo.pause();
-  }
-  function switchToVideo(){
-    if (!state.usingBgAudio) return;
-    el.stageVideo.currentTime = el.bgAudio.currentTime;
-    const p = el.stageVideo.play();
-    // Only hand back to the video — and mute #bgAudio — once it has actually confirmed it's
-    // playing again. If the resume gets blocked (returning to foreground isn't always a strong
-    // enough gesture), keep #bgAudio as the audible player rather than risk going silent; the
-    // video image just stays on its last frame until the user taps play themselves.
-    const finish = () => { state.usingBgAudio = false; el.bgAudio.muted = true; };
-    if (p && p.then) p.then(finish).catch(() => {});
-    else finish();
-  }
-  // Keep #bgAudio silently mirroring #stageVideo whenever the video is the one on screen, so it's
-  // always mid-playback (see the note above) instead of only being started at the moment of lock.
-  el.stageVideo.addEventListener('play', () => {
-    if (state.usingBgAudio || !el.bgAudio.src) return;
-    if (Math.abs(el.bgAudio.currentTime - el.stageVideo.currentTime) > 0.3) el.bgAudio.currentTime = el.stageVideo.currentTime;
-    el.bgAudio.muted = true;
-    el.bgAudio.play().catch(() => {});
-  });
-  el.stageVideo.addEventListener('pause', () => {
-    if (state.usingBgAudio) return;
-    el.bgAudio.pause();
-  });
-  el.stageVideo.addEventListener('seeked', () => {
-    if (state.usingBgAudio) return;
-    if (Math.abs(el.bgAudio.currentTime - el.stageVideo.currentTime) > 0.3) el.bgAudio.currentTime = el.stageVideo.currentTime;
-  });
-
   function shuffleArr(arr){
     const a = arr.slice();
     for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; }
@@ -1856,13 +1689,12 @@
   }
   function getCurrentId(){ return state.currentId || state.playOrder[state.posIndex]; }
 
-  function playQueue(ids, label, startId, forceShuffle, trimmed, sourceId){
+  function playQueue(ids, label, startId, forceShuffle, trimmed){
     ids = ids.filter(id => videoById(id));
     if (!ids.length) return;
     state.queueBase = ids.slice();
     state.queueLabel = label;
     state.queueTrimmed = !!trimmed;
-    state.queueSourceId = sourceId || null;
     if (forceShuffle !== undefined) state.shuffle = forceShuffle;
     if (state.shuffle) {
       const rest = ids.filter(id => id !== (startId || ids[0]));
@@ -1876,66 +1708,16 @@
     loadCurrentTrack(true);
   }
 
-  /* Called after a playlist's "Verkürzt" flag or video list changes. If that playlist is the
-     one currently playing, the running queue is updated immediately instead of waiting for
-     the playlist to be started again. */
-  function syncLiveQueueFromPlaylist(p){
-    if (state.queueSourceId !== p.id) return;
-    // snapshot before playOrder is rebuilt below — isPlayingFromQueue() compares currentId against
-    // playOrder[posIndex], so evaluating it after the rebuild would false-positive on every edit
-    // (the freshly rebuilt array trivially no longer lines up with the old posIndex).
-    const wasPlayingFromQueue = isPlayingFromQueue();
-    state.queueTrimmed = !!p.trimmed;
-    const validIds = p.videoIds.filter(id => videoById(id));
-    state.queueBase = validIds.slice();
-    if (state.shuffle) {
-      const kept = state.playOrder.filter(id => validIds.includes(id));
-      validIds.forEach(id => { if (!kept.includes(id)) kept.push(id); });
-      state.playOrder = kept;
-    } else {
-      state.playOrder = validIds.slice();
-    }
-    if (wasPlayingFromQueue) {
-      // a manually-queued item is playing right now; only the upcoming list underneath it changed
-      state.posIndex = Math.min(Math.max(0, state.posIndex), Math.max(0, state.playOrder.length - 1));
-      refreshNowPlayingUI(); saveState();
-      return;
-    }
-    if (!state.playOrder.length) {
-      if (state.queue.length) nextTrack(); else stopPlayback();
-      return;
-    }
-    const curId = getCurrentId();
-    if (validIds.includes(curId)) {
-      state.posIndex = state.playOrder.indexOf(curId);
-      refreshNowPlayingUI(); saveState();
-    } else {
-      // the playing video itself was just removed — move on to whatever's now in its place
-      state.posIndex = Math.min(Math.max(0, state.posIndex), state.playOrder.length - 1);
-      state.currentId = state.playOrder[state.posIndex];
-      loadCurrentTrack(true);
-    }
-  }
-
   function loadCurrentTrack(autoplay){
     const id = getCurrentId();
     const v = videoById(id);
     if (!v) return;
     if (state.currentObjectUrl) URL.revokeObjectURL(state.currentObjectUrl);
     state.currentObjectUrl = URL.createObjectURL(v.blob);
-    // both elements get the source so a handoff never has to load anything on the fly.
     el.stageVideo.src = state.currentObjectUrl;
-    el.bgAudio.src = state.currentObjectUrl;
+    el.stageVideo.currentTime = 0;
     state.earlyAdvanceDone = false;
-    if (autoplay) {
-      if (state.usingBgAudio) {
-        // backgrounded: only #bgAudio can actually keep playing — see the note above
-        el.bgAudio.play().catch(() => {});
-      } else {
-        // foreground: play the video; the mirror listener above starts #bgAudio muted+in sync
-        el.stageVideo.play().catch(() => {});
-      }
-    }
+    if (autoplay) el.stageVideo.play().catch(() => {});
     refreshNowPlayingUI();
     updateMediaSession(v);
     markPlayingRow();
@@ -1960,16 +1742,14 @@
       + (state.queue.length ? ' · ' + state.queue.length + ' wartet' + (state.queue.length === 1 ? '' : 'en') : '');
     el.fpQueue.classList.toggle('toggled', state.queue.length > 0);
     el.fpTimeDur.textContent = fmtTime(v.duration);
-    if (!scrub) paintProgress(videoDuration() ? activePlayer().currentTime / videoDuration() : 0);
+    if (!scrub) paintProgress(videoDuration() ? el.stageVideo.currentTime / videoDuration() : 0);
     el.fpShuffle.classList.toggle('toggled', state.shuffle);
     el.fpRepeat.classList.toggle('toggled', state.repeat);
-    if (el.pdPlayShuffle) el.pdPlayShuffle.classList.toggle('active-toggle', state.shuffle);
     setPlayPauseIcon();
   }
 
   function setPlayPauseIcon(){
-    const p = activePlayer();
-    const playing = !p.paused && !p.ended;
+    const playing = !el.stageVideo.paused && !el.stageVideo.ended;
     el.miniPlayPause.innerHTML = playing ? ICONS.pause : ICONS.play;
     el.fpPlayPause.innerHTML = playing ? ICONS.pause : ICONS.play;
   }
@@ -1981,10 +1761,9 @@
   }
 
   function togglePlayPause(){
-    const p = activePlayer();
-    if (!p.src) return;
-    if (p.paused) p.play().catch(() => {});
-    else p.pause();
+    if (!el.stageVideo.src) return;
+    if (el.stageVideo.paused) el.stageVideo.play().catch(() => {});
+    else el.stageVideo.pause();
   }
   function nextTrack(){
     // queued entries always come first, then playback resumes where the list left off
@@ -2000,19 +1779,19 @@
     if (isPlayingFromQueue()) { state.currentId = state.playOrder[state.posIndex]; loadCurrentTrack(true); return; }
     if (state.posIndex < state.playOrder.length - 1) state.posIndex++;
     else if (state.repeat) state.posIndex = 0;
-    else { activePlayer().pause(); return; }
+    else { el.stageVideo.pause(); return; }
     state.currentId = state.playOrder[state.posIndex];
     loadCurrentTrack(true);
     if (!el.queueSheetBackdrop.classList.contains('hidden')) renderQueueSheet();
   }
   function prevTrack(){
-    if (activePlayer().currentTime > 3) { activePlayer().currentTime = 0; return; }
-    if (!state.playOrder.length) { activePlayer().currentTime = 0; return; }
+    if (el.stageVideo.currentTime > 3) { el.stageVideo.currentTime = 0; return; }
+    if (!state.playOrder.length) { el.stageVideo.currentTime = 0; return; }
     // stepping back leaves the queue alone and returns to the list track that was interrupted
     if (isPlayingFromQueue()) { state.currentId = state.playOrder[state.posIndex]; loadCurrentTrack(true); return; }
     if (state.posIndex > 0) state.posIndex--;
     else if (state.repeat) state.posIndex = state.playOrder.length - 1;
-    else { activePlayer().currentTime = 0; return; }
+    else { el.stageVideo.currentTime = 0; return; }
     state.currentId = state.playOrder[state.posIndex];
     loadCurrentTrack(true);
   }
@@ -2038,10 +1817,11 @@
 
   /* fully stop playback and clear the now-playing bar (distinct from pause) */
   function stopPlayback(){
-    [el.stageVideo, el.bgAudio].forEach(p => { p.pause(); p.removeAttribute('src'); p.load(); });
-    state.usingBgAudio = false;
+    el.stageVideo.pause();
+    el.stageVideo.removeAttribute('src');
+    el.stageVideo.load();
     if (state.currentObjectUrl) { URL.revokeObjectURL(state.currentObjectUrl); state.currentObjectUrl = null; }
-    state.queueBase = []; state.queueLabel = ''; state.queueTrimmed = false; state.queueSourceId = null; state.playOrder = []; state.posIndex = -1;
+    state.queueBase = []; state.queueLabel = ''; state.queueTrimmed = false; state.playOrder = []; state.posIndex = -1;
     state.queue = []; state.currentId = null;
     markQueuedRows();
     el.queueSheetBackdrop.classList.add('hidden');
@@ -2055,34 +1835,27 @@
     dbDelete('meta', 'lastState').catch(() => {});
   }
 
-  /* Same handlers on both elements — whichever one isn't active() right now is ignored,
-     so a handoff never double-fires "ended"/"timeupdate" or fights over the UI. */
-  function bindPlayerEvents(p){
-    p.addEventListener('play', () => { if (p !== activePlayer()) return; setPlayPauseIcon(); if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'playing'; });
-    p.addEventListener('pause', () => { if (p !== activePlayer()) return; setPlayPauseIcon(); if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'paused'; saveState(); });
-    p.addEventListener('ended', () => { if (p !== activePlayer()) return; nextTrack(); });
-    p.addEventListener('timeupdate', () => {
-      if (p !== activePlayer()) return;
-      const d = p.duration || videoById(getCurrentId())?.duration || 0;
-      const pct = d ? (p.currentTime / d) * 100 : 0;
-      el.miniProgress.style.width = pct + '%';
-      if (!scrub) {
-        paintProgress(d ? p.currentTime / d : 0);
-        el.fpTimeCur.textContent = fmtTime(p.currentTime);
-      }
-      if ('mediaSession' in navigator && navigator.mediaSession.setPositionState && isFinite(d) && d > 0) {
-        try { navigator.mediaSession.setPositionState({ duration: d, playbackRate: 1, position: Math.min(p.currentTime, d) }); } catch (e) {}
-      }
-      // "Verkürzt" playlists only: skip to the next track 5s before this one ends (if there's a next track)
-      if (state.queueTrimmed && !state.earlyAdvanceDone && isFinite(d) && d >= 10 && (d - p.currentTime) <= 5) {
-        const hasNext = state.queue.length > 0 || state.posIndex < state.playOrder.length - 1 || state.repeat;
-        if (hasNext) { state.earlyAdvanceDone = true; nextTrack(); }
-      }
-      throttledSave();
-    });
-  }
-  bindPlayerEvents(el.stageVideo);
-  bindPlayerEvents(el.bgAudio);
+  el.stageVideo.addEventListener('play', () => { setPlayPauseIcon(); if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'playing'; });
+  el.stageVideo.addEventListener('pause', () => { setPlayPauseIcon(); if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'paused'; saveState(); });
+  el.stageVideo.addEventListener('ended', nextTrack);
+  el.stageVideo.addEventListener('timeupdate', () => {
+    const d = el.stageVideo.duration || videoById(getCurrentId())?.duration || 0;
+    const pct = d ? (el.stageVideo.currentTime / d) * 100 : 0;
+    el.miniProgress.style.width = pct + '%';
+    if (!scrub) {
+      paintProgress(d ? el.stageVideo.currentTime / d : 0);
+      el.fpTimeCur.textContent = fmtTime(el.stageVideo.currentTime);
+    }
+    if ('mediaSession' in navigator && navigator.mediaSession.setPositionState && isFinite(d) && d > 0) {
+      try { navigator.mediaSession.setPositionState({ duration: d, playbackRate: 1, position: Math.min(el.stageVideo.currentTime, d) }); } catch (e) {}
+    }
+    // "Verkürzt" playlists only: skip to the next track 5s before this one ends (if there's a next track)
+    if (state.queueTrimmed && !state.earlyAdvanceDone && isFinite(d) && d >= 10 && (d - el.stageVideo.currentTime) <= 5) {
+      const hasNext = state.queue.length > 0 || state.posIndex < state.playOrder.length - 1 || state.repeat;
+      if (hasNext) { state.earlyAdvanceDone = true; nextTrack(); }
+    }
+    throttledSave();
+  });
 
   /* mini / full player controls */
   el.miniPlayer.addEventListener('click', (e) => {
@@ -2117,12 +1890,12 @@
     if (seekFrame) return;
     seekFrame = requestAnimationFrame(() => {
       seekFrame = 0;
-      if (seekTo != null && isFinite(seekTo)) { try { activePlayer().currentTime = seekTo; } catch (e) {} }
+      if (seekTo != null && isFinite(seekTo)) { try { el.stageVideo.currentTime = seekTo; } catch (e) {} }
       seekTo = null;
     });
   }
   function videoDuration(){
-    const d = activePlayer().duration;
+    const d = el.stageVideo.duration;
     if (isFinite(d) && d > 0) return d;
     const v = videoById(getCurrentId());
     return v && isFinite(v.duration) ? v.duration : 0;
@@ -2152,7 +1925,7 @@
     const ratio = scrub.ratio;
     scrub = null;
     el.fpProgressBar.classList.remove('scrubbing');
-    if (d) { try { activePlayer().currentTime = ratio * d; } catch (err) {} }
+    if (d) { try { el.stageVideo.currentTime = ratio * d; } catch (err) {} }
     saveState();
   }
   el.fpProgressBar.addEventListener('pointerup', endScrub);
@@ -2170,13 +1943,13 @@
       album: state.queueLabel,
       artwork: v.thumbnail ? [{ src: v.thumbnail, sizes: '240x240', type: 'image/jpeg' }] : []
     });
-    navigator.mediaSession.setActionHandler('play', () => activePlayer().play().catch(()=>{}));
-    navigator.mediaSession.setActionHandler('pause', () => activePlayer().pause());
+    navigator.mediaSession.setActionHandler('play', () => el.stageVideo.play().catch(()=>{}));
+    navigator.mediaSession.setActionHandler('pause', () => el.stageVideo.pause());
     navigator.mediaSession.setActionHandler('previoustrack', prevTrack);
     navigator.mediaSession.setActionHandler('nexttrack', nextTrack);
     try {
       navigator.mediaSession.setActionHandler('seekto', (details) => {
-        if (details.seekTime != null) activePlayer().currentTime = details.seekTime;
+        if (details.seekTime != null) el.stageVideo.currentTime = details.seekTime;
       });
     } catch (e) {}
   }
@@ -2191,17 +1964,14 @@
         value: {
           queueBase: state.queueBase, queueLabel: state.queueLabel, queueTrimmed: state.queueTrimmed, playOrder: state.playOrder,
           posIndex: state.posIndex, shuffle: state.shuffle, repeat: state.repeat,
-          queue: state.queue, currentId: state.currentId, queueSourceId: state.queueSourceId,
-          positionSec: activePlayer().currentTime || 0
+          queue: state.queue, currentId: state.currentId,
+          positionSec: el.stageVideo.currentTime || 0
         }
       });
     } catch (e) {}
   }
   window.addEventListener('pagehide', saveState);
-  document.addEventListener('visibilitychange', () => {
-    if (document.hidden) { switchToBgAudio(); saveState(); }
-    else { switchToVideo(); }
-  });
+  document.addEventListener('visibilitychange', () => { if (document.hidden) saveState(); });
 
   async function restoreState(){
     try {
@@ -2219,12 +1989,10 @@
       state.shuffle = !!s.shuffle; state.repeat = !!s.repeat;
       state.queue = (s.queue || []).filter(e => e && videoById(e.id)).map(e => ({ id: e.id, marked: !!e.marked }));
       state.currentId = videoById(s.currentId) ? s.currentId : state.playOrder[state.posIndex];
-      state.queueSourceId = s.queueSourceId || null;
       const v = videoById(getCurrentId());
       if (!v) return;
       state.currentObjectUrl = URL.createObjectURL(v.blob);
       el.stageVideo.src = state.currentObjectUrl;
-      el.bgAudio.src = state.currentObjectUrl; // ready to take over the instant the screen locks
       el.stageVideo.addEventListener('loadedmetadata', () => { el.stageVideo.currentTime = s.positionSec || 0; }, { once: true });
       refreshNowPlayingUI();
       updateMediaSession(v);
