@@ -550,6 +550,10 @@
   }
   .switch[aria-checked="true"]{border-color:var(--accent);box-shadow:0 0 10px -2px var(--accent);}
   .switch[aria-checked="true"] .switch-knob{transform:translateX(20px);background:var(--accent-glow);box-shadow:0 0 8px 0 var(--accent);}
+  .setting-row-boost{flex-direction:column;align-items:stretch;gap:12px;}
+  .boost-control{display:flex;align-items:center;gap:12px;}
+  .boost-control input[type="range"]{flex:1;accent-color:var(--accent);}
+  .boost-value{font-family:var(--font-mono);font-size:13px;color:var(--ink-muted);min-width:40px;text-align:right;}
 
   /* ---------- Cover cropper ---------- */
   .crop-backdrop{
@@ -682,6 +686,16 @@
             <div class="setting-hint">Spielt nur den Ton ab. Im Player erscheint statt des Videobilds der Helm.</div>
           </div>
           <button id="setAudioOnly" class="switch" role="switch" aria-checked="false" aria-label="Videobild ausblenden"><span class="switch-knob"></span></button>
+        </li>
+        <li class="setting-row setting-row-boost">
+          <div class="setting-text">
+            <div class="setting-label">Lautstärke-Verstärkung</div>
+            <div class="setting-hint">Verstärkt den Ton zusätzlich zur Handy-Lautstärke, auch über deren Maximum hinaus. Braucht kurz zum Anwenden — der Ton kann dabei ganz kurz aussetzen.</div>
+          </div>
+          <div class="boost-control">
+            <input type="range" id="setVolumeBoost" min="100" max="300" step="10" value="100" aria-label="Lautstärke-Verstärkung">
+            <span class="boost-value" id="volumeBoostValue">100%</span>
+          </div>
         </li>
       </ul>
     </section>
@@ -876,7 +890,7 @@
     playlists: [],     // {id,name,videoIds:[],createdAt,trimmed,cover?} — cover is a square JPEG data URL
     view: 'library',
     activePlaylistId: null,
-    settings: { audioOnly: false },
+    settings: { audioOnly: false, volumeBoost: 1 }, // volumeBoost is a multiplier: 1 = 100% = off
     // playback
     currentId: null,    // id of the loaded track — may come from playOrder OR from the manual queue
     queue: [],          // manual "play next" entries {id, marked}; marked = put there by the user
@@ -891,7 +905,9 @@
     repeat: false,
     earlyAdvanceDone: false, // guards the "skip 5s before end" auto-advance from firing more than once per track
     playerExpanded: false,
-    currentObjectUrl: null
+    currentObjectUrl: null,
+    boostedCache: new Map(),  // videoId -> object URL of its offline-boosted WAV, for boostedCacheLevel only
+    boostedCacheLevel: 1      // the volumeBoost value boostedCache was built for; a mismatch means it's stale
   };
 
   const $ = (sel) => document.querySelector(sel);
@@ -915,6 +931,7 @@
     queueSheetBackdrop: $('#queueSheetBackdrop'), queueSheetClose: $('#queueSheetClose'), queueList: $('#queueList'), queueNote: $('#queueNote'),
     cropBackdrop: $('#cropBackdrop'), cropStage: $('#cropStage'), cropFrame: $('#cropFrame'), cropCancel: $('#cropCancel'), cropConfirm: $('#cropConfirm'),
     setAudioOnly: $('#setAudioOnly'),
+    setVolumeBoost: $('#setVolumeBoost'), volumeBoostValue: $('#volumeBoostValue'),
     pickSheetBackdrop: $('#pickSheetBackdrop'), pickSheetList: $('#pickSheetList'), pickSheetClose: $('#pickSheetClose'),
     dialogBackdrop: $('#dialogBackdrop'), dialogTitle: $('#dialogTitle'), dialogText: $('#dialogText'),
     dialogInput: $('#dialogInput'), dialogCancel: $('#dialogCancel'), dialogConfirm: $('#dialogConfirm'),
@@ -1788,6 +1805,9 @@
   function applySettings(){
     document.body.classList.toggle('audio-only', !!state.settings.audioOnly);
     el.setAudioOnly.setAttribute('aria-checked', state.settings.audioOnly ? 'true' : 'false');
+    const pct = Math.round((state.settings.volumeBoost || 1) * 100);
+    el.setVolumeBoost.value = pct;
+    el.volumeBoostValue.textContent = pct + '%';
   }
   async function saveSettings(){
     try { await dbPut('meta', { key: 'settings', value: state.settings }); } catch (e) {}
@@ -1803,6 +1823,28 @@
     state.settings.audioOnly = !state.settings.audioOnly;
     applySettings(); saveSettings();
     toast(state.settings.audioOnly ? 'Videobild aus — nur Ton' : 'Videobild wieder an');
+  });
+  el.setVolumeBoost.addEventListener('input', () => {
+    el.volumeBoostValue.textContent = el.setVolumeBoost.value + '%'; // live label only, no reprocessing yet
+  });
+  el.setVolumeBoost.addEventListener('change', () => {
+    const newLevel = Number(el.setVolumeBoost.value) / 100;
+    if (newLevel !== state.settings.volumeBoost) {
+      state.settings.volumeBoost = newLevel;
+      saveSettings();
+      // deliberately does NOT touch whatever is already playing — see the note on
+      // warmBoostCache()/loadCurrentTrack() for why swapping a live #audioPlayer mid-playback
+      // isn't safe here. The new level takes effect next time each track is (re)started; this
+      // just gets a head start on the tracks most likely to be needed next.
+      clearBoostCache();
+      if (newLevel > 1) {
+        const ids = state.playOrder.slice();
+        const curId = getCurrentId();
+        if (curId) { const i = ids.indexOf(curId); if (i > 0) ids.splice(i, 1); if (!ids.includes(curId) || i > 0) ids.unshift(curId); }
+        warmBoostCache(ids);
+      }
+    }
+    toast('Verstärkung: ' + el.setVolumeBoost.value + '% — wirkt ab dem nächsten Start eines Videos');
   });
 
   /* ================= View switching ================= */
@@ -1914,7 +1956,16 @@
     if (!v) return;
     if (state.currentObjectUrl) URL.revokeObjectURL(state.currentObjectUrl);
     state.currentObjectUrl = URL.createObjectURL(v.blob);
-    el.audioPlayer.src = state.currentObjectUrl;
+    // #audioPlayer.play() below has to stay synchronous with the triggering tap (or the previous
+    // track's 'ended') for it to count as gesture-linked — confirmed the hard way: an async swap
+    // to a boosted src *after* play() had already started, resuming with its own later play()
+    // call, looked fine in the foreground but silently failed to survive a lock, exactly the bug
+    // this whole feature has to avoid. So boost must already be sitting in boostedCache *before*
+    // this runs — see warmBoostCache(). If it isn't there yet, this one playthrough is un-boosted
+    // and a warm is kicked off (fire-and-forget, not awaited) so the next one is ready.
+    const boost = state.settings.volumeBoost || 1;
+    const cachedBoost = boost > 1 && state.boostedCacheLevel === boost ? state.boostedCache.get(v.id) : null;
+    el.audioPlayer.src = cachedBoost || state.currentObjectUrl;
     el.audioPlayer.currentTime = 0;
     el.stageVideo.src = state.currentObjectUrl;
     el.stageVideo.currentTime = 0;
@@ -1928,6 +1979,104 @@
     markPlayingRow();
     markQueuedRows();
     saveState();
+    if (boost > 1) {
+      const toWarm = [];
+      if (!cachedBoost) toWarm.push(v.id); // wasn't ready this time — get it ready for next time
+      if (state.playOrder.length > 1) {
+        const nextId = state.playOrder[(state.posIndex + 1) % state.playOrder.length];
+        if (nextId && nextId !== v.id) toWarm.push(nextId); // likely needed soon — get a head start
+      }
+      if (toWarm.length) warmBoostCache(toWarm);
+    }
+  }
+
+  function clearBoostCache(){
+    state.boostedCache.forEach(url => URL.revokeObjectURL(url));
+    state.boostedCache.clear();
+  }
+
+  /* Pre-renders boosted audio for the given video ids into state.boostedCache, in the background,
+     never awaited by anything that plays audio. This is what makes loadCurrentTrack() safe to
+     stay fully synchronous: it only ever reads whatever's already sitting in the cache. */
+  async function warmBoostCache(videoIds){
+    const level = state.settings.volumeBoost || 1;
+    if (level <= 1) return;
+    if (state.boostedCacheLevel !== level) { clearBoostCache(); state.boostedCacheLevel = level; }
+    for (const id of videoIds) {
+      if ((state.settings.volumeBoost || 1) !== level) return; // superseded by a newer boost change
+      if (state.boostedCache.has(id)) continue;
+      const v = videoById(id);
+      if (!v) continue;
+      try {
+        const blob = await renderBoostedAudio(v.blob, level);
+        if ((state.settings.volumeBoost || 1) !== level) return; // stale by the time this finished
+        state.boostedCache.set(id, URL.createObjectURL(blob));
+      } catch (e) { /* skip this one — it'll just keep playing un-boosted */ }
+    }
+  }
+
+  /* Renders `blob`'s audio through an OfflineAudioContext with a gain node and returns a boosted
+     WAV blob. Deliberately never connects a *live* AudioContext to #audioPlayer or any element
+     that has to survive backgrounding — an OfflineAudioContext never touches real output or a
+     media session at all, it just computes into a buffer, so iOS has nothing here to suspend.
+     decodeAudioData() also runs on a throwaway AudioContext that's closed immediately after and
+     never connected to anything either. #audioPlayer itself only ever gets handed a plain WAV
+     blob afterward — the same kind of file it already plays for the non-boosted case. */
+  async function renderBoostedAudio(blob, gain){
+    const arrayBuffer = await blob.arrayBuffer();
+    const decodeCtx = new (window.AudioContext || window.webkitAudioContext)();
+    let decoded;
+    try {
+      decoded = await decodeCtx.decodeAudioData(arrayBuffer);
+    } finally {
+      decodeCtx.close().catch(() => {});
+    }
+    const offlineCtx = new OfflineAudioContext(decoded.numberOfChannels, decoded.length, decoded.sampleRate);
+    const source = offlineCtx.createBufferSource();
+    source.buffer = decoded;
+    const gainNode = offlineCtx.createGain();
+    gainNode.gain.value = gain;
+    source.connect(gainNode);
+    gainNode.connect(offlineCtx.destination);
+    source.start();
+    const rendered = await offlineCtx.startRendering();
+    return encodeWav(rendered);
+  }
+
+  /* Minimal 16-bit PCM WAV encoder — no library needed for this one shot. */
+  function encodeWav(buffer){
+    const numChannels = buffer.numberOfChannels;
+    const sampleRate = buffer.sampleRate;
+    const numFrames = buffer.length;
+    const blockAlign = numChannels * 2;
+    const dataSize = numFrames * blockAlign;
+    const out = new ArrayBuffer(44 + dataSize);
+    const view = new DataView(out);
+    const writeStr = (offset, str) => { for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i)); };
+    writeStr(0, 'RIFF');
+    view.setUint32(4, 36 + dataSize, true);
+    writeStr(8, 'WAVE');
+    writeStr(12, 'fmt ');
+    view.setUint32(16, 16, true);
+    view.setUint16(20, 1, true); // PCM
+    view.setUint16(22, numChannels, true);
+    view.setUint32(24, sampleRate, true);
+    view.setUint32(28, sampleRate * blockAlign, true);
+    view.setUint16(32, blockAlign, true);
+    view.setUint16(34, 16, true);
+    writeStr(36, 'data');
+    view.setUint32(40, dataSize, true);
+    const channels = [];
+    for (let c = 0; c < numChannels; c++) channels.push(buffer.getChannelData(c));
+    let offset = 44;
+    for (let i = 0; i < numFrames; i++) {
+      for (let c = 0; c < numChannels; c++) {
+        const s = Math.max(-1, Math.min(1, channels[c][i])); // clamp — boosting past 100% can clip
+        view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7fff, true);
+        offset += 2;
+      }
+    }
+    return new Blob([out], { type: 'audio/wav' });
   }
 
   function refreshNowPlayingUI(){
@@ -2263,6 +2412,9 @@
     renderLibrary();
     renderPlaylists();
     await restoreState();
+    // get a head start on the restored queue's boosted audio, if boost is already on, so it's
+    // ready by the time the user taps play — not awaited, doesn't block the app becoming usable
+    if ((state.settings.volumeBoost || 1) > 1 && state.playOrder.length) warmBoostCache(state.playOrder.slice());
   }
   boot();
 
