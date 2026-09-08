@@ -596,6 +596,15 @@
   }
   .toast.show{opacity:1;transform:translateX(-50%) translateY(-4px);}
 
+  /* ---------- Temporary debug panel (2026-09-08, hide-video bug hunt — remove once resolved) ---------- */
+  #debugPanel{
+    position:fixed;left:8px;right:8px;bottom:90px;max-height:35vh;overflow-y:auto;
+    background:rgba(0,0,0,.88);color:#5eff5e;font:11px/1.45 monospace;
+    padding:8px 10px;border-radius:10px;z-index:9999;display:none;
+    white-space:pre-wrap;word-break:break-word;
+  }
+  #debugPanel.show{display:block;}
+
   /* Prompt-style dialog (rename / new playlist / confirm) */
   .dialog-backdrop{
     position:fixed;inset:0;background:rgba(20,16,10,.45);
@@ -815,6 +824,7 @@
   </div>
 
   <div id="toast" class="toast"></div>
+  <div id="debugPanel" aria-hidden="true"></div>
 </div>
 
 <script>
@@ -939,7 +949,8 @@
     pickSheetBackdrop: $('#pickSheetBackdrop'), pickSheetList: $('#pickSheetList'), pickSheetClose: $('#pickSheetClose'),
     dialogBackdrop: $('#dialogBackdrop'), dialogTitle: $('#dialogTitle'), dialogText: $('#dialogText'),
     dialogInput: $('#dialogInput'), dialogCancel: $('#dialogCancel'), dialogConfirm: $('#dialogConfirm'),
-    toast: $('#toast')
+    toast: $('#toast'),
+    debugPanel: $('#debugPanel')
   };
 
   /* static icon injection */
@@ -979,6 +990,32 @@
     clearTimeout(toastTimer);
     toastTimer = setTimeout(() => el.toast.classList.remove('show'), 2200);
   }
+
+  /* Temporary debug panel (2026-09-08) — hunting the "hide video, switch away and back, audio
+     dies" bug reported on a real device that hasn't been reproducible in testing. Accumulates
+     timestamped lines (unlike toast(), which only shows one message at a time and auto-hides) so
+     a real run can be read back afterward. Tap the panel to clear it. Remove this whole block,
+     its debugLog(...) call sites, the #debugPanel element/CSS, and the el.debugPanel entry once
+     the bug is found. */
+  const debugLines = [];
+  function debugLog(msg){
+    const t = new Date().toISOString().substr(11, 8);
+    debugLines.push(t + ' ' + msg);
+    if (debugLines.length > 50) debugLines.shift();
+    if (el.debugPanel) {
+      el.debugPanel.textContent = debugLines.join('\n');
+      el.debugPanel.classList.add('show');
+    }
+  }
+  if (el.debugPanel) {
+    el.debugPanel.addEventListener('click', () => {
+      debugLines.length = 0;
+      el.debugPanel.textContent = '';
+      el.debugPanel.classList.remove('show');
+    });
+  }
+  window.addEventListener('error', (e) => debugLog('window error: ' + e.message));
+  window.addEventListener('unhandledrejection', (e) => debugLog('unhandled rejection: ' + (e.reason && e.reason.message || e.reason)));
   function videoById(id){ return state.videos.find(v => v.id === id); }
   function playlistById(id){ return state.playlists.find(p => p.id === id); }
 
@@ -1831,17 +1868,19 @@
     // el.stageVideo.play() here is always safe. Deliberately doesn't touch #audioPlayer at all.
     if (!state.currentObjectUrl) return;
     if (hidden) {
-      if (!el.stageVideo.paused) el.stageVideo.pause();
+      if (!el.stageVideo.paused) { debugLog('updateVideoVisibility: pausing stageVideo (audioPlayer.paused=' + el.audioPlayer.paused + ')'); el.stageVideo.pause(); }
     } else if (el.stageVideo.paused && !el.audioPlayer.paused) {
+      debugLog('updateVideoVisibility: resuming stageVideo (audioPlayer.currentTime=' + el.audioPlayer.currentTime.toFixed(2) + ')');
       if (el.stageVideo.src !== state.currentObjectUrl) el.stageVideo.src = state.currentObjectUrl;
       el.stageVideo.currentTime = el.audioPlayer.currentTime;
-      el.stageVideo.play().catch(() => {});
+      el.stageVideo.play().catch((e) => debugLog('stageVideo.play() rejected: ' + e.message));
     }
   }
   async function toggleVideoHiddenForCurrent(){
     const v = videoById(getCurrentId());
-    if (!v) return;
+    if (!v) { debugLog('toggleVideoHiddenForCurrent: no current video found!'); return; }
     v.hideImage = !v.hideImage;
+    debugLog('toggleVideoHiddenForCurrent ' + v.name + ' -> ' + v.hideImage);
     await dbPut('videos', v);
     updateVideoVisibility();
     toast(v.hideImage ? 'Videobild für dieses Video ausgeblendet' : 'Videobild für dieses Video wieder an');
@@ -1991,6 +2030,7 @@
     const id = getCurrentId();
     const v = videoById(id);
     if (!v) return;
+    debugLog('loadCurrentTrack ' + v.name + ' hideImage=' + !!v.hideImage + ' autoplay=' + !!autoplay);
     if (state.currentObjectUrl) URL.revokeObjectURL(state.currentObjectUrl);
     state.currentObjectUrl = URL.createObjectURL(v.blob);
     // #audioPlayer.play() below has to stay synchronous with the triggering tap (or the previous
@@ -2008,7 +2048,7 @@
     el.stageVideo.currentTime = 0;
     state.earlyAdvanceDone = false;
     if (autoplay) {
-      el.audioPlayer.play().catch(() => {});
+      el.audioPlayer.play().catch((e) => debugLog('audioPlayer.play() rejected: ' + e.message));
       el.stageVideo.play().catch(() => {}); // muted, so this never needs a gesture
     }
     refreshNowPlayingUI();
@@ -2238,6 +2278,10 @@
   el.audioPlayer.addEventListener('play', () => { setPlayPauseIcon(); if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'playing'; });
   el.audioPlayer.addEventListener('pause', () => { setPlayPauseIcon(); if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'paused'; saveState(); });
   el.audioPlayer.addEventListener('ended', nextTrack);
+  // temporary debug instrumentation, see debugLog() above
+  el.audioPlayer.addEventListener('error', () => debugLog('audioPlayer error code=' + (el.audioPlayer.error ? el.audioPlayer.error.code : '?')));
+  el.audioPlayer.addEventListener('stalled', () => debugLog('audioPlayer stalled at ' + el.audioPlayer.currentTime.toFixed(2)));
+  el.stageVideo.addEventListener('error', () => debugLog('stageVideo error code=' + (el.stageVideo.error ? el.stageVideo.error.code : '?')));
   el.audioPlayer.addEventListener('timeupdate', () => {
     const d = el.audioPlayer.duration || videoById(getCurrentId())?.duration || 0;
     const pct = d ? (el.audioPlayer.currentTime / d) * 100 : 0;
