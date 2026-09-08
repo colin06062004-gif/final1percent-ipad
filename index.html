@@ -758,6 +758,7 @@
       <div class="fp-times"><span id="fpTimeCur" class="mono">0:00</span><span id="fpTimeDur" class="mono">0:00</span></div>
     </div>
     <div class="fp-controls">
+      <button id="fpHideVideo" class="icon-btn" aria-label="Videobild für dieses Video ausblenden"></button>
       <button id="fpShuffle" class="icon-btn" aria-label="Zufallswiedergabe"></button>
       <button id="fpPrev" class="icon-btn" aria-label="Vorheriges Video"></button>
       <button id="fpPlayPause" class="icon-btn big" aria-label="Abspielen/Pause"></button>
@@ -833,11 +834,12 @@
     close:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>`,
     back:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>`,
     film:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="4" width="18" height="16" rx="1.5"/><path d="M7 4v16M17 4v16M3 9h4M3 15h4M17 9h4M17 15h4"/></svg>`,
+    videoOff:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><rect x="3" y="4" width="18" height="16" rx="1.5"/><path d="M7 4v16M17 4v16M3 9h4M3 15h4M17 9h4M17 15h4"/><path d="M3.5 3.5l17 17"/></svg>`,
     check:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>`,
     listMusic:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h11M4 12h11M4 18h7"/><circle cx="19" cy="16" r="2.3"/><path d="M21.3 16V7l-3 1"/></svg>`,
     pencil:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19.5 8.5a2.1 2.1 0 0 0-3-3L5 17z"/><path d="M14.5 6.5l3 3"/></svg>`,
     queue:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h12M3 12h12M3 18h7"/><path d="M16.5 13.5l5.5 3.3-5.5 3.3z" fill="currentColor" stroke="none"/></svg>`,
-    settings:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.1"/><path d="M12 2.6l1.5 2.6 3-.4.5 3 2.7 1.4-1.4 2.7 1.4 2.7-2.7 1.4-.5 3-3-.4L12 21.4l-1.5-2.6-3 .4-.5-3-2.7-1.4L3.7 12 2.3 9.3l2.7-1.4.5-3 3 .4z"/></svg>`,
+    settings:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.1"/><path d="M12 2.6L14.74 5.39L18.65 5.35L18.61 9.26L21.4 12L18.61 14.74L18.65 18.65L14.74 18.61L12 21.4L9.26 18.61L5.35 18.65L5.39 14.74L2.6 12L5.39 9.26L5.35 5.35L9.26 5.39Z"/></svg>`,
     image:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2.5"/><circle cx="8.6" cy="9.6" r="1.7"/><path d="M20.5 15.5L16 11l-8.5 8.5"/></svg>`,
     camera:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="2.5"/><path d="M9 7l1.4-2h3.2L15 7"/><circle cx="12" cy="13.5" r="3.2"/></svg>`,
     grip:`<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></svg>`
@@ -929,7 +931,7 @@
     stageVideo: $('#stageVideo'), audioPlayer: $('#audioPlayer'),
     fpTitle: $('#fpTitle'), fpContext: $('#fpContext'),
     fpProgressBar: $('#fpProgressBar'), fpProgressFill: $('#fpProgressFill'), fpProgressKnob: $('#fpProgressKnob'), fpTimeCur: $('#fpTimeCur'), fpTimeDur: $('#fpTimeDur'),
-    fpShuffle: $('#fpShuffle'), fpPrev: $('#fpPrev'), fpPlayPause: $('#fpPlayPause'), fpNext: $('#fpNext'), fpRepeat: $('#fpRepeat'), fpQueue: $('#fpQueue'),
+    fpHideVideo: $('#fpHideVideo'), fpShuffle: $('#fpShuffle'), fpPrev: $('#fpPrev'), fpPlayPause: $('#fpPlayPause'), fpNext: $('#fpNext'), fpRepeat: $('#fpRepeat'), fpQueue: $('#fpQueue'),
     queueSheetBackdrop: $('#queueSheetBackdrop'), queueSheetClose: $('#queueSheetClose'), queueList: $('#queueList'), queueNote: $('#queueNote'),
     cropBackdrop: $('#cropBackdrop'), cropStage: $('#cropStage'), cropFrame: $('#cropFrame'), cropCancel: $('#cropCancel'), cropConfirm: $('#cropConfirm'),
     setAudioOnly: $('#setAudioOnly'),
@@ -950,6 +952,7 @@
   el.miniStop.innerHTML = ICONS.close;
   el.fpImport.innerHTML = ICONS.plus;
   el.fpClose.innerHTML = ICONS.close;
+  el.fpHideVideo.innerHTML = ICONS.videoOff;
   el.fpShuffle.innerHTML = ICONS.shuffle;
   el.fpPrev.innerHTML = ICONS.prev;
   el.fpPlayPause.innerHTML = ICONS.play;
@@ -1805,11 +1808,29 @@
 
   /* ================= Settings ================= */
   function applySettings(){
-    document.body.classList.toggle('audio-only', !!state.settings.audioOnly);
+    updateVideoVisibility();
     el.setAudioOnly.setAttribute('aria-checked', state.settings.audioOnly ? 'true' : 'false');
     const pct = Math.round((state.settings.volumeBoost || 1) * 100);
     el.setVolumeBoost.value = pct;
     el.volumeBoostValue.textContent = pct + '%';
+  }
+  /* Whether the video image is hidden combines the global "Videobild ausblenden" setting with a
+     per-video override (v.hideImage, toggled from the full player, persisted on the video record
+     itself so it follows that video across playlists/sessions independently of the global
+     setting) — hidden if either one says so. */
+  function updateVideoVisibility(){
+    const v = videoById(getCurrentId());
+    const hiddenForThisVideo = !!(v && v.hideImage);
+    document.body.classList.toggle('audio-only', !!state.settings.audioOnly || hiddenForThisVideo);
+    if (el.fpHideVideo) el.fpHideVideo.classList.toggle('toggled', hiddenForThisVideo);
+  }
+  async function toggleVideoHiddenForCurrent(){
+    const v = videoById(getCurrentId());
+    if (!v) return;
+    v.hideImage = !v.hideImage;
+    await dbPut('videos', v);
+    updateVideoVisibility();
+    toast(v.hideImage ? 'Videobild für dieses Video ausgeblendet' : 'Videobild für dieses Video wieder an');
   }
   async function saveSettings(){
     try { await dbPut('meta', { key: 'settings', value: state.settings }); } catch (e) {}
@@ -2082,6 +2103,7 @@
   }
 
   function refreshNowPlayingUI(){
+    updateVideoVisibility();
     const v = videoById(getCurrentId());
     if (!v) { el.miniPlayer.classList.add('hidden'); el.fabWrap.classList.remove('lifted'); return; }
     el.miniPlayer.classList.remove('hidden');
@@ -2244,6 +2266,7 @@
   el.fpPlayPause.addEventListener('click', togglePlayPause);
   el.fpNext.addEventListener('click', nextTrack);
   el.fpPrev.addEventListener('click', prevTrack);
+  el.fpHideVideo.addEventListener('click', toggleVideoHiddenForCurrent);
   el.fpShuffle.addEventListener('click', toggleShuffle);
   el.fpRepeat.addEventListener('click', toggleRepeat);
   /* Scrubbing: press anywhere on the bar and drag. The picture follows the thumb because
