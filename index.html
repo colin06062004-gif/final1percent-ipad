@@ -1821,8 +1821,22 @@
   function updateVideoVisibility(){
     const v = videoById(getCurrentId());
     const hiddenForThisVideo = !!(v && v.hideImage);
-    document.body.classList.toggle('audio-only', !!state.settings.audioOnly || hiddenForThisVideo);
+    const hidden = !!state.settings.audioOnly || hiddenForThisVideo;
+    document.body.classList.toggle('audio-only', hidden);
     if (el.fpHideVideo) el.fpHideVideo.classList.toggle('toggled', hiddenForThisVideo);
+    // #stageVideo is purely decorative (#audioPlayer is the real, always-audible sound source —
+    // see the playback-engine comment) — no reason to keep it actively decoding while hidden, so
+    // pause it. Coming back to visible re-syncs it to #audioPlayer's position and resumes it; this
+    // only ever runs from a track load or a real settings/hide-button click, never on a timer, so
+    // el.stageVideo.play() here is always safe. Deliberately doesn't touch #audioPlayer at all.
+    if (!state.currentObjectUrl) return;
+    if (hidden) {
+      if (!el.stageVideo.paused) el.stageVideo.pause();
+    } else if (el.stageVideo.paused && !el.audioPlayer.paused) {
+      if (el.stageVideo.src !== state.currentObjectUrl) el.stageVideo.src = state.currentObjectUrl;
+      el.stageVideo.currentTime = el.audioPlayer.currentTime;
+      el.stageVideo.play().catch(() => {});
+    }
   }
   async function toggleVideoHiddenForCurrent(){
     const v = videoById(getCurrentId());
