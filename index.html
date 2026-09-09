@@ -188,6 +188,9 @@
     white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
   }
   .track-row.playing .track-name{color:var(--accent);}
+  /* A video "deaktiviert" for this playlist only — stays a member (and still playable by
+     tapping it directly), just skipped by shuffle/sequential playback of the playlist. */
+  .track-row.disabled{opacity:.45;}
   .track-sub{
     font-family:var(--font-mono);
     font-size:11.5px;color:var(--ink-muted);
@@ -217,6 +220,7 @@
   .track-actions .icon-btn{width:32px;height:32px;color:var(--ink-faint);}
   .track-actions .icon-btn svg{width:17px;height:17px;}
   .track-actions .icon-btn.danger:active{color:var(--danger);}
+  .track-actions .icon-btn.toggled{color:var(--accent-glow);}
 
   /* TikTok-style thumbnail grid for the library, in place of the sprocket list */
   .library-grid{
@@ -840,7 +844,8 @@
     settings:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.1"/><path d="M12 2.6L14.74 5.39L18.65 5.35L18.61 9.26L21.4 12L18.61 14.74L18.65 18.65L14.74 18.61L12 21.4L9.26 18.61L5.35 18.65L5.39 14.74L2.6 12L5.39 9.26L5.35 5.35L9.26 5.39Z"/></svg>`,
     image:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2.5"/><circle cx="8.6" cy="9.6" r="1.7"/><path d="M20.5 15.5L16 11l-8.5 8.5"/></svg>`,
     camera:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="2.5"/><path d="M9 7l1.4-2h3.2L15 7"/><circle cx="12" cy="13.5" r="3.2"/></svg>`,
-    grip:`<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></svg>`
+    grip:`<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></svg>`,
+    ban:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M6.3 6.3l11.4 11.4"/></svg>`
   };
 
   /* ================= IndexedDB ================= */
@@ -984,6 +989,14 @@
   }
   function videoById(id){ return state.videos.find(v => v.id === id); }
   function playlistById(id){ return state.playlists.find(p => p.id === id); }
+  /* Video ids from a playlist that should actually be considered for playback — i.e. everything
+     except ones "deaktiviert" for this playlist (still a member, just skipped by shuffle/
+     sequential playback), plus keepId if given so a video that's been deactivated can still be
+     played on demand by tapping it directly. */
+  function playlistActiveIds(p, keepId){
+    const disabledIds = p.disabledIds || [];
+    return p.videoIds.filter(id => videoById(id) && (id === keepId || !disabledIds.includes(id)));
+  }
 
   /* simple promise-based dialog replacing prompt()/confirm() for consistent styling */
   function showDialog({title, text, placeholder, value, confirmLabel, danger}){
@@ -1286,9 +1299,10 @@
     return li;
   }
 
-  function buildTrackRow(v, { onPlay, onRemove, onDelete, onRename, dragHandle, swipeHint }){
+  function buildTrackRow(v, { onPlay, onRemove, onDelete, onRename, onToggleDisabled, disabled, dragHandle, swipeHint }){
     const li = document.createElement('li');
     li.className = 'track-row';
+    li.classList.toggle('disabled', !!disabled);
     li.dataset.id = v.id;
 
     const thumbWrap = document.createElement('div');
@@ -1304,7 +1318,7 @@
     main.appendChild(thumbWrap);
     main.appendChild(textCol);
     main.querySelector('.track-name').textContent = v.name;
-    main.querySelector('.track-sub').textContent = fmtTime(v.duration);
+    main.querySelector('.track-sub').textContent = fmtTime(v.duration) + (disabled ? ' · Deaktiviert' : '');
     main.addEventListener('click', () => { if (!li.dataset.swiped) onPlay(); });
 
     const hint = document.createElement('span');
@@ -1332,6 +1346,12 @@
       const btn = document.createElement('button'); btn.className = 'icon-btn'; btn.innerHTML = ICONS.close;
       btn.setAttribute('aria-label', 'Aus Playlist entfernen');
       btn.addEventListener('click', (e) => { e.stopPropagation(); onRemove(); });
+      actions.appendChild(btn);
+    }
+    if (onToggleDisabled) {
+      const btn = document.createElement('button'); btn.className = 'icon-btn' + (disabled ? ' toggled' : ''); btn.innerHTML = ICONS.ban;
+      btn.setAttribute('aria-label', disabled ? 'Video für diese Playlist wieder aktivieren' : 'Video für diese Playlist deaktivieren');
+      btn.addEventListener('click', (e) => { e.stopPropagation(); onToggleDisabled(); });
       actions.appendChild(btn);
     }
     if (onDelete) {
@@ -1383,7 +1403,11 @@
     dbDelete('videoFlags', id).catch(() => {});
     state.videos = state.videos.filter(x => x.id !== id);
     for (const p of state.playlists) {
-      if (p.videoIds.includes(id)) { p.videoIds = p.videoIds.filter(x => x !== id); await dbPut('playlists', p); }
+      if (p.videoIds.includes(id) || (p.disabledIds || []).includes(id)) {
+        p.videoIds = p.videoIds.filter(x => x !== id);
+        if (p.disabledIds) p.disabledIds = p.disabledIds.filter(x => x !== id);
+        await dbPut('playlists', p);
+      }
     }
     if (state.queueBase.includes(id)) {
       // remove from live queue without interrupting playback of a different current track
@@ -1492,9 +1516,22 @@
     p.videoIds.forEach((vid) => {
       const v = videoById(vid);
       if (!v) return;
+      const isDisabled = (p.disabledIds || []).includes(vid);
       el.pdList.appendChild(buildTrackRow(v, {
-        onPlay: () => playQueue(p.videoIds.filter(id => videoById(id)), p.name, vid, undefined, p.trimmed, p.id),
-        onRemove: async () => { p.videoIds = p.videoIds.filter(x => x !== vid); await dbPut('playlists', p); syncLiveQueueFromPlaylist(p); renderPlaylistDetail(); renderPlaylists(); },
+        onPlay: () => playQueue(playlistActiveIds(p, vid), p.name, vid, undefined, p.trimmed, p.id),
+        onRemove: async () => {
+          p.videoIds = p.videoIds.filter(x => x !== vid);
+          if (p.disabledIds) p.disabledIds = p.disabledIds.filter(x => x !== vid);
+          await dbPut('playlists', p); syncLiveQueueFromPlaylist(p); renderPlaylistDetail(); renderPlaylists();
+        },
+        disabled: isDisabled,
+        onToggleDisabled: async () => {
+          p.disabledIds = p.disabledIds || [];
+          p.disabledIds = isDisabled ? p.disabledIds.filter(x => x !== vid) : [...p.disabledIds, vid];
+          await dbPut('playlists', p);
+          syncLiveQueueFromPlaylist(p);
+          renderPlaylistDetail();
+        },
         dragHandle: true
       }));
     });
@@ -1772,10 +1809,12 @@
   el.pdPlaySeq.addEventListener('click', () => {
     const p = playlistById(state.activePlaylistId);
     if (!p || !p.videoIds.length) { toast('Playlist ist leer'); return; }
+    const ids = playlistActiveIds(p);
+    if (!ids.length) { toast('Alle Videos in dieser Playlist sind deaktiviert'); return; }
     // No startId and no forceShuffle: starts at track 1 normally, or — if shuffle mode is
     // already on — shuffles the whole playlist and starts with a random track. Either way this
     // only ever *reads* state.shuffle, never changes it — that's pdPlayShuffle's job alone.
-    playQueue(p.videoIds, p.name, null, undefined, p.trimmed, p.id);
+    playQueue(ids, p.name, null, undefined, p.trimmed, p.id);
   });
   el.pdPlayShuffle.addEventListener('click', () => {
     // Only flips the shuffle mode on/off — deliberately does NOT start playback itself (that's
@@ -1980,7 +2019,7 @@
     // (the freshly rebuilt array trivially no longer lines up with the old posIndex).
     const wasPlayingFromQueue = isPlayingFromQueue();
     state.queueTrimmed = !!p.trimmed;
-    const validIds = p.videoIds.filter(id => videoById(id));
+    const validIds = playlistActiveIds(p);
     state.queueBase = validIds.slice();
     if (state.shuffle) {
       const kept = state.playOrder.filter(id => validIds.includes(id));
@@ -2004,7 +2043,7 @@
       state.posIndex = state.playOrder.indexOf(curId);
       refreshNowPlayingUI(); saveState();
     } else {
-      // the playing video itself was just removed — move on to whatever's now in its place
+      // the playing video itself was just removed (or deactivated) — move on to whatever's now in its place
       state.posIndex = Math.min(Math.max(0, state.posIndex), state.playOrder.length - 1);
       state.currentId = state.playOrder[state.posIndex];
       loadCurrentTrack(true);
