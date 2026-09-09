@@ -663,13 +663,11 @@
         </div>
       </div>
       <div class="pd-actions">
-        <button id="pdPlaySeq" class="btn solid"></button>
+        <button id="pdPlaySeq" class="btn solid" aria-label="Playlist abspielen"></button>
         <button id="pdPlayShuffle" class="btn ghost"></button>
         <button id="pdAddVideos" class="btn ghost">+ Videos</button>
         <button id="pdToggleTrim" class="btn ghost"></button>
-        <button id="pdRename" class="btn ghost">Umbenennen</button>
         <button id="pdCoverRemove" class="btn ghost" hidden>Bild entfernen</button>
-        <button id="pdDelete" class="btn danger-ghost">Löschen</button>
       </div>
       <ul id="pdList" class="track-list"></ul>
       <div id="pdEmpty" class="empty-state" hidden>
@@ -926,7 +924,7 @@
     libraryList: $('#libraryList'), libraryEmpty: $('#libraryEmpty'),
     playlistsList: $('#playlistsList'), playlistsEmpty: $('#playlistsEmpty'), newPlaylistBtn: $('#newPlaylistBtn'), newTrimmedPlaylistBtn: $('#newTrimmedPlaylistBtn'),
     pdBack: $('#pdBack'), pdTitle: $('#pdTitle'), pdCount: $('#pdCount'), pdList: $('#pdList'), pdEmpty: $('#pdEmpty'),
-    pdPlaySeq: $('#pdPlaySeq'), pdPlayShuffle: $('#pdPlayShuffle'), pdAddVideos: $('#pdAddVideos'), pdToggleTrim: $('#pdToggleTrim'), pdRename: $('#pdRename'), pdDelete: $('#pdDelete'),
+    pdPlaySeq: $('#pdPlaySeq'), pdPlayShuffle: $('#pdPlayShuffle'), pdAddVideos: $('#pdAddVideos'), pdToggleTrim: $('#pdToggleTrim'),
     pdCover: $('#pdCover'), pdCoverRemove: $('#pdCoverRemove'),
     tabs: document.querySelectorAll('.tab'),
     miniPlayer: $('#miniPlayer'), miniThumb: $('#miniThumb'), miniTitle: $('#miniTitle'), miniSub: $('#miniSub'),
@@ -950,7 +948,7 @@
   /* static icon injection */
   el.importBtn.innerHTML = ICONS.plus;
   el.pdBack.innerHTML = ICONS.back + '<span>Playlists</span>';
-  el.pdPlaySeq.innerHTML = ICONS.play + '<span>Abspielen</span>';
+  el.pdPlaySeq.innerHTML = ICONS.play;
   el.pdPlayShuffle.innerHTML = ICONS.shuffle + '<span>Shuffle</span>';
   el.miniPlayPause.innerHTML = ICONS.play;
   el.miniNext.innerHTML = ICONS.next;
@@ -1423,6 +1421,14 @@
       main.querySelector('.track-sub').textContent = p.videoIds.length + (p.videoIds.length === 1 ? ' Video' : ' Videos') + (p.trimmed ? ' · Verkürzt' : '');
       main.addEventListener('click', () => openPlaylistDetail(p.id));
       const actions = document.createElement('div'); actions.className = 'track-actions';
+      const renameBtn = document.createElement('button'); renameBtn.className = 'icon-btn'; renameBtn.innerHTML = ICONS.pencil;
+      renameBtn.setAttribute('aria-label', 'Playlist umbenennen');
+      renameBtn.addEventListener('click', (e) => { e.stopPropagation(); renamePlaylist(p); });
+      actions.appendChild(renameBtn);
+      const deleteBtn = document.createElement('button'); deleteBtn.className = 'icon-btn danger'; deleteBtn.innerHTML = ICONS.close;
+      deleteBtn.setAttribute('aria-label', 'Playlist löschen');
+      deleteBtn.addEventListener('click', (e) => { e.stopPropagation(); deletePlaylist(p); });
+      actions.appendChild(deleteBtn);
       const handle = document.createElement('button'); handle.className = 'icon-btn drag-handle'; handle.innerHTML = ICONS.grip;
       handle.setAttribute('aria-label', 'Ziehen zum Umsortieren');
       actions.appendChild(handle);
@@ -1430,6 +1436,23 @@
       li.appendChild(actions);
       el.playlistsList.appendChild(li);
     });
+  }
+
+  async function renamePlaylist(p){
+    const name = await showDialog({ title: 'Playlist umbenennen', placeholder: 'Name der Playlist', value: p.name, confirmLabel: 'Speichern' });
+    if (!name) return;
+    p.name = name; await dbPut('playlists', p);
+    renderPlaylists();
+    if (state.view === 'playlistDetail' && state.activePlaylistId === p.id) renderPlaylistDetail();
+  }
+
+  async function deletePlaylist(p){
+    const ok = await showDialog({ title: 'Playlist löschen?', text: '„' + p.name + '“ wird gelöscht. Die Videos bleiben in deiner Bibliothek.', confirmLabel: 'Löschen', danger: true });
+    if (!ok) return;
+    await dbDelete('playlists', p.id);
+    state.playlists = state.playlists.filter(x => x.id !== p.id);
+    renderPlaylists();
+    if (state.view === 'playlistDetail' && state.activePlaylistId === p.id) switchView('playlists');
   }
 
   async function createPlaylist(trimmed){
@@ -1765,24 +1788,6 @@
     renderPlaylists();
     toast(p.trimmed ? 'Playlist verkürzt jetzt automatisch' : 'Playlist spielt Videos wieder vollständig');
   });
-  el.pdRename.addEventListener('click', async () => {
-    const p = playlistById(state.activePlaylistId);
-    if (!p) return;
-    const name = await showDialog({ title: 'Playlist umbenennen', placeholder: 'Name der Playlist', value: p.name, confirmLabel: 'Speichern' });
-    if (!name) return;
-    p.name = name; await dbPut('playlists', p);
-    renderPlaylistDetail(); renderPlaylists();
-  });
-  el.pdDelete.addEventListener('click', async () => {
-    const p = playlistById(state.activePlaylistId);
-    if (!p) return;
-    const ok = await showDialog({ title: 'Playlist löschen?', text: '„' + p.name + '“ wird gelöscht. Die Videos bleiben in deiner Bibliothek.', confirmLabel: 'Löschen', danger: true });
-    if (!ok) return;
-    await dbDelete('playlists', p.id);
-    state.playlists = state.playlists.filter(x => x.id !== p.id);
-    renderPlaylists(); switchView('playlists');
-  });
-
   el.pdAddVideos.addEventListener('click', () => {
     const p = playlistById(state.activePlaylistId);
     if (!p) return;
