@@ -720,7 +720,7 @@
         <li class="setting-row">
           <div class="setting-text">
             <div class="setting-label">Neue Videos nur mit Ton importieren</div>
-            <div class="setting-hint">Spart massiv Speicherplatz: Beim Import wird nur der Ton behalten, das Videobild wird verworfen. Die Originaldatei kannst du danach aus deiner Fotomediathek löschen. Der Import dauert dadurch so lange wie das Video selbst.</div>
+            <div class="setting-hint">Spart Speicherplatz: Beim Import wird nur der Ton behalten, das Videobild wird verworfen. Die Originaldatei kannst du danach aus deiner Fotomediathek löschen.</div>
             <div class="setting-warning">Das Videobild ist danach unwiderruflich weg — nur für Videos anschalten, bei denen dir das Bild wirklich egal ist.</div>
           </div>
           <button id="setImportAudioOnly" class="switch" role="switch" aria-checked="false" aria-label="Neue Videos nur mit Ton importieren"><span class="switch-knob"></span></button>
@@ -1100,48 +1100,40 @@
   }
 
   /* "Nur mit Ton importieren" (settings toggle) — extracts just the audio track from an
-     imported video and discards the rest, for a huge storage saving (audio is typically
-     40-80x smaller than the matching video). This has to happen by actually playing the file
-     through in real time and recording the resulting audio-only stream: there's no faster way
-     to do this reliably in a browser without a much heavier, riskier dependency (ffmpeg.wasm
-     has documented crash issues on mobile Safari from memory pressure on longer files —
-     see the Obsidian writeup on why this approach was chosen). Muting only affects the
-     element's own speaker output, not the captured stream's audio data, per the Media Capture
-     spec — verified this actually holds during testing (see below) rather than trusting it blind.
-     onProgress(currentTime, duration) fires on every 'timeupdate' so the caller can show real
-     progress during what can be a multi-minute wait. */
-  function extractAudioOnly(file, onProgress){
-    return new Promise((resolve, reject) => {
-      const v = document.createElement('video');
-      v.playsInline = true;
-      v.muted = true;
-      const url = URL.createObjectURL(file);
-      let settled = false;
-      const finish = (fn, arg) => { if (settled) return; settled = true; URL.revokeObjectURL(url); fn(arg); };
-      v.addEventListener('loadedmetadata', () => {
-        let stream;
-        try { stream = v.captureStream ? v.captureStream() : v.mozCaptureStream(); }
-        catch (e) { finish(reject, new Error('Konnte keinen Ton-Stream erzeugen')); return; }
-        const audioTracks = stream.getAudioTracks();
-        if (!audioTracks.length) { finish(reject, new Error('Kein Ton in diesem Video gefunden')); return; }
-        const audioStream = new MediaStream(audioTracks);
-        const mimeCandidates = ['audio/mp4', 'audio/aac', 'audio/webm;codecs=opus', 'audio/webm'];
-        const mimeType = mimeCandidates.find(t => window.MediaRecorder && MediaRecorder.isTypeSupported(t));
-        let rec;
-        try { rec = new MediaRecorder(audioStream, mimeType ? { mimeType } : undefined); }
-        catch (e) { finish(reject, new Error('Ton-Aufnahme wird nicht unterstützt')); return; }
-        const chunks = [];
-        rec.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
-        rec.onerror = () => finish(reject, new Error('Fehler bei der Ton-Aufnahme'));
-        rec.onstop = () => finish(resolve, new Blob(chunks, { type: mimeType || 'audio/webm' }));
-        v.addEventListener('timeupdate', () => { if (onProgress) onProgress(v.currentTime, v.duration || 0); });
-        v.addEventListener('ended', () => rec.stop());
-        rec.start();
-        v.play().catch((e) => finish(reject, e));
-      });
-      v.addEventListener('error', () => finish(reject, new Error('Video konnte nicht gelesen werden')));
-      v.src = url;
-    });
+     imported video and discards the rest, for a storage saving.
+     First attempt used HTMLMediaElement.captureStream() + MediaRecorder (play the file through
+     in real time, record just the audio track) — worked in this project's Chromium test
+     environment, but failed immediately on the user's real iPhone ("Konnte keinen Ton-Stream
+     erzeugen"). Turned out Safari explicitly does not implement captureStream() on <video>/
+     <audio> elements at all — a permanent platform gap, not a version-gating issue
+     (https://caniuse.com/mediacapture-fromelement) — so that whole approach was a dead end.
+     Reuses the same decodeAudioData()+OfflineAudioContext+encodeWav() pipeline already proven
+     working on this user's real device for the volume-boost feature (renderBoostedAudio), but
+     NOT that function itself: a full-quality (original sample rate, stereo) WAV is uncompressed
+     PCM, and confirmed by testing this can come out the same size as — or even bigger than — a
+     moderately-compressed source video, since there's no lossy audio encoder available in-browser
+     on Safari to fall back on. Downsampling to mono at 22.05kHz cuts that by ~4x (plenty for
+     spoken/casual listening, not aimed at hi-fi music) — reliably smaller than source video in
+     realistic cases, at the cost of a real, audible-if-you-listen-for-it quality reduction
+     (mono, and audio above ~11kHz cut) beyond what run-of-the-mill re-encoding would cost. */
+  async function extractAudioOnly(file){
+    const arrayBuffer = await file.arrayBuffer();
+    const decodeCtx = new (window.AudioContext || window.webkitAudioContext)();
+    let decoded;
+    try {
+      decoded = await decodeCtx.decodeAudioData(arrayBuffer);
+    } finally {
+      decodeCtx.close().catch(() => {});
+    }
+    const targetRate = 22050;
+    const targetLength = Math.max(1, Math.ceil(decoded.duration * targetRate));
+    const offlineCtx = new OfflineAudioContext(1, targetLength, targetRate); // mono
+    const source = offlineCtx.createBufferSource();
+    source.buffer = decoded;
+    source.connect(offlineCtx.destination); // stereo->mono downmix and resampling both happen automatically here
+    source.start();
+    const rendered = await offlineCtx.startRendering();
+    return encodeWav(rendered);
   }
 
   /* Sanity check so a broken/silent extraction (e.g. a Safari quirk this environment can't
@@ -1326,7 +1318,7 @@
     el.fileInput.value = '';
     if (!files.length) return;
     const audioOnly = state.settings.importAudioOnly;
-    toast(audioOnly ? 'Extrahiere Ton — App bitte offen halten…' : 'Importiere ' + files.length + ' Video' + (files.length > 1 ? 's' : '') + ' …');
+    toast(audioOnly ? 'Extrahiere Ton…' : 'Importiere ' + files.length + ' Video' + (files.length > 1 ? 's' : '') + ' …');
     if (audioOnly) {
       el.importProgressLog.textContent = '';
       el.importProgressBar.value = 0;
@@ -1339,12 +1331,9 @@
         const meta = await readVideoMeta(file);
         let blob = file;
         if (audioOnly) {
-          el.importProgressFile.textContent = 'Datei ' + (i + 1) + '/' + files.length + ': ' + file.name;
-          el.importProgressBar.value = 0;
-          blob = await extractAudioOnly(file, (cur, dur) => {
-            el.importProgressBar.value = dur ? Math.round((cur / dur) * 100) : 0;
-            el.importProgressFile.textContent = 'Datei ' + (i + 1) + '/' + files.length + ': ' + file.name + ' — ' + fmtTime(cur) + ' / ' + fmtTime(dur);
-          });
+          el.importProgressFile.textContent = 'Datei ' + (i + 1) + '/' + files.length + ': ' + file.name + ' — wird verarbeitet…';
+          el.importProgressBar.value = Math.round((i / files.length) * 100);
+          blob = await extractAudioOnly(file);
           const hasAudio = await validateHasAudio(blob);
           if (!hasAudio) throw new Error('Kein hörbarer Ton gefunden');
           const pct = file.size ? Math.round((blob.size / file.size) * 100) : 0;
@@ -1370,6 +1359,7 @@
         console.error('Import fehlgeschlagen', e);
         if (audioOnly) el.importProgressLog.textContent += '✗ ' + file.name + ': ' + e.message + '\n';
       }
+      if (audioOnly) el.importProgressBar.value = Math.round(((i + 1) / files.length) * 100);
     }
     if (audioOnly) {
       el.importProgressFile.textContent = 'Fertig.';
