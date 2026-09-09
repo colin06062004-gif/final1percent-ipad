@@ -1137,8 +1137,8 @@
      So: no downsampling. Just renderBoostedAudio() with gain=1 - literally "no boost, just
      decode and re-encode" - the exact same call already proven working on this user's real
      device elsewhere in the app. */
-  function extractAudioOnly(file){
-    return renderBoostedAudio(file, 1);
+  function extractAudioOnly(file, onStage){
+    return renderBoostedAudio(file, 1, onStage);
   }
 
   /* Sanity check so a broken/silent extraction (e.g. a Safari quirk this environment can't
@@ -1395,33 +1395,47 @@
           // this specific device/file — confirmed to happen on the user's real iPhone even
           // though this same decode call works for other files there) shouldn't lose the video
           // entirely - fall back to importing it normally instead of skipping it outright.
-          // There's no real sub-progress to report during a single file's extraction (none of
-          // the APIs involved expose one), so this at least ticks up elapsed time - proof it's
-          // still working rather than looking frozen, which is indistinguishable from a genuine
-          // hang otherwise. withTimeout() below is the actual backstop against a real hang.
+          // No API involved exposes real sub-progress, but renderBoostedAudio()'s onStage lets
+          // us at least see *which step* is running (60s wasn't enough for a 240MB recording on
+          // the user's device - this is what tells us whether a longer ceiling is legitimately
+          // slow-but-working vs. actually stuck on one particular step). Logged into the panel
+          // on any failure below, timeout included, so we get this even without a full
+          // diagnoseExtractionFailure() run.
+          const stages = []; // {name, durationMs} for each *completed* stage
+          let curStage = 'Start', curStageAt = Date.now();
+          const onStage = (name) => {
+            const now = Date.now();
+            stages.push({ name: curStage, durationMs: now - curStageAt });
+            curStage = name; curStageAt = now;
+          };
+          const stageTimeline = () => stages.map(s => s.name + ' ' + (s.durationMs / 1000).toFixed(1) + 's').concat([curStage + ' (läuft seit ' + ((Date.now() - curStageAt) / 1000).toFixed(1) + 's)']).join(' → ');
           const startedAt = Date.now();
           const label = 'Datei ' + (i + 1) + '/' + files.length + ': ' + file.name;
           el.importProgressFile.textContent = label + ' — wird verarbeitet…';
           const ticker = setInterval(() => {
-            el.importProgressFile.textContent = label + ' — wird verarbeitet… (' + Math.round((Date.now() - startedAt) / 1000) + 's)';
+            el.importProgressFile.textContent = label + ' — ' + curStage + '… (' + Math.round((Date.now() - startedAt) / 1000) + 's)';
           }, 1000);
           try {
-            const audioBlob = await withTimeout(extractAudioOnly(file), 60000, 'Ton-Extraktion');
+            // 4 minutes: the previous 60s ceiling wasn't enough for a 240MB recording on the
+            // user's device and we don't yet know if that run was slow-but-working or actually
+            // stuck - this gives a legitimately slow decode real room, while still being a hard
+            // upper bound rather than none at all.
+            const audioBlob = await withTimeout(extractAudioOnly(file, onStage), 240000, 'Ton-Extraktion');
             const hasAudio = await validateHasAudio(audioBlob);
             if (!hasAudio) throw new Error('Kein hörbarer Ton gefunden');
             blob = audioBlob;
             isAudioOnly = true;
             const pct = file.size ? Math.round((blob.size / file.size) * 100) : 0;
-            el.importProgressLog.textContent += '✓ ' + file.name + ': ' + formatBytes(file.size) + ' → ' + formatBytes(blob.size) + ' (' + pct + '%)\n';
+            el.importProgressLog.textContent += '✓ ' + file.name + ': ' + formatBytes(file.size) + ' → ' + formatBytes(blob.size) + ' (' + pct + '%) — Phasen: ' + stageTimeline() + '\n';
           } catch (extractErr) {
             console.error('Ton-Extraktion fehlgeschlagen, importiere als normales Video', extractErr);
             const detail = (extractErr.name && extractErr.name !== 'Error' ? extractErr.name + ': ' : '') + extractErr.message;
-            el.importProgressLog.textContent += '⚠ ' + file.name + ': Ton-Extraktion fehlgeschlagen (' + detail + ') — als normales Video importiert\n';
+            el.importProgressLog.textContent += '⚠ ' + file.name + ': Ton-Extraktion fehlgeschlagen (' + detail + ') — als normales Video importiert\nPhasen: ' + stageTimeline() + '\n';
             if (extractErr.message && extractErr.message.indexOf('Zeitüberschreitung') === 0) {
               // The original decode/render call can't actually be cancelled and may well still
               // be running in the background - starting a *second*, independent decode attempt
               // right now via diagnoseExtractionFailure() would only add to whatever's making
-              // this slow, not explain it.
+              // this slow, not explain it. The stage timeline above already says where it was.
               el.importProgressLog.textContent += '(Keine Diagnose gestartet — die Verarbeitung läuft evtl. im Hintergrund weiter)\n';
             } else {
               try {
@@ -2358,8 +2372,15 @@
      decodeAudioData() also runs on a throwaway AudioContext that's closed immediately after and
      never connected to anything either. #audioPlayer itself only ever gets handed a plain WAV
      blob afterward — the same kind of file it already plays for the non-boosted case. */
-  async function renderBoostedAudio(blob, gain){
+  /* onStage(name) is optional (existing callers like warmBoostCache() don't pass one) - lets a
+     caller that cares (the audio-only-import flow) see which step is actually running, so a
+     slow-but-working run is distinguishable from a stuck one instead of both just looking like
+     silence until either a result or a timeout. */
+  async function renderBoostedAudio(blob, gain, onStage){
+    const report = (s) => { if (onStage) onStage(s); };
+    report('Datei wird gelesen');
     const arrayBuffer = await blob.arrayBuffer();
+    report('Ton-Engine wird vorbereitet');
     const decodeCtx = new (window.AudioContext || window.webkitAudioContext)();
     // A diagnostic on the user's real device caught this AudioContext sitting at state=suspended
     // right where decodeAudioData() then failed - a fresh AudioContext starts suspended on iOS
@@ -2367,12 +2388,14 @@
     // sheet likely isn't gesture-linked enough for that. resume() is a harmless no-op if the
     // context is already running (the case for every existing caller of this function).
     try { await decodeCtx.resume(); } catch (e) {}
+    report('Ton wird dekodiert');
     let decoded;
     try {
       decoded = await decodeCtx.decodeAudioData(arrayBuffer);
     } finally {
       decodeCtx.close().catch(() => {});
     }
+    report('Ton wird neu berechnet');
     const offlineCtx = new OfflineAudioContext(decoded.numberOfChannels, decoded.length, decoded.sampleRate);
     const source = offlineCtx.createBufferSource();
     source.buffer = decoded;
@@ -2382,6 +2405,7 @@
     gainNode.connect(offlineCtx.destination);
     source.start();
     const rendered = await offlineCtx.startRendering();
+    report('Datei wird geschrieben');
     return encodeWav(rendered);
   }
 
