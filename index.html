@@ -663,7 +663,7 @@
         </div>
       </div>
       <div class="pd-actions">
-        <button id="pdPlaySeq" class="btn solid" aria-label="Playlist abspielen"></button>
+        <button id="pdPlaySeq" class="btn ghost" aria-label="Playlist abspielen"></button>
         <button id="pdPlayShuffle" class="btn ghost"></button>
         <button id="pdAddVideos" class="btn ghost">+ Videos</button>
         <button id="pdToggleTrim" class="btn ghost"></button>
@@ -1486,6 +1486,7 @@
     el.pdToggleTrim.textContent = p.trimmed ? 'Verkürzt: An' : 'Verkürzt: Aus';
     el.pdToggleTrim.className = 'btn ' + (p.trimmed ? 'solid' : 'ghost');
     el.pdPlayShuffle.classList.toggle('active-toggle', state.shuffle);
+    setPlayPauseIcon();
     el.pdEmpty.hidden = p.videoIds.length > 0;
     el.pdList.innerHTML = '';
     p.videoIds.forEach((vid) => {
@@ -1770,13 +1771,19 @@
   el.pdBack.addEventListener('click', () => switchView('playlists'));
   el.pdPlaySeq.addEventListener('click', () => {
     const p = playlistById(state.activePlaylistId);
-    if (p && p.videoIds.length) playQueue(p.videoIds, p.name, p.videoIds[0], false, p.trimmed, p.id);
-    else toast('Playlist ist leer');
+    if (!p || !p.videoIds.length) { toast('Playlist ist leer'); return; }
+    // No startId and no forceShuffle: starts at track 1 normally, or — if shuffle mode is
+    // already on — shuffles the whole playlist and starts with a random track. Either way this
+    // only ever *reads* state.shuffle, never changes it — that's pdPlayShuffle's job alone.
+    playQueue(p.videoIds, p.name, null, undefined, p.trimmed, p.id);
   });
   el.pdPlayShuffle.addEventListener('click', () => {
-    const p = playlistById(state.activePlaylistId);
-    if (p && p.videoIds.length) playQueue(p.videoIds, p.name, null, true, p.trimmed, p.id);
-    else toast('Playlist ist leer');
+    // Only flips the shuffle mode on/off — deliberately does NOT start playback itself (that's
+    // pdPlaySeq's job). Mirrors the global state.shuffle used everywhere else (mini/full player).
+    state.shuffle = !state.shuffle;
+    renderPlaylistDetail();
+    refreshNowPlayingUI();
+    saveState();
   });
   el.pdToggleTrim.addEventListener('click', async () => {
     const p = playlistById(state.activePlaylistId);
@@ -2136,7 +2143,7 @@
   function refreshNowPlayingUI(){
     updateVideoVisibility();
     const v = videoById(getCurrentId());
-    if (!v) { el.miniPlayer.classList.add('hidden'); el.fabWrap.classList.remove('lifted'); return; }
+    if (!v) { el.miniPlayer.classList.add('hidden'); el.fabWrap.classList.remove('lifted'); setPlayPauseIcon(); return; }
     el.miniPlayer.classList.remove('hidden');
     el.fabWrap.classList.add('lifted');
     el.miniTitle.textContent = v.name;
@@ -2163,6 +2170,9 @@
     const playing = !p.paused && !p.ended;
     el.miniPlayPause.innerHTML = playing ? ICONS.pause : ICONS.play;
     el.fpPlayPause.innerHTML = playing ? ICONS.pause : ICONS.play;
+    // playlist-detail's play button only "lights up" (solid) while something is actually
+    // playing — it's not itself a play/pause toggle, so it has no other way to show that state
+    if (el.pdPlaySeq) el.pdPlaySeq.className = 'btn ' + (playing ? 'solid' : 'ghost');
   }
 
   function markPlayingRow(){
