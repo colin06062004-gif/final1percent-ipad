@@ -600,6 +600,22 @@
   }
   .toast.show{opacity:1;transform:translateX(-50%) translateY(-4px);}
 
+  /* ---------- Temporary import-progress panel (2026-09-09) ----------
+     For evaluating the "nur mit Ton importieren" feature: a visible progress bar during
+     extraction (real time, so worth seeing at a glance rather than just reading a toast) plus
+     a running per-file size-comparison log. Remove once the user has confirmed the feature is
+     worth keeping — see the settings-toggle comment for why this exists at all. */
+  .import-progress{
+    position:fixed;left:8px;right:8px;bottom:90px;max-height:40vh;overflow-y:auto;
+    background:rgba(0,0,0,.9);color:var(--ink);
+    padding:12px 14px;border-radius:10px;z-index:9999;
+    font-family:var(--font-mono);font-size:11px;
+  }
+  .import-progress.hidden{display:none;}
+  .import-progress-file{margin-bottom:8px;color:var(--accent-glow);font-size:12px;}
+  .import-progress progress{width:100%;height:8px;margin-bottom:10px;accent-color:var(--accent);}
+  .import-progress-log{white-space:pre-wrap;color:var(--ink-muted);line-height:1.6;}
+
   /* Prompt-style dialog (rename / new playlist / confirm) */
   .dialog-backdrop{
     position:fixed;inset:0;background:rgba(20,16,10,.45);
@@ -700,6 +716,14 @@
             <input type="range" id="setVolumeBoost" min="100" max="300" step="10" value="100" aria-label="Lautstärke-Verstärkung">
             <span class="boost-value" id="volumeBoostValue">100%</span>
           </div>
+        </li>
+        <li class="setting-row">
+          <div class="setting-text">
+            <div class="setting-label">Neue Videos nur mit Ton importieren</div>
+            <div class="setting-hint">Beim Import wird nur der Ton behalten (in voller Qualität), das Videobild wird verworfen. Bringt bei eigenen Aufnahmen viel (die Bilddaten machen dort den Großteil der Dateigröße aus), bei bereits stark komprimierten Downloads dagegen kaum etwas. Die Originaldatei kannst du danach aus deiner Fotomediathek löschen.</div>
+            <div class="setting-warning">Das Videobild ist danach unwiderruflich weg — nur für Videos anschalten, bei denen dir das Bild wirklich egal ist.</div>
+          </div>
+          <button id="setImportAudioOnly" class="switch" role="switch" aria-checked="false" aria-label="Neue Videos nur mit Ton importieren"><span class="switch-knob"></span></button>
         </li>
       </ul>
     </section>
@@ -817,6 +841,11 @@
   </div>
 
   <div id="toast" class="toast"></div>
+  <div id="importProgress" class="import-progress hidden">
+    <div class="import-progress-file" id="importProgressFile"></div>
+    <progress id="importProgressBar" max="100" value="0"></progress>
+    <div class="import-progress-log" id="importProgressLog"></div>
+  </div>
 </div>
 
 <script>
@@ -902,7 +931,7 @@
     playlists: [],     // {id,name,videoIds:[],createdAt,trimmed,cover?} — cover is a square JPEG data URL
     view: 'library',
     activePlaylistId: null,
-    settings: { audioOnly: false, volumeBoost: 1 }, // volumeBoost is a multiplier: 1 = 100% = off
+    settings: { audioOnly: false, volumeBoost: 1, importAudioOnly: false }, // volumeBoost is a multiplier: 1 = 100% = off
     // playback
     currentId: null,    // id of the loaded track — may come from playOrder OR from the manual queue
     queue: [],          // manual "play next" entries {id, marked}; marked = put there by the user
@@ -943,11 +972,14 @@
     queueSheetBackdrop: $('#queueSheetBackdrop'), queueSheetClose: $('#queueSheetClose'), queueList: $('#queueList'), queueNote: $('#queueNote'),
     cropBackdrop: $('#cropBackdrop'), cropStage: $('#cropStage'), cropFrame: $('#cropFrame'), cropCancel: $('#cropCancel'), cropConfirm: $('#cropConfirm'),
     setAudioOnly: $('#setAudioOnly'),
+    setImportAudioOnly: $('#setImportAudioOnly'),
     setVolumeBoost: $('#setVolumeBoost'), volumeBoostValue: $('#volumeBoostValue'),
     pickSheetBackdrop: $('#pickSheetBackdrop'), pickSheetList: $('#pickSheetList'), pickSheetClose: $('#pickSheetClose'),
     dialogBackdrop: $('#dialogBackdrop'), dialogTitle: $('#dialogTitle'), dialogText: $('#dialogText'),
     dialogInput: $('#dialogInput'), dialogCancel: $('#dialogCancel'), dialogConfirm: $('#dialogConfirm'),
-    toast: $('#toast')
+    toast: $('#toast'),
+    importProgress: $('#importProgress'), importProgressFile: $('#importProgressFile'),
+    importProgressBar: $('#importProgressBar'), importProgressLog: $('#importProgressLog')
   };
 
   /* static icon injection */
@@ -987,6 +1019,16 @@
     clearTimeout(toastTimer);
     toastTimer = setTimeout(() => el.toast.classList.remove('show'), 2200);
   }
+  function formatBytes(n){
+    if (n < 1024) return n + ' B';
+    if (n < 1024 * 1024) return (n / 1024).toFixed(1) + ' KB';
+    return (n / (1024 * 1024)).toFixed(1) + ' MB';
+  }
+  function totalLibraryStorage(){
+    return state.videos.reduce((sum, v) => sum + (v.blob ? v.blob.size : 0), 0);
+  }
+  // temporary import-progress panel, see its CSS comment — tap to dismiss
+  el.importProgress.addEventListener('click', () => el.importProgress.classList.add('hidden'));
   function videoById(id){ return state.videos.find(v => v.id === id); }
   function playlistById(id){ return state.playlists.find(p => p.id === id); }
   /* Video ids from a playlist that should actually be considered for playback — i.e. everything
@@ -1055,6 +1097,103 @@
       v.addEventListener('error', () => { clearTimeout(timeout); finish({ thumbnail: null, duration: 0 }); });
       v.src = url;
     });
+  }
+
+  /* "Nur mit Ton importieren" (settings toggle) — extracts just the audio track from an
+     imported video and discards the rest, for a storage saving.
+     First attempt used HTMLMediaElement.captureStream() + MediaRecorder (play the file through
+     in real time, record just the audio track) — worked in this project's Chromium test
+     environment, but failed immediately on the user's real iPhone ("Konnte keinen Ton-Stream
+     erzeugen"). Turned out Safari explicitly does not implement captureStream() on <video>/
+     <audio> elements at all — a permanent platform gap, not a version-gating issue
+     (https://caniuse.com/mediacapture-fromelement) — so that whole approach was a dead end.
+     Second attempt reused the decodeAudioData()+OfflineAudioContext+encodeWav() pipeline from
+     the volume-boost feature (renderBoostedAudio) but downsampled to mono/22.05kHz, reasoning
+     that a full-quality WAV could come out the same size as or bigger than an already-compressed
+     source video. Wrong call: that trade only matters for small, already-compressed clips (e.g.
+     TikTok downloads, ~10MB) — for what this feature actually needs to help with, a personal
+     phone recording running into the hundreds of MB, a full-quality (native sample rate, stereo)
+     WAV is still roughly 90% smaller (audio bitrate is a small fraction of typical camera video
+     bitrate) with zero perceptible quality loss, which downsampling was never worth trading away.
+     So: no downsampling. Just renderBoostedAudio() with gain=1 - literally "no boost, just
+     decode and re-encode" - the exact same call already proven working on this user's real
+     device elsewhere in the app. */
+  function extractAudioOnly(file){
+    return renderBoostedAudio(file, 1);
+  }
+
+  /* Sanity check so a broken/silent extraction (e.g. a Safari quirk this environment can't
+     fully rule out ahead of time) gets rejected here rather than silently saved as a "video"
+     with no audio — reuses the same decodeAudioData() approach already proven for the
+     volume-boost feature. */
+  async function validateHasAudio(blob){
+    const AC = window.AudioContext || window.webkitAudioContext;
+    const ctx = new AC();
+    try {
+      try { await ctx.resume(); } catch (e) {} // see renderBoostedAudio() for why
+      const buf = await blob.arrayBuffer();
+      const decoded = await ctx.decodeAudioData(buf);
+      let peak = 0;
+      for (let ch = 0; ch < decoded.numberOfChannels; ch++) {
+        const data = decoded.getChannelData(ch);
+        for (let i = 0; i < data.length; i += 500) { const a = Math.abs(data[i]); if (a > peak) peak = a; }
+      }
+      return peak > 0.001;
+    } finally {
+      ctx.close().catch(() => {});
+    }
+  }
+
+  /* Temporary (2026-09-09) — kept from the previous round: on the user's real device, extraction
+     failed on every video with "Decoding failed", and the diagnostic below caught the
+     AudioContext sitting at state=suspended right there. renderBoostedAudio()/validateHasAudio()
+     now call resume() before decoding (see renderBoostedAudio()'s comment) as a fix for that.
+     This still runs on any *remaining* failure so we can see directly whether resume() actually
+     got the context to "running" or not, rather than guessing again. Remove once confirmed fixed
+     (or once a different cause is found). */
+  async function diagnoseExtractionFailure(file, originalErr){
+    const lines = [];
+    lines.push('--- Diagnose: ' + file.name + ' ---');
+    lines.push('instanceof File: ' + (file instanceof File) + ', type: "' + file.type + '", size: ' + file.size);
+    lines.push('Fehler beim ersten Versuch (nach resume()-Versuch): ' + (originalErr.name || '?') + ': ' + (originalErr.message || originalErr));
+    let buf;
+    try {
+      buf = await file.arrayBuffer();
+      lines.push('file.arrayBuffer() (frischer Versuch): OK, ' + buf.byteLength + ' Bytes');
+    } catch (e) {
+      lines.push('file.arrayBuffer() (frischer Versuch): FEHLER — ' + e.name + ': ' + e.message);
+      return lines.join('\n');
+    }
+    try {
+      const bytes = new Uint8Array(buf.slice(0, 16));
+      const hex = Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join(' ');
+      const ascii = Array.from(bytes).map(b => (b >= 32 && b < 127) ? String.fromCharCode(b) : '.').join('');
+      lines.push('Erste 16 Bytes (hex): ' + hex);
+      lines.push('Erste 16 Bytes (ascii): ' + ascii);
+    } catch (e) {
+      lines.push('Byte-Inspektion fehlgeschlagen: ' + e.message);
+    }
+    try {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      const ctx = new AC();
+      lines.push('AudioContext direkt nach Erstellung: state=' + ctx.state + ', sampleRate=' + ctx.sampleRate);
+      try {
+        await ctx.resume();
+        lines.push('Nach resume(): state=' + ctx.state);
+      } catch (e) {
+        lines.push('resume() FEHLER — ' + e.name + ': ' + e.message);
+      }
+      try {
+        const decoded = await ctx.decodeAudioData(buf.slice(0));
+        lines.push('decodeAudioData() (frischer, unabhängiger Versuch): ERFOLG — duration=' + decoded.duration.toFixed(2) + 's, channels=' + decoded.numberOfChannels);
+      } catch (e) {
+        lines.push('decodeAudioData() (frischer, unabhängiger Versuch): FEHLER — ' + e.name + ': ' + e.message);
+      }
+      await ctx.close();
+    } catch (e) {
+      lines.push('AudioContext-Erstellung fehlgeschlagen: ' + e.name + ': ' + e.message);
+    }
+    return lines.join('\n');
   }
 
   /* ================= Cover cropper =================
@@ -1217,19 +1356,72 @@
     const files = Array.from(el.fileInput.files || []);
     el.fileInput.value = '';
     if (!files.length) return;
-    toast('Importiere ' + files.length + ' Video' + (files.length > 1 ? 's' : '') + ' …');
+    const audioOnly = state.settings.importAudioOnly;
+    toast(audioOnly ? 'Extrahiere Ton…' : 'Importiere ' + files.length + ' Video' + (files.length > 1 ? 's' : '') + ' …');
+    if (audioOnly) {
+      el.importProgressLog.textContent = '';
+      el.importProgressBar.value = 0;
+      el.importProgress.classList.remove('hidden');
+    }
     let ok = 0;
-    for (const file of files) {
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
       try {
         const meta = await readVideoMeta(file);
+        let blob = file;
+        let isAudioOnly = false;
+        if (audioOnly) {
+          el.importProgressFile.textContent = 'Datei ' + (i + 1) + '/' + files.length + ': ' + file.name + ' — wird verarbeitet…';
+          el.importProgressBar.value = Math.round((i / files.length) * 100);
+          // Extraction failing (e.g. a codec/container quirk decodeAudioData() can't handle on
+          // this specific device/file — confirmed to happen on the user's real iPhone even
+          // though this same decode call works for other files there) shouldn't lose the video
+          // entirely - fall back to importing it normally instead of skipping it outright.
+          try {
+            const audioBlob = await extractAudioOnly(file);
+            const hasAudio = await validateHasAudio(audioBlob);
+            if (!hasAudio) throw new Error('Kein hörbarer Ton gefunden');
+            blob = audioBlob;
+            isAudioOnly = true;
+            const pct = file.size ? Math.round((blob.size / file.size) * 100) : 0;
+            el.importProgressLog.textContent += '✓ ' + file.name + ': ' + formatBytes(file.size) + ' → ' + formatBytes(blob.size) + ' (' + pct + '%)\n';
+          } catch (extractErr) {
+            console.error('Ton-Extraktion fehlgeschlagen, importiere als normales Video', extractErr);
+            const detail = (extractErr.name && extractErr.name !== 'Error' ? extractErr.name + ': ' : '') + extractErr.message;
+            el.importProgressLog.textContent += '⚠ ' + file.name + ': Ton-Extraktion fehlgeschlagen (' + detail + ') — als normales Video importiert\n';
+            try {
+              el.importProgressLog.textContent += (await diagnoseExtractionFailure(file, extractErr)) + '\n';
+            } catch (diagErr) {
+              el.importProgressLog.textContent += 'Diagnose selbst fehlgeschlagen: ' + diagErr.message + '\n';
+            }
+          }
+        }
         const rec = {
-          id: uid(), name: file.name.replace(/\.[^.]+$/, ''), creator: null, blob: file,
+          id: uid(), name: file.name.replace(/\.[^.]+$/, ''), creator: null, blob,
           duration: meta.duration || 0, thumbnail: meta.thumbnail, addedAt: Date.now()
         };
+        if (isAudioOnly) {
+          // there's no video track at all to show — reuse the existing per-video hide-image
+          // mechanism so playback shows the established placeholder art instead of a blank
+          // #stageVideo. Stored in videoFlags, same as a manual hide toggle (see
+          // toggleVideoHiddenForCurrent for why hideImage never lives on the video record itself).
+          rec.hideImage = true;
+          await dbPut('videoFlags', { id: rec.id, hideImage: true });
+        }
         await dbPut('videos', rec);
         state.videos.push(rec);
         ok++;
-      } catch (e) { console.error('Import fehlgeschlagen', e); }
+        if (audioOnly) renderLibrary(); // show progress in the grid too on a long multi-file import
+      } catch (e) {
+        console.error('Import fehlgeschlagen', e);
+        if (audioOnly) el.importProgressLog.textContent += '✗ ' + file.name + ': ' + e.message + '\n';
+      }
+      if (audioOnly) el.importProgressBar.value = Math.round(((i + 1) / files.length) * 100);
+    }
+    if (audioOnly) {
+      el.importProgressFile.textContent = 'Fertig.';
+      el.importProgressBar.value = 100;
+      el.importProgressLog.textContent += '\nGesamt in Bibliothek: ' + state.videos.length + ' Videos, ' + formatBytes(totalLibraryStorage());
     }
     renderLibrary();
     toast(ok + ' Video' + (ok !== 1 ? 's' : '') + ' hinzugefügt');
@@ -1867,6 +2059,7 @@
   function applySettings(){
     updateVideoVisibility();
     el.setAudioOnly.setAttribute('aria-checked', state.settings.audioOnly ? 'true' : 'false');
+    el.setImportAudioOnly.setAttribute('aria-checked', state.settings.importAudioOnly ? 'true' : 'false');
     const pct = Math.round((state.settings.volumeBoost || 1) * 100);
     el.setVolumeBoost.value = pct;
     el.volumeBoostValue.textContent = pct + '%';
@@ -1923,6 +2116,11 @@
     state.settings.audioOnly = !state.settings.audioOnly;
     applySettings(); saveSettings();
     toast(state.settings.audioOnly ? 'Videobild aus — nur Ton' : 'Videobild wieder an');
+  });
+  el.setImportAudioOnly.addEventListener('click', () => {
+    state.settings.importAudioOnly = !state.settings.importAudioOnly;
+    applySettings(); saveSettings();
+    toast(state.settings.importAudioOnly ? 'Neue Videos werden nur mit Ton importiert' : 'Neue Videos werden wieder mit Bild importiert');
   });
   el.setVolumeBoost.addEventListener('input', () => {
     el.volumeBoostValue.textContent = el.setVolumeBoost.value + '%'; // live label only, no reprocessing yet
@@ -2125,6 +2323,12 @@
   async function renderBoostedAudio(blob, gain){
     const arrayBuffer = await blob.arrayBuffer();
     const decodeCtx = new (window.AudioContext || window.webkitAudioContext)();
+    // A diagnostic on the user's real device caught this AudioContext sitting at state=suspended
+    // right where decodeAudioData() then failed - a fresh AudioContext starts suspended on iOS
+    // unless created within a live user gesture, and returning from the *native* file-picker
+    // sheet likely isn't gesture-linked enough for that. resume() is a harmless no-op if the
+    // context is already running (the case for every existing caller of this function).
+    try { await decodeCtx.resume(); } catch (e) {}
     let decoded;
     try {
       decoded = await decodeCtx.decodeAudioData(arrayBuffer);
