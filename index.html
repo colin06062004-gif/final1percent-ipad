@@ -856,7 +856,7 @@
   };
 
   /* ================= IndexedDB ================= */
-  const DB_NAME = 'sprocketDB', DB_VERSION = 1;
+  const DB_NAME = 'sprocketDB', DB_VERSION = 2;
   let dbPromise = null;
   function openDB(){
     if (dbPromise) return dbPromise;
@@ -868,6 +868,11 @@
           if (!db.objectStoreNames.contains('videos')) db.createObjectStore('videos', { keyPath: 'id' });
           if (!db.objectStoreNames.contains('playlists')) db.createObjectStore('playlists', { keyPath: 'id' });
           if (!db.objectStoreNames.contains('meta')) db.createObjectStore('meta', { keyPath: 'key' });
+          // v2: small, blob-free per-video flags (currently just hideImage). Kept out of the
+          // `videos` store on purpose — re-`put()`ing a record that carries a video Blob just to
+          // flip an unrelated boolean is what corrupted the in-memory blob reference on WebKit in
+          // the first place (see toggleVideoHiddenForCurrent()). This store never touches a blob.
+          if (!db.objectStoreNames.contains('videoFlags')) db.createObjectStore('videoFlags', { keyPath: 'id' });
         };
         req.onsuccess = () => resolve(req.result);
         req.onerror = () => reject(req.error);
@@ -1414,6 +1419,7 @@
     const ok = await showDialog({ title: 'Video löschen?', text: '„' + v.name + '“ wird aus der Bibliothek und aus allen Playlists entfernt.', confirmLabel: 'Löschen', danger: true });
     if (!ok) return;
     await dbDelete('videos', id);
+    dbDelete('videoFlags', id).catch(() => {});
     state.videos = state.videos.filter(x => x.id !== id);
     for (const p of state.playlists) {
       if (p.videoIds.includes(id)) { p.videoIds = p.videoIds.filter(x => x !== id); await dbPut('playlists', p); }
@@ -1852,9 +1858,10 @@
     el.volumeBoostValue.textContent = pct + '%';
   }
   /* Whether the video image is hidden combines the global "Videobild ausblenden" setting with a
-     per-video override (v.hideImage, toggled from the full player, persisted on the video record
-     itself so it follows that video across playlists/sessions independently of the global
-     setting) — hidden if either one says so. */
+     per-video override (v.hideImage, toggled from the full player, persisted in the videoFlags
+     store — see toggleVideoHiddenForCurrent() for why not on the video record itself — so it
+     follows that video across playlists/sessions independently of the global setting) — hidden
+     if either one says so. */
   function updateVideoVisibility(){
     const v = videoById(getCurrentId());
     const hiddenForThisVideo = !!(v && v.hideImage);
@@ -1881,7 +1888,12 @@
     if (!v) { debugLog('toggleVideoHiddenForCurrent: no current video found!'); return; }
     v.hideImage = !v.hideImage;
     debugLog('toggleVideoHiddenForCurrent ' + v.name + ' -> ' + v.hideImage);
-    await dbPut('videos', v);
+    // Deliberately NOT dbPut('videos', v) — that would re-serialize v.blob (the video file) into
+    // IndexedDB just to flip one boolean. Confirmed via the debug panel on a real device: WebKit
+    // fails that write ("Error preparing Blob/File data...") and, even on the one call that does
+    // succeed, silently invalidates the in-memory v.blob reference, breaking playback the next
+    // time this video loads. videoFlags never touches a blob, so it can't hit either failure mode.
+    await dbPut('videoFlags', { id: v.id, hideImage: v.hideImage });
     updateVideoVisibility();
     toast(v.hideImage ? 'Videobild für dieses Video ausgeblendet' : 'Videobild für dieses Video wieder an');
   }
@@ -2484,9 +2496,17 @@
       if (navigator.storage && navigator.storage.persist) await navigator.storage.persist();
     } catch (e) {}
     try {
-      const [videos, playlists] = await Promise.all([dbGetAll('videos'), dbGetAll('playlists')]);
+      const [videos, playlists, videoFlags] = await Promise.all([dbGetAll('videos'), dbGetAll('playlists'), dbGetAll('videoFlags')]);
       state.videos = videos || [];
       state.playlists = playlists || [];
+      // hideImage now lives in the blob-free videoFlags store (see toggleVideoHiddenForCurrent) —
+      // merge it in here. Falls back to whatever's already on the video record itself for anyone
+      // who toggled hideImage before this store existed, so that state isn't lost.
+      const flagsById = new Map((videoFlags || []).map(f => [f.id, f]));
+      state.videos.forEach(v => {
+        const f = flagsById.get(v.id);
+        v.hideImage = f ? !!f.hideImage : !!v.hideImage;
+      });
     } catch (e) {
       console.error('IndexedDB nicht verfügbar', e);
       toast('Lokaler Speicher nicht verfügbar (privates Fenster?)');
