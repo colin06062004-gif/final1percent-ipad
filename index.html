@@ -1149,7 +1149,7 @@
     const AC = window.AudioContext || window.webkitAudioContext;
     const ctx = new AC();
     try {
-      try { await ctx.resume(); } catch (e) {} // see renderBoostedAudio() for why
+      try { await withTimeout(ctx.resume(), 3000, 'AudioContext resume'); } catch (e) {} // see renderBoostedAudio() for why
       const buf = await blob.arrayBuffer();
       const decoded = await ctx.decodeAudioData(buf);
       let peak = 0;
@@ -1197,10 +1197,10 @@
       const ctx = new AC();
       lines.push('AudioContext direkt nach Erstellung: state=' + ctx.state + ', sampleRate=' + ctx.sampleRate);
       try {
-        await ctx.resume();
+        await withTimeout(ctx.resume(), 3000, 'resume');
         lines.push('Nach resume(): state=' + ctx.state);
       } catch (e) {
-        lines.push('resume() FEHLER — ' + e.name + ': ' + e.message);
+        lines.push('resume() FEHLER/Zeitüberschreitung — ' + e.name + ': ' + e.message + ' (state jetzt: ' + ctx.state + ')');
       }
       try {
         const decoded = await ctx.decodeAudioData(buf.slice(0));
@@ -2387,7 +2387,13 @@
     // unless created within a live user gesture, and returning from the *native* file-picker
     // sheet likely isn't gesture-linked enough for that. resume() is a harmless no-op if the
     // context is already running (the case for every existing caller of this function).
-    try { await decodeCtx.resume(); } catch (e) {}
+    // Second finding, from the stage-timeline diagnostic added later: on a large file, resume()
+    // doesn't just fail fast in that situation - it can hang indefinitely, never resolving or
+    // rejecting (confirmed: a real attempt sat at this exact step for the full 4-minute ceiling
+    // before withTimeout() intervened). decodeAudioData() doesn't actually need a running
+    // context per spec (it's a pure decode, not real-time output), so resume() not completing
+    // shouldn't block it - give resume() its own short leash and move on regardless of outcome.
+    try { await withTimeout(decodeCtx.resume(), 3000, 'AudioContext resume'); } catch (e) {}
     report('Ton wird dekodiert');
     let decoded;
     try {
