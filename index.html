@@ -1157,6 +1157,51 @@
     }
   }
 
+  /* Temporary (2026-09-09) — the user reports "Nur mit Ton importieren" now fails on every
+     single video on their real device with a "Decoding failed" error from decodeAudioData(),
+     which can't be reproduced or narrowed down further from this environment. Same spirit as
+     the debug panel used for the hideImage bug: capture everything useful about the failure
+     directly in the (already-visible) import-progress panel, so the user can screenshot/copy it
+     instead of us going back and forth guessing. Remove once the cause is found. */
+  async function diagnoseExtractionFailure(file, originalErr){
+    const lines = [];
+    lines.push('--- Diagnose: ' + file.name + ' ---');
+    lines.push('instanceof File: ' + (file instanceof File) + ', type: "' + file.type + '", size: ' + file.size);
+    lines.push('Fehler beim ersten Versuch: ' + (originalErr.name || '?') + ': ' + (originalErr.message || originalErr));
+    let buf;
+    try {
+      buf = await file.arrayBuffer();
+      lines.push('file.arrayBuffer() (frischer Versuch): OK, ' + buf.byteLength + ' Bytes');
+    } catch (e) {
+      lines.push('file.arrayBuffer() (frischer Versuch): FEHLER — ' + e.name + ': ' + e.message);
+      return lines.join('\n');
+    }
+    try {
+      const bytes = new Uint8Array(buf.slice(0, 16));
+      const hex = Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join(' ');
+      const ascii = Array.from(bytes).map(b => (b >= 32 && b < 127) ? String.fromCharCode(b) : '.').join('');
+      lines.push('Erste 16 Bytes (hex): ' + hex);
+      lines.push('Erste 16 Bytes (ascii): ' + ascii);
+    } catch (e) {
+      lines.push('Byte-Inspektion fehlgeschlagen: ' + e.message);
+    }
+    try {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      const ctx = new AC();
+      lines.push('AudioContext: state=' + ctx.state + ', sampleRate=' + ctx.sampleRate);
+      try {
+        const decoded = await ctx.decodeAudioData(buf.slice(0));
+        lines.push('decodeAudioData() (frischer, unabhängiger Versuch): ERFOLG — duration=' + decoded.duration.toFixed(2) + 's, channels=' + decoded.numberOfChannels);
+      } catch (e) {
+        lines.push('decodeAudioData() (frischer, unabhängiger Versuch): FEHLER — ' + e.name + ': ' + e.message);
+      }
+      await ctx.close();
+    } catch (e) {
+      lines.push('AudioContext-Erstellung fehlgeschlagen: ' + e.name + ': ' + e.message);
+    }
+    return lines.join('\n');
+  }
+
   /* ================= Cover cropper =================
      The picked photo is shown under a square frame that the user pans and pinches; only the
      part inside the frame becomes the cover. Rendering and export both go through the same
@@ -1350,6 +1395,11 @@
             console.error('Ton-Extraktion fehlgeschlagen, importiere als normales Video', extractErr);
             const detail = (extractErr.name && extractErr.name !== 'Error' ? extractErr.name + ': ' : '') + extractErr.message;
             el.importProgressLog.textContent += '⚠ ' + file.name + ': Ton-Extraktion fehlgeschlagen (' + detail + ') — als normales Video importiert\n';
+            try {
+              el.importProgressLog.textContent += (await diagnoseExtractionFailure(file, extractErr)) + '\n';
+            } catch (diagErr) {
+              el.importProgressLog.textContent += 'Diagnose selbst fehlgeschlagen: ' + diagErr.message + '\n';
+            }
           }
         }
         const rec = {
