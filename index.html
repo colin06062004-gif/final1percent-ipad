@@ -490,6 +490,7 @@
   }
   .fp-controls .icon-btn.big svg{width:26px;height:26px;}
   .fp-controls .icon-btn.toggled{color:var(--accent-glow);filter:drop-shadow(0 0 5px var(--accent));}
+  .fp-top-actions .icon-btn.toggled{color:var(--accent-glow);filter:drop-shadow(0 0 5px var(--accent));}
   /* Audio-only: the video keeps playing but is faded out behind the helmet, because
      display:none on a playing <video> is what breaks audio on iOS. */
   .fp-art{
@@ -758,7 +759,7 @@
     <div class="fp-top">
       <span class="fp-kicker" id="fpKicker">Now Playing</span>
       <div class="fp-top-actions">
-        <button id="fpImport" class="icon-btn" aria-label="Videos aus der Galerie importieren"></button>
+        <button id="fpTrim" class="icon-btn" aria-label="Verkürzung für dieses Video"></button>
         <button id="fpClose" class="icon-btn" aria-label="Player einklappen"></button>
       </div>
     </div>
@@ -874,7 +875,8 @@
     image:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2.5"/><circle cx="8.6" cy="9.6" r="1.7"/><path d="M20.5 15.5L16 11l-8.5 8.5"/></svg>`,
     camera:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="2.5"/><path d="M9 7l1.4-2h3.2L15 7"/><circle cx="12" cy="13.5" r="3.2"/></svg>`,
     grip:`<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></svg>`,
-    ban:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M6.3 6.3l11.4 11.4"/></svg>`
+    ban:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M6.3 6.3l11.4 11.4"/></svg>`,
+    scissors:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><line x1="20" y1="4" x2="8.12" y2="15.88"/><line x1="14.47" y1="14.48" x2="20" y2="20"/><line x1="8.12" y1="8.12" x2="12" y2="12"/></svg>`
   };
 
   /* ================= IndexedDB ================= */
@@ -964,7 +966,7 @@
     miniPlayer: $('#miniPlayer'), miniThumb: $('#miniThumb'), miniTitle: $('#miniTitle'), miniSub: $('#miniSub'),
     miniPlayPause: $('#miniPlayPause'), miniNext: $('#miniNext'), miniStop: $('#miniStop'), miniProgress: $('#miniProgress'),
     fabWrap: $('#fabWrap'),
-    fullPlayer: $('#fullPlayer'), fpClose: $('#fpClose'), fpImport: $('#fpImport'), fpKicker: $('#fpKicker'),
+    fullPlayer: $('#fullPlayer'), fpClose: $('#fpClose'), fpTrim: $('#fpTrim'), fpKicker: $('#fpKicker'),
     stageVideo: $('#stageVideo'), audioPlayer: $('#audioPlayer'),
     fpTitle: $('#fpTitle'), fpContext: $('#fpContext'),
     fpProgressBar: $('#fpProgressBar'), fpProgressFill: $('#fpProgressFill'), fpProgressKnob: $('#fpProgressKnob'), fpTimeCur: $('#fpTimeCur'), fpTimeDur: $('#fpTimeDur'),
@@ -990,7 +992,7 @@
   el.miniPlayPause.innerHTML = ICONS.play;
   el.miniNext.innerHTML = ICONS.next;
   el.miniStop.innerHTML = ICONS.close;
-  el.fpImport.innerHTML = ICONS.plus;
+  el.fpTrim.innerHTML = ICONS.scissors;
   el.fpClose.innerHTML = ICONS.close;
   el.fpHideVideo.innerHTML = ICONS.videoOff;
   el.fpShuffle.innerHTML = ICONS.shuffle;
@@ -1370,7 +1372,6 @@
 
   /* ================= Import ================= */
   el.importBtn.addEventListener('click', () => el.fileInput.click());
-  el.fpImport.addEventListener('click', () => el.fileInput.click());
   el.fileInput.addEventListener('change', async () => {
     const files = Array.from(el.fileInput.files || []);
     el.fileInput.value = '';
@@ -1647,9 +1648,10 @@
     dbDelete('videoFlags', id).catch(() => {});
     state.videos = state.videos.filter(x => x.id !== id);
     for (const p of state.playlists) {
-      if (p.videoIds.includes(id) || (p.disabledIds || []).includes(id)) {
+      if (p.videoIds.includes(id) || (p.disabledIds || []).includes(id) || (p.trimExcludedIds || []).includes(id)) {
         p.videoIds = p.videoIds.filter(x => x !== id);
         if (p.disabledIds) p.disabledIds = p.disabledIds.filter(x => x !== id);
+        if (p.trimExcludedIds) p.trimExcludedIds = p.trimExcludedIds.filter(x => x !== id);
         await dbPut('playlists', p);
       }
     }
@@ -1766,6 +1768,7 @@
         onRemove: async () => {
           p.videoIds = p.videoIds.filter(x => x !== vid);
           if (p.disabledIds) p.disabledIds = p.disabledIds.filter(x => x !== vid);
+          if (p.trimExcludedIds) p.trimExcludedIds = p.trimExcludedIds.filter(x => x !== vid);
           await dbPut('playlists', p); syncLiveQueueFromPlaylist(p); renderPlaylistDetail(); renderPlaylists();
         },
         disabled: isDisabled,
@@ -2154,6 +2157,31 @@
     updateVideoVisibility();
     toast(v.hideImage ? 'Videobild für dieses Video ausgeblendet' : 'Videobild für dieses Video wieder an');
   }
+  /* "Verkürzt" (p.trimmed) is a per-playlist setting (see pdToggleTrim) that skips 5s before each
+     track ends. This lets one video opt out of that while the rest of the same playlist keeps
+     trimming — scoped to that one playlist only, same pattern as p.disabledIds, so the same video
+     can behave differently across different playlists it's a member of. */
+  function isCurrentTrimExcluded(){
+    const p = playlistById(state.queueSourceId);
+    return !!(p && (p.trimExcludedIds || []).includes(getCurrentId()));
+  }
+  function updateTrimButtonUI(){
+    const p = playlistById(state.queueSourceId);
+    const effective = !!(p && p.trimmed && !isCurrentTrimExcluded());
+    if (el.fpTrim) el.fpTrim.classList.toggle('toggled', effective);
+  }
+  async function toggleTrimExcludedForCurrent(){
+    const p = playlistById(state.queueSourceId);
+    if (!p || !p.trimmed) { toast('Nur innerhalb einer verkürzten Playlist verfügbar'); return; }
+    const id = getCurrentId();
+    if (!id) return;
+    p.trimExcludedIds = p.trimExcludedIds || [];
+    const wasExcluded = p.trimExcludedIds.includes(id);
+    p.trimExcludedIds = wasExcluded ? p.trimExcludedIds.filter(x => x !== id) : [...p.trimExcludedIds, id];
+    await dbPut('playlists', p);
+    updateTrimButtonUI();
+    toast(wasExcluded ? 'Dieses Video wird wieder verkürzt' : 'Dieses Video wird nicht mehr verkürzt');
+  }
   async function saveSettings(){
     try { await dbPut('meta', { key: 'settings', value: state.settings }); } catch (e) {}
   }
@@ -2453,6 +2481,7 @@
 
   function refreshNowPlayingUI(){
     updateVideoVisibility();
+    updateTrimButtonUI();
     const v = videoById(getCurrentId());
     if (!v) { el.miniPlayer.classList.add('hidden'); el.fabWrap.classList.remove('lifted'); setPlayPauseIcon(); return; }
     el.miniPlayer.classList.remove('hidden');
@@ -2587,8 +2616,9 @@
     if ('mediaSession' in navigator && navigator.mediaSession.setPositionState && isFinite(d) && d > 0) {
       try { navigator.mediaSession.setPositionState({ duration: d, playbackRate: 1, position: Math.min(el.audioPlayer.currentTime, d) }); } catch (e) {}
     }
-    // "Verkürzt" playlists only: skip to the next track 5s before this one ends (if there's a next track)
-    if (state.queueTrimmed && !state.earlyAdvanceDone && isFinite(d) && d >= 10 && (d - el.audioPlayer.currentTime) <= 5) {
+    // "Verkürzt" playlists only: skip to the next track 5s before this one ends (if there's a next
+    // track), unless this specific video was individually excluded via the full player's trim button
+    if (state.queueTrimmed && !isCurrentTrimExcluded() && !state.earlyAdvanceDone && isFinite(d) && d >= 10 && (d - el.audioPlayer.currentTime) <= 5) {
       const hasNext = state.queue.length > 0 || state.posIndex < state.playOrder.length - 1 || state.repeat;
       if (hasNext) { state.earlyAdvanceDone = true; nextTrack(); }
     }
@@ -2619,6 +2649,7 @@
   el.fpNext.addEventListener('click', nextTrack);
   el.fpPrev.addEventListener('click', prevTrack);
   el.fpHideVideo.addEventListener('click', toggleVideoHiddenForCurrent);
+  el.fpTrim.addEventListener('click', toggleTrimExcludedForCurrent);
   el.fpShuffle.addEventListener('click', toggleShuffle);
   el.fpRepeat.addEventListener('click', toggleRepeat);
   /* Scrubbing: press anywhere on the bar and drag. The picture follows the thumb because
