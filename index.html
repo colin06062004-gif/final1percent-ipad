@@ -145,7 +145,14 @@
     margin-bottom:6px;
     border-radius:var(--radius-s);
     transition:transform .15s ease;
-    background:var(--surface-2);
+    /* Frosted-glass card: translucent fill + blur (so the watermark behind softly shows
+       through, blurred, instead of either fully hidden or fully sharp) plus a faint light
+       rim for the glass-edge highlight. */
+    background:rgba(34,23,23,.55);
+    backdrop-filter:blur(14px);
+    -webkit-backdrop-filter:blur(14px);
+    border:1px solid rgba(255,255,255,.07);
+    box-shadow:0 3px 12px -6px rgba(0,0,0,.55);
   }
   .track-row.dragging{
     transition:none;
@@ -232,6 +239,12 @@
     overflow:hidden;
     background:var(--surface-2);
     margin-bottom:0;
+    /* Full-bleed thumbnail tiles, not glass cards — undo the frosted-card treatment above,
+       it would be invisible under the thumbnail image anyway and just costs GPU time. */
+    backdrop-filter:none;
+    -webkit-backdrop-filter:none;
+    border:none;
+    box-shadow:none;
   }
   .track-row.grid-tile::before{display:none;}
   .track-row.grid-tile.playing{box-shadow:0 0 0 2px var(--accent), 0 0 14px -3px var(--accent);}
@@ -287,6 +300,14 @@
   .btn.ghost:active{background:var(--line);}
   .btn.danger-ghost{background:var(--surface-2);color:var(--danger);border:1px solid transparent;}
   .btn.active-toggle{color:var(--accent-glow);border:1px solid var(--accent);box-shadow:0 0 10px -2px var(--accent);}
+  /* Playlist detail's own action row: same frosted-glass treatment as .track-row, scoped here
+     rather than on .btn generally so dialogs/settings buttons elsewhere are untouched. */
+  .pd-actions .btn.ghost, .pd-actions .btn.solid{
+    background:rgba(34,23,23,.55);
+    backdrop-filter:blur(14px);
+    -webkit-backdrop-filter:blur(14px);
+  }
+  .pd-actions .btn.ghost{border-color:rgba(255,255,255,.1);}
 
   .empty-state{
     padding:48px 12px;
