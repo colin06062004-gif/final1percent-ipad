@@ -29,6 +29,7 @@
     --ink-muted:#A8898B;
     --ink-faint:#6E5658;
     --line:#301D1E;
+    --surface-glass:rgba(48,29,30,.85);
     --accent:#E4202C;
     --accent-glow:#FF4D5E;
     --accent-ink:#FCEAEA;
@@ -145,10 +146,12 @@
     margin-bottom:6px;
     border-radius:var(--radius-s);
     transition:transform .15s ease;
-    /* Frosted-glass card: translucent fill + blur (so the watermark behind softly shows
-       through, blurred, instead of either fully hidden or fully sharp) plus a faint light
+    /* Frosted-glass card. background carries most of the contrast on its own (real-device
+       testing showed backdrop-filter renders much weaker on iOS Safari than in desktop
+       Chromium, so a low-alpha fill alone was nearly invisible there) — blur is a bonus
+       for when the watermark happens to sit behind a row, not load-bearing. Faint light
        rim for the glass-edge highlight. */
-    background:rgba(34,23,23,.55);
+    background:var(--surface-glass);
     backdrop-filter:blur(14px);
     -webkit-backdrop-filter:blur(14px);
     border:1px solid rgba(255,255,255,.07);
@@ -303,7 +306,7 @@
   /* Playlist detail's own action row: same frosted-glass treatment as .track-row, scoped here
      rather than on .btn generally so dialogs/settings buttons elsewhere are untouched. */
   .pd-actions .btn.ghost, .pd-actions .btn.solid{
-    background:rgba(34,23,23,.55);
+    background:var(--surface-glass);
     backdrop-filter:blur(14px);
     -webkit-backdrop-filter:blur(14px);
   }
