@@ -93,6 +93,9 @@
     align-items:center;
     gap:8px;
   }
+  /* Manually updated by hand on every commit that changes this file — see the comment on the
+     element itself for why this can't be computed automatically (no build step). */
+  .build-date{font-family:var(--font-mono);font-size:10px;color:var(--ink-faint);white-space:nowrap;}
   .wordmark .sprocket-dot{
     width:8px;height:8px;border-radius:50%;background:var(--accent-glow);
     box-shadow:0 0 8px 1px var(--accent), 0 0 2px var(--accent-glow);
@@ -679,6 +682,9 @@
 
   <header class="topbar">
     <div class="wordmark"><span class="sprocket-dot"></span>Final 1%</div>
+    <!-- Set by hand on every commit that touches index.html — no build step in this project,
+         so nothing computes this automatically. Format: DD.MM.YYYY, HH:MM, local time of the commit. -->
+    <span class="build-date">Aktualisiert: 12.09.2026, 19:04</span>
   </header>
 
   <input id="fileInput" type="file" accept="video/*" multiple class="visually-hidden">
