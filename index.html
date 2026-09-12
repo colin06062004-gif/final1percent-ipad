@@ -402,30 +402,32 @@
     left:10px;right:10px;
     bottom:calc(58px + env(safe-area-inset-bottom,0px));
     max-width:500px;margin:0 auto;
-    /* Floating frosted-glass bar with a glowing neon rim — box-shadow isn't clipped by this
-       element's own overflow:hidden (that only clips the children below, e.g. the progress
-       bar's corners), so the outer glow still spreads past the edges as intended. */
+    /* Floating frosted-glass bar. Thin glowing rim (not a bold 1.5px line) plus an inset top
+       highlight is what actually reads as "glass" rather than just a tinted panel — a bare
+       colored border alone looks more like a plain outlined card. box-shadow isn't clipped by
+       this element's own overflow:hidden (that only clips the children below, e.g. the
+       progress bar's corners), so the outer glow still spreads past the edges as intended. */
     background:var(--surface-glass);
-    backdrop-filter:blur(14px);
-    -webkit-backdrop-filter:blur(14px);
-    border:1.5px solid var(--accent-glow);
+    backdrop-filter:blur(16px);
+    -webkit-backdrop-filter:blur(16px);
+    border:1px solid var(--accent-glow);
     border-radius:18px;
     overflow:hidden;
     display:flex;align-items:center;gap:10px;
-    padding:8px 10px;
+    padding:8px 10px 14px;
     z-index:6;
-    box-shadow:0 0 12px 0px rgba(228,32,44,.25), 0 0 3px 0 var(--accent-glow);
+    box-shadow:0 0 12px 0px rgba(228,32,44,.25), 0 0 3px 0 var(--accent-glow), inset 0 1px 0 rgba(255,255,255,.14);
   }
   .mini-player.hidden{display:none;}
   .mini-thumb{width:38px;height:38px;border-radius:5px;object-fit:cover;background:var(--surface);flex-shrink:0;}
   .mini-info{flex:1;min-width:0;text-align:left;}
   .mini-title{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   .mini-sub{font-family:var(--font-mono);font-size:10.5px;color:var(--ink-muted);}
-  /* Progress sits as a track (dim, full width) + fill (glowing, animated width) pair at the
-     bottom edge, rather than a single bare line at the top. */
-  .mini-progress-track{position:absolute;bottom:0;left:0;right:0;height:3px;background:rgba(255,255,255,.14);}
+  /* Progress sits as a track (dim, full width) + fill (glowing, animated width) pair, inset a
+     bit above the bottom border rather than sitting flush on top of it. */
+  .mini-progress-track{position:absolute;bottom:6px;left:10px;right:10px;height:2.5px;border-radius:2px;background:rgba(255,255,255,.14);}
   .mini-progress{
-    position:absolute;bottom:0;left:0;height:3px;background:var(--accent-glow);
+    position:absolute;bottom:6px;left:10px;height:2.5px;border-radius:2px;background:var(--accent-glow);
     box-shadow:0 0 8px 1px var(--accent), 0 0 3px var(--accent-glow);
     transition:width .15s linear;
   }
@@ -684,7 +686,7 @@
     <div class="wordmark"><span class="sprocket-dot"></span>Final 1%</div>
     <!-- Set by hand on every commit that touches index.html — no build step in this project,
          so nothing computes this automatically. Format: DD.MM.YYYY, HH:MM, local time of the commit. -->
-    <span class="build-date">Aktualisiert: 12.09.2026, 19:04</span>
+    <span class="build-date">Aktualisiert: 12.09.2026, 19:17</span>
   </header>
 
   <input id="fileInput" type="file" accept="video/*" multiple class="visually-hidden">
