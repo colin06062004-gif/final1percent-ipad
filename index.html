@@ -399,29 +399,35 @@
     left:10px;right:10px;
     bottom:calc(58px + env(safe-area-inset-bottom,0px));
     max-width:500px;margin:0 auto;
-    /* Floating frosted-glass bar, rounded on every side (not just a flush top border). */
+    /* Floating frosted-glass bar with a glowing neon rim — box-shadow isn't clipped by this
+       element's own overflow:hidden (that only clips the children below, e.g. the progress
+       bar's corners), so the outer glow still spreads past the edges as intended. */
     background:var(--surface-glass);
     backdrop-filter:blur(14px);
     -webkit-backdrop-filter:blur(14px);
-    border:1px solid rgba(255,255,255,.08);
-    border-radius:var(--radius-m);
+    border:1.5px solid var(--accent-glow);
+    border-radius:18px;
     overflow:hidden;
     display:flex;align-items:center;gap:10px;
     padding:8px 10px;
     z-index:6;
-    box-shadow:var(--shadow);
+    box-shadow:0 0 28px 2px rgba(228,32,44,.45), 0 0 10px 0 var(--accent-glow);
   }
   .mini-player.hidden{display:none;}
   .mini-thumb{width:38px;height:38px;border-radius:5px;object-fit:cover;background:var(--surface);flex-shrink:0;}
   .mini-info{flex:1;min-width:0;text-align:left;}
   .mini-title{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   .mini-sub{font-family:var(--font-mono);font-size:10.5px;color:var(--ink-muted);}
+  /* Progress sits as a track (dim, full width) + fill (glowing, animated width) pair at the
+     bottom edge, rather than a single bare line at the top. */
+  .mini-progress-track{position:absolute;bottom:0;left:0;right:0;height:3px;background:rgba(255,255,255,.14);}
   .mini-progress{
-    position:absolute;top:0;left:0;height:2px;background:var(--accent-glow);
+    position:absolute;bottom:0;left:0;height:3px;background:var(--accent-glow);
     box-shadow:0 0 8px 1px var(--accent), 0 0 3px var(--accent-glow);
     transition:width .15s linear;
   }
   .mini-controls{display:flex;align-items:center;gap:2px;}
+  .mini-controls .icon-btn{color:var(--accent-glow);}
 
   /* ---------- Floating import button ---------- */
   /* bottom-center, reachable while browsing or while a video is loaded (mini player).
@@ -772,6 +778,7 @@
   </div>
 
   <button id="miniPlayer" class="mini-player hidden">
+    <div class="mini-progress-track"></div>
     <div class="mini-progress" id="miniProgress" style="width:0%"></div>
     <img id="miniThumb" class="mini-thumb" alt="">
     <div class="mini-info">
@@ -906,7 +913,8 @@
     camera:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="2.5"/><path d="M9 7l1.4-2h3.2L15 7"/><circle cx="12" cy="13.5" r="3.2"/></svg>`,
     grip:`<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></svg>`,
     ban:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M6.3 6.3l11.4 11.4"/></svg>`,
-    scissors:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><line x1="20" y1="4" x2="8.12" y2="15.88"/><line x1="14.47" y1="14.48" x2="20" y2="20"/><line x1="8.12" y1="8.12" x2="12" y2="12"/></svg>`
+    scissors:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><line x1="20" y1="4" x2="8.12" y2="15.88"/><line x1="14.47" y1="14.48" x2="20" y2="20"/><line x1="8.12" y1="8.12" x2="12" y2="12"/></svg>`,
+    ffwd:`<svg viewBox="0 0 24 24" fill="currentColor"><path d="M2 5v14l9-7z"/><path d="M12 5v14l9-7z"/></svg>`
   };
 
   /* ================= IndexedDB ================= */
@@ -1020,7 +1028,7 @@
   el.pdPlaySeq.innerHTML = ICONS.play;
   el.pdPlayShuffle.innerHTML = ICONS.shuffle + '<span>Shuffle</span>';
   el.miniPlayPause.innerHTML = ICONS.play;
-  el.miniNext.innerHTML = ICONS.next;
+  el.miniNext.innerHTML = ICONS.ffwd;
   el.miniStop.innerHTML = ICONS.close;
   el.fpTrim.innerHTML = ICONS.scissors;
   el.fpClose.innerHTML = ICONS.close;
