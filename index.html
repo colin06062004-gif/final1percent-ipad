@@ -402,21 +402,24 @@
     left:10px;right:10px;
     bottom:calc(58px + env(safe-area-inset-bottom,0px));
     max-width:500px;margin:0 auto;
-    /* Floating frosted-glass bar. Thin glowing rim (not a bold 1.5px line) plus an inset top
-       highlight is what actually reads as "glass" rather than just a tinted panel — a bare
-       colored border alone looks more like a plain outlined card. box-shadow isn't clipped by
+    /* Floating glass bar. A flat fill reads as a tinted panel no matter how you glow it — a
+       subtle top-to-bottom gradient (instead of one flat color) is what actually gives it a
+       lit-glass sense of depth. The glow itself is two layers on purpose: a hairline-tight,
+       bright one right at the edge (crisp "neon tube" precision) plus a much softer, lower-
+       opacity wide one behind it for ambient bleed — a single medium blur/medium opacity shadow
+       just reads as a thick, mushy halo instead of something fine. box-shadow isn't clipped by
        this element's own overflow:hidden (that only clips the children below, e.g. the
        progress bar's corners), so the outer glow still spreads past the edges as intended. */
-    background:var(--surface-glass);
-    backdrop-filter:blur(16px);
-    -webkit-backdrop-filter:blur(16px);
+    background:linear-gradient(165deg, rgba(64,36,34,.88), rgba(38,22,21,.88));
+    backdrop-filter:blur(18px);
+    -webkit-backdrop-filter:blur(18px);
     border:1px solid var(--accent-glow);
     border-radius:18px;
     overflow:hidden;
     display:flex;align-items:center;gap:10px;
     padding:8px 10px 14px;
     z-index:6;
-    box-shadow:0 0 12px 0px rgba(228,32,44,.25), 0 0 3px 0 var(--accent-glow), inset 0 1px 0 rgba(255,255,255,.14);
+    box-shadow:0 0 2px 0 var(--accent-glow), 0 0 8px -2px rgba(228,32,44,.35), inset 0 1px 0 rgba(255,255,255,.16);
   }
   .mini-player.hidden{display:none;}
   .mini-thumb{width:38px;height:38px;border-radius:5px;object-fit:cover;background:var(--surface);flex-shrink:0;}
@@ -686,7 +689,7 @@
     <div class="wordmark"><span class="sprocket-dot"></span>Final 1%</div>
     <!-- Set by hand on every commit that touches index.html — no build step in this project,
          so nothing computes this automatically. Format: DD.MM.YYYY, HH:MM, local time of the commit. -->
-    <span class="build-date">Aktualisiert: 12.09.2026, 19:17</span>
+    <span class="build-date">Aktualisiert: 12.09.2026, 19:24</span>
   </header>
 
   <input id="fileInput" type="file" accept="video/*" multiple class="visually-hidden">
