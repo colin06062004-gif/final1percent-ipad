@@ -396,11 +396,16 @@
   /* ---------- Mini player ---------- */
   .mini-player{
     position:fixed;
-    left:0;right:0;
+    left:10px;right:10px;
     bottom:calc(58px + env(safe-area-inset-bottom,0px));
-    max-width:520px;margin:0 auto;
-    background:var(--surface-2);
-    border-top:1px solid var(--line);
+    max-width:500px;margin:0 auto;
+    /* Floating frosted-glass bar, rounded on every side (not just a flush top border). */
+    background:var(--surface-glass);
+    backdrop-filter:blur(14px);
+    -webkit-backdrop-filter:blur(14px);
+    border:1px solid rgba(255,255,255,.08);
+    border-radius:var(--radius-m);
+    overflow:hidden;
     display:flex;align-items:center;gap:10px;
     padding:8px 10px;
     z-index:6;
@@ -412,7 +417,8 @@
   .mini-title{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   .mini-sub{font-family:var(--font-mono);font-size:10.5px;color:var(--ink-muted);}
   .mini-progress{
-    position:absolute;top:-1px;left:0;height:2px;background:var(--accent);
+    position:absolute;top:0;left:0;height:2px;background:var(--accent-glow);
+    box-shadow:0 0 8px 1px var(--accent), 0 0 3px var(--accent-glow);
     transition:width .15s linear;
   }
   .mini-controls{display:flex;align-items:center;gap:2px;}
