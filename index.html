@@ -142,11 +142,10 @@
     align-items:center;
     gap:12px;
     padding:9px 8px;
+    margin-bottom:6px;
     border-radius:var(--radius-s);
     transition:transform .15s ease;
-    /* Deliberately transparent so the watermark stays visible behind a full list.
-       A row being dragged paints its own opaque background and rides above the rest. */
-    background:transparent;
+    background:var(--surface-2);
   }
   .track-row.dragging{
     transition:none;
@@ -232,6 +231,7 @@
     border-radius:var(--radius-s);
     overflow:hidden;
     background:var(--surface-2);
+    margin-bottom:0;
   }
   .track-row.grid-tile::before{display:none;}
   .track-row.grid-tile.playing{box-shadow:0 0 0 2px var(--accent), 0 0 14px -3px var(--accent);}
