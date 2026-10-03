@@ -206,6 +206,17 @@
     box-shadow:0 0 6px 0 var(--accent);
   }
   .track-row:active{background:var(--glass-press);}
+  /* Playlist video list: no rail/dots — the playing video is lit instead, exactly like the
+     active Shuffle / "Verkürzt: An" buttons (red-tinted glass, neon rim + soft glow). */
+  #pdList.track-list{border-left:none;padding-left:0;}
+  #pdList .track-row::before{display:none;}
+  #pdList .track-row.playing{
+    background:var(--glass-red);
+    border-color:rgba(255,77,94,.8);
+    box-shadow:var(--glass-shine), 0 0 12px -3px rgba(228,32,44,.75);
+  }
+  #pdList .track-row.playing .track-name{color:var(--accent-glow);}
+  #pdList .track-row.playing.dragging{background:var(--glass-red), rgba(34,13,16,.82);}
   .track-thumb{
     width:50px;height:50px;
     border-radius:9px;
@@ -743,7 +754,7 @@
     <div class="wordmark"><span class="sprocket-dot"></span>Final 1%</div>
     <!-- Set by hand on every commit that touches index.html — no build step in this project,
          so nothing computes this automatically. Format: DD.MM.YYYY, HH:MM, local time of the commit. -->
-    <span class="build-date">Aktualisiert: 03.10.2026, 17:33</span>
+    <span class="build-date">Aktualisiert: 03.10.2026, 17:44</span>
   </header>
 
   <input id="fileInput" type="file" accept="video/*" multiple class="visually-hidden">
