@@ -29,7 +29,24 @@
     --ink-muted:#A8898B;
     --ink-faint:#6E5658;
     --line:#301D1E;
-    --surface-glass:rgba(48,29,30,.85);
+    /* Liquid glass. Glass only reads as glass when it is LIGHTER than what's behind it and
+       there is something luminous behind it to see through: a white-tinted translucent
+       material + bright edge highlights over the red --ambient backdrop. (Four earlier
+       attempts used dark, near-opaque fills over a near-black page — those just look like dark
+       cards, however they're blurred or glowed.) Blur values are deliberately NOT tokens:
+       Safari ignores -webkit-backdrop-filter when its value comes from var(), so every
+       backdrop-filter in this file is written out literally. */
+    --glass:linear-gradient(150deg, rgba(255,255,255,.15), rgba(255,255,255,.06) 48%, rgba(255,255,255,.04));
+    --glass-press:linear-gradient(150deg, rgba(255,255,255,.24), rgba(255,255,255,.11) 48%, rgba(255,255,255,.08));
+    --glass-red:linear-gradient(150deg, rgba(255,77,94,.24), rgba(255,77,94,.08) 55%, rgba(255,77,94,.05));
+    --glass-edge:rgba(255,255,255,.22);
+    --glass-shine:inset 0 1px 0 rgba(255,255,255,.34), inset 0 -1px 0 rgba(255,255,255,.06);
+    --glass-lift:0 10px 26px -16px rgba(0,0,0,.85);
+    --ambient:
+      radial-gradient(95% 55% at 50% 52%, rgba(150,20,32,.3), transparent 74%),
+      radial-gradient(130% 55% at 50% -8%, rgba(112,18,26,.55), transparent 62%),
+      radial-gradient(100% 45% at 50% 108%, rgba(84,12,18,.5), transparent 66%),
+      linear-gradient(180deg, #1c0a0c, #110607 55%, #0c0405);
     --accent:#E4202C;
     --accent-glow:#FF4D5E;
     --accent-ink:#FCEAEA;
@@ -53,12 +70,18 @@
   html,body{height:100%;}
   body{
     margin:0;
-    background:var(--bg);
+    background:#0f0607;
     color:var(--ink);
     font-family:var(--font-body);
     -webkit-tap-highlight-color:transparent;
     overscroll-behavior:none;
     touch-action:manipulation;
+  }
+  /* The luminous backdrop the glass surfaces sit on. Fixed so it never scrolls away on long
+     lists (iOS ignores background-attachment:fixed, hence a pseudo-element instead). */
+  body::before{
+    content:'';position:fixed;inset:0;z-index:-1;pointer-events:none;
+    background:var(--ambient);
   }
   [hidden]{display:none !important;}
   button{font:inherit;color:inherit;background:none;border:none;cursor:pointer;}
@@ -75,7 +98,7 @@
     min-height:100dvh;
     display:flex;
     flex-direction:column;
-    background:var(--bg);
+    background:transparent;
     position:relative;
   }
   .topbar{
@@ -107,7 +130,7 @@
     color:var(--ink);
   }
   .icon-btn svg{width:22px;height:22px;}
-  .icon-btn:active{background:var(--surface-2);}
+  .icon-btn:active{background:rgba(255,255,255,.09);}
   .icon-btn.primary{background:var(--accent);color:var(--accent-ink);}
   .icon-btn.primary:active{filter:brightness(.92);}
 
@@ -121,7 +144,7 @@
     width:min(82vw, 350px);
     height:min(59vw, 251px);
     background:url('watermark-helmet.png') center/contain no-repeat;
-    opacity:.19;
+    opacity:.6;
     filter:drop-shadow(0 0 26px var(--accent));
     pointer-events:none;
     z-index:0;
@@ -134,7 +157,7 @@
 
   /* sprocket rail: perforation motif running down the list edge */
   .track-list{
-    border-left:2px dashed var(--line);
+    border-left:2px dashed rgba(255,255,255,.14);
     padding-left:12px;
   }
   .track-row{
@@ -146,26 +169,26 @@
     align-items:center;
     gap:12px;
     padding:9px 8px;
-    margin-bottom:6px;
-    border-radius:var(--radius-s);
+    margin-bottom:8px;
+    border-radius:14px;
     transition:transform .15s ease;
-    /* Frosted-glass card. background carries most of the contrast on its own (real-device
-       testing showed backdrop-filter renders much weaker on iOS Safari than in desktop
-       Chromium, so a low-alpha fill alone was nearly invisible there) — blur is a bonus
-       for when the watermark happens to sit behind a row, not load-bearing. Faint light
-       rim for the glass-edge highlight. */
-    background:var(--surface-glass);
-    backdrop-filter:blur(14px);
-    -webkit-backdrop-filter:blur(14px);
-    border:1px solid rgba(255,255,255,.07);
-    box-shadow:0 3px 12px -6px rgba(0,0,0,.55);
+    /* Liquid-glass card — see the --glass tokens for why it's light, not dark. Light blur on
+       purpose: Liquid Glass is clear rather than frosted, the helmet behind should stay
+       recognizable through the rows instead of melting into a red blob. Even where the blur
+       doesn't kick in, the white-tinted fill + highlight rim over the red backdrop still reads
+       as clear glass rather than a dark panel. */
+    background:var(--glass);
+    -webkit-backdrop-filter:blur(8px) saturate(180%);
+    backdrop-filter:blur(8px) saturate(180%);
+    border:1px solid var(--glass-edge);
+    box-shadow:var(--glass-shine), var(--glass-lift);
   }
+  /* no opacity here: opacity on a backdrop-filter element kills the blur in Safari */
   .track-row.dragging{
     transition:none;
-    box-shadow:var(--shadow);
-    opacity:.95;
+    box-shadow:var(--glass-shine), var(--shadow);
     z-index:3;
-    background:var(--surface-2);
+    background:var(--glass-press), rgba(34,13,16,.82);
   }
   .track-row::before{
     content:'';
@@ -173,8 +196,8 @@
     left:-17px;top:50%;
     width:6px;height:6px;
     border-radius:50%;
-    background:var(--bg);
-    border:2px solid var(--line);
+    background:#1a0b0c;
+    border:2px solid rgba(255,255,255,.26);
     transform:translateY(-50%);
   }
   .track-row.playing::before{
@@ -182,11 +205,11 @@
     background:var(--accent-glow);
     box-shadow:0 0 6px 0 var(--accent);
   }
-  .track-row:active{background:var(--surface-2);}
+  .track-row:active{background:var(--glass-press);}
   .track-thumb{
     width:50px;height:50px;
-    border-radius:var(--radius-s);
-    background:var(--surface-2);
+    border-radius:9px;
+    background:rgba(0,0,0,.25);
     object-fit:cover;
     flex-shrink:0;
     display:flex;align-items:center;justify-content:center;
@@ -229,7 +252,7 @@
   .track-row.swiping .swipe-hint{opacity:.7;}
   .track-row.will-queue .swipe-hint{opacity:1;filter:drop-shadow(0 0 6px var(--accent));}
   .swipe-hint svg{width:15px;height:15px;}
-  .track-actions .icon-btn{width:32px;height:32px;color:var(--ink-faint);}
+  .track-actions .icon-btn{width:32px;height:32px;color:rgba(245,231,231,.55);}
   .track-actions .icon-btn svg{width:17px;height:17px;}
   .track-actions .icon-btn.danger:active{color:var(--danger);}
   .track-actions .icon-btn.toggled{color:var(--accent-glow);}
@@ -292,28 +315,28 @@
   .section-head-actions{display:flex;gap:8px;flex-wrap:wrap;}
   .btn{
     font-family:var(--font-body);font-weight:600;font-size:13.5px;
-    padding:9px 14px;border-radius:var(--radius-s);
+    padding:9px 14px;border-radius:11px;
     display:inline-flex;align-items:center;gap:7px;
   }
   .btn svg{width:16px;height:16px;}
-  .btn.solid{
-    background:var(--surface-2);color:var(--accent-glow);
-    border:1px solid var(--accent);
-    box-shadow:0 0 10px -2px var(--accent);
+  .btn.ghost, .btn.solid, .btn.danger-ghost{
+    background:var(--glass);
+    -webkit-backdrop-filter:blur(8px) saturate(180%);
+    backdrop-filter:blur(8px) saturate(180%);
+    border:1px solid var(--glass-edge);
+    box-shadow:var(--glass-shine);
+  }
+  .btn.ghost{color:var(--ink);}
+  .btn.ghost:active{background:var(--glass-press);}
+  .btn.danger-ghost{color:var(--danger);}
+  /* the "lit" state (Abspielen while playing, Shuffle on, Verkürzt: An, primary actions):
+     same glass, tinted red, red rim with a soft glow */
+  .btn.solid, .btn.active-toggle{
+    background:var(--glass-red);color:var(--accent-glow);
+    border-color:rgba(255,77,94,.8);
+    box-shadow:var(--glass-shine), 0 0 12px -3px rgba(228,32,44,.75);
   }
   .btn.solid:active{filter:brightness(1.25);}
-  .btn.ghost{background:var(--surface-2);color:var(--ink);border:1px solid transparent;}
-  .btn.ghost:active{background:var(--line);}
-  .btn.danger-ghost{background:var(--surface-2);color:var(--danger);border:1px solid transparent;}
-  .btn.active-toggle{color:var(--accent-glow);border:1px solid var(--accent);box-shadow:0 0 10px -2px var(--accent);}
-  /* Playlist detail's own action row: same frosted-glass treatment as .track-row, scoped here
-     rather than on .btn generally so dialogs/settings buttons elsewhere are untouched. */
-  .pd-actions .btn.ghost, .pd-actions .btn.solid{
-    background:var(--surface-glass);
-    backdrop-filter:blur(14px);
-    -webkit-backdrop-filter:blur(14px);
-  }
-  .pd-actions .btn.ghost{border-color:rgba(255,255,255,.1);}
 
   .empty-state{
     padding:48px 12px;
@@ -336,7 +359,12 @@
     width:100%;max-width:520px;z-index:20;
     padding:14px 18px;padding-top:calc(14px + env(safe-area-inset-top, 0px));
     display:flex;align-items:center;gap:10px;
-    background:var(--bg);
+    /* iOS-style glass nav bar: invisible at the top of the page (blur of the smooth backdrop
+       is the backdrop), frosts the rows once they scroll underneath. No saturate() here —
+       that would tint this strip redder than the page below it and show a hard edge. */
+    background:linear-gradient(180deg, rgba(20,7,9,.42), rgba(20,7,9,0));
+    -webkit-backdrop-filter:blur(20px);
+    backdrop-filter:blur(20px);
     color:var(--ink);font-size:16px;font-weight:600;
   }
   .back-row svg{width:22px;height:22px;}
@@ -347,29 +375,31 @@
     position:relative;
     width:78px;height:78px;flex-shrink:0;
     padding:0;
-    border-radius:var(--radius-m);
-    background:var(--surface-2);
-    border:1px solid var(--line);
+    border-radius:16px;
+    background:var(--glass);
+    -webkit-backdrop-filter:blur(16px) saturate(170%);
+    backdrop-filter:blur(16px) saturate(170%);
+    border:1px solid var(--glass-edge);
+    box-shadow:var(--glass-shine), var(--glass-lift);
     overflow:hidden;
     display:flex;align-items:center;justify-content:center;
-    color:var(--ink-faint);
+    color:rgba(245,231,231,.55);
   }
   .pd-cover img{width:100%;height:100%;object-fit:cover;display:block;}
   .pd-cover svg{width:26px;height:26px;}
-  .pd-cover.has-image{border-color:var(--accent);box-shadow:0 0 12px -4px var(--accent);}
+  .pd-cover.has-image{border-color:rgba(255,77,94,.8);box-shadow:var(--glass-shine), 0 0 12px -4px var(--accent);}
   .pd-cover:active{filter:brightness(1.2);}
   .pd-cover-badge{
-    position:absolute;right:0;bottom:0;
+    position:absolute;right:5px;bottom:5px;
     display:flex;
-    padding:3px 4px 2px;
-    background:var(--bg);color:var(--accent-glow);
-    border-top:1px solid var(--line);
-    border-left:1px solid var(--line);
-    border-top-left-radius:var(--radius-s);
+    padding:3px 4px;
+    background:rgba(14,5,6,.6);color:var(--accent-glow);
+    border:1px solid rgba(255,255,255,.12);
+    border-radius:7px;
   }
   .pd-cover-badge svg{width:14px;height:14px;}
   .pd-title{font-size:23px;padding:0 0 3px;overflow-wrap:anywhere;}
-  .pd-count{font-family:var(--font-mono);font-size:12px;color:var(--ink-faint);padding:0;}
+  .pd-count{font-family:var(--font-mono);font-size:12px;color:var(--ink-muted);padding:0;}
   .pd-actions{display:flex;gap:8px;flex-wrap:wrap;padding-bottom:18px;}
   .drag-handle{touch-action:none;cursor:grab;}
   .drag-handle:active{cursor:grabbing;}
@@ -380,8 +410,11 @@
     bottom:0;left:0;right:0;
     max-width:520px;margin:0 auto;
     display:flex;
-    background:var(--surface);
-    border-top:1px solid var(--line);
+    background:linear-gradient(180deg, rgba(28,10,12,.6), rgba(12,4,6,.82));
+    -webkit-backdrop-filter:blur(22px) saturate(170%);
+    backdrop-filter:blur(22px) saturate(170%);
+    border-top:1px solid rgba(255,255,255,.09);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.06);
     padding-bottom:env(safe-area-inset-bottom,0);
     z-index:5;
   }
@@ -390,7 +423,7 @@
     flex:1;
     display:flex;flex-direction:column;align-items:center;gap:4px;
     padding:10px 0 8px;
-    color:var(--ink-faint);
+    color:var(--ink-muted);
     font-size:11px;font-weight:600;letter-spacing:.2px;
   }
   .tab svg{width:20px;height:20px;}
@@ -402,27 +435,25 @@
     left:10px;right:10px;
     bottom:calc(58px + env(safe-area-inset-bottom,0px));
     max-width:500px;margin:0 auto;
-    /* Floating glass bar. A flat fill reads as a tinted panel no matter how you glow it — a
-       subtle top-to-bottom gradient (instead of one flat color) is what actually gives it a
-       lit-glass sense of depth. The glow itself is two layers on purpose: a hairline-tight,
-       bright one right at the edge (crisp "neon tube" precision) plus a much softer, lower-
-       opacity wide one behind it for ambient bleed — a single medium blur/medium opacity shadow
-       just reads as a thick, mushy halo instead of something fine. box-shadow isn't clipped by
-       this element's own overflow:hidden (that only clips the children below, e.g. the
-       progress bar's corners), so the outer glow still spreads past the edges as intended. */
-    background:linear-gradient(165deg, rgba(64,36,34,.88), rgba(38,22,21,.88));
-    backdrop-filter:blur(18px);
-    -webkit-backdrop-filter:blur(18px);
-    border:1px solid var(--accent-glow);
+    /* Floating liquid-glass bar: the same light glass material as the rows, over a darker
+       base so it stays legible on top of them, plus a fine red rim. The glow is two layers on
+       purpose — a hairline-tight one right at the edge and a soft low-opacity one behind it —
+       a single medium blur reads as a thick, mushy halo. box-shadow isn't clipped by this
+       element's own overflow:hidden (that only clips the children, e.g. the progress bar's
+       corners), so the outer glow still spreads past the edges. */
+    background:linear-gradient(150deg, rgba(255,255,255,.13), rgba(255,255,255,.05) 50%, rgba(255,255,255,.03)), rgba(24,8,11,.5);
+    -webkit-backdrop-filter:blur(20px) saturate(170%);
+    backdrop-filter:blur(20px) saturate(170%);
+    border:1px solid rgba(255,77,94,.8);
     border-radius:18px;
     overflow:hidden;
     display:flex;align-items:center;gap:10px;
     padding:8px 10px 14px;
     z-index:6;
-    box-shadow:0 0 2px 0 var(--accent-glow), 0 0 8px -2px rgba(228,32,44,.35), inset 0 1px 0 rgba(255,255,255,.16);
+    box-shadow:0 0 2px 0 rgba(255,77,94,.55), 0 0 10px -3px rgba(228,32,44,.5), inset 0 1px 0 rgba(255,255,255,.22), 0 12px 28px -16px rgba(0,0,0,.85);
   }
   .mini-player.hidden{display:none;}
-  .mini-thumb{width:38px;height:38px;border-radius:5px;object-fit:cover;background:var(--surface);flex-shrink:0;}
+  .mini-thumb{width:38px;height:38px;border-radius:8px;object-fit:cover;background:rgba(0,0,0,.25);flex-shrink:0;}
   .mini-info{flex:1;min-width:0;text-align:left;}
   .mini-title{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   .mini-sub{font-family:var(--font-mono);font-size:10.5px;color:var(--ink-muted);}
@@ -456,7 +487,10 @@
   .fab-import{
     pointer-events:auto;
     width:52px;height:52px;border-radius:50%;
-    background:var(--bg);color:var(--accent-glow);
+    background:radial-gradient(circle at 50% 28%, rgba(255,255,255,.16), rgba(255,255,255,.04) 62%), rgba(22,8,10,.55);
+    -webkit-backdrop-filter:blur(16px) saturate(170%);
+    backdrop-filter:blur(16px) saturate(170%);
+    color:var(--accent-glow);
     border:1.5px solid var(--accent);
     display:flex;align-items:center;justify-content:center;
     box-shadow:var(--shadow), 0 0 16px -3px var(--accent), 0 0 3px var(--accent-glow);
@@ -467,7 +501,7 @@
   /* ---------- Full player ---------- */
   .full-player{
     position:fixed;inset:0;
-    background:var(--bg);
+    background:var(--ambient);
     z-index:10;
     display:flex;flex-direction:column;
     max-width:520px;margin:0 auto;
@@ -494,7 +528,7 @@
   .fp-context{font-family:var(--font-mono);font-size:12px;color:var(--ink-muted);margin-top:5px;}
   .fp-progress-wrap{padding:22px 24px 6px;}
   .fp-progress-bar{
-    position:relative;height:4px;border-radius:2px;background:var(--line);cursor:pointer;
+    position:relative;height:4px;border-radius:2px;background:rgba(255,255,255,.14);cursor:pointer;
     /* the gesture belongs to the bar, not to the browser */
     touch-action:none;
   }
@@ -527,7 +561,10 @@
   .fp-controls .icon-btn svg{width:22px;height:22px;}
   .fp-controls .icon-btn.big{
     width:62px;height:62px;border-radius:50%;
-    background:var(--bg);color:var(--accent-glow);
+    background:radial-gradient(circle at 50% 28%, rgba(255,255,255,.16), rgba(255,255,255,.04) 62%), rgba(22,8,10,.55);
+    -webkit-backdrop-filter:blur(16px) saturate(170%);
+    backdrop-filter:blur(16px) saturate(170%);
+    color:var(--accent-glow);
     border:1.5px solid var(--accent);
     box-shadow:0 0 18px -3px var(--accent), 0 0 3px var(--accent-glow);
   }
@@ -548,33 +585,36 @@
 
   /* ---------- Sheet ---------- */
   .sheet-backdrop{
-    position:fixed;inset:0;background:rgba(20,16,10,.45);
+    position:fixed;inset:0;background:rgba(8,3,4,.5);
     z-index:20;display:flex;align-items:flex-end;
     max-width:520px;margin:0 auto;
   }
   .sheet-backdrop.hidden{display:none;}
   .sheet{
     width:100%;max-height:78vh;
-    background:var(--surface);
-    border-radius:16px 16px 0 0;
+    background:linear-gradient(180deg, rgba(46,17,21,.86), rgba(20,7,9,.94));
+    -webkit-backdrop-filter:blur(26px) saturate(160%);
+    backdrop-filter:blur(26px) saturate(160%);
+    border:1px solid rgba(255,255,255,.11);border-bottom:none;
+    border-radius:22px 22px 0 0;
     display:flex;flex-direction:column;
-    box-shadow:var(--shadow);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.14), var(--shadow);
   }
-  .sheet-head{display:flex;align-items:center;justify-content:space-between;padding:16px 18px 10px;border-bottom:1px solid var(--line);}
+  .sheet-head{display:flex;align-items:center;justify-content:space-between;padding:16px 18px 10px;border-bottom:1px solid rgba(255,255,255,.08);}
   .sheet-head h3{font-size:16px;}
   .sheet-body{overflow-y:auto;padding:8px 18px 18px;}
   .pick-row{
     display:flex;align-items:center;gap:12px;padding:9px 4px;
   }
   .pick-check{
-    width:20px;height:20px;border-radius:5px;border:2px solid var(--line);
+    width:20px;height:20px;border-radius:6px;border:2px solid rgba(255,255,255,.25);
     display:flex;align-items:center;justify-content:center;flex-shrink:0;color:transparent;
   }
   .pick-row.checked .pick-check{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);}
   .pick-check svg{width:13px;height:13px;}
-  .pick-thumb{width:36px;height:36px;border-radius:5px;object-fit:cover;background:var(--surface-2);flex-shrink:0;}
+  .pick-thumb{width:36px;height:36px;border-radius:8px;object-fit:cover;background:rgba(0,0,0,.25);flex-shrink:0;}
   .queue-list .track-row::before{display:none;}
-  .queue-list .track-row{padding:8px 2px;touch-action:pan-y;}
+  .queue-list .track-row{padding:8px;touch-action:pan-y;}
   .queue-list{border:none;padding-left:0;}
   .queue-note{
     font-family:var(--font-mono);font-size:11px;color:var(--ink-faint);
@@ -582,15 +622,25 @@
   }
 
   /* ---------- Settings ---------- */
-  .settings-list{display:flex;flex-direction:column;}
-  .setting-row{display:flex;align-items:center;gap:14px;padding:15px 2px;border-bottom:1px solid var(--line);}
+  /* grouped glass card, iOS-settings style */
+  .settings-list{
+    display:flex;flex-direction:column;
+    padding:0 14px;border-radius:16px;
+    background:var(--glass);
+    -webkit-backdrop-filter:blur(18px) saturate(170%);
+    backdrop-filter:blur(18px) saturate(170%);
+    border:1px solid var(--glass-edge);
+    box-shadow:var(--glass-shine), var(--glass-lift);
+  }
+  .setting-row{display:flex;align-items:center;gap:14px;padding:15px 2px;border-bottom:1px solid rgba(255,255,255,.08);}
+  .setting-row:last-child{border-bottom:none;}
   .setting-text{flex:1;min-width:0;}
   .setting-label{font-size:14.5px;font-weight:600;}
   .setting-hint{font-size:12.5px;color:var(--ink-muted);margin-top:4px;line-height:1.45;}
   .setting-warning{font-size:12.5px;color:var(--danger);margin-top:6px;line-height:1.45;}
   .switch{
     width:50px;height:30px;flex-shrink:0;padding:0;position:relative;
-    border-radius:15px;background:var(--surface-2);border:1px solid var(--line);
+    border-radius:15px;background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.14);
     transition:border-color .15s ease,box-shadow .15s ease;
   }
   .switch-knob{
@@ -662,20 +712,24 @@
 
   /* Prompt-style dialog (rename / new playlist / confirm) */
   .dialog-backdrop{
-    position:fixed;inset:0;background:rgba(20,16,10,.45);
+    position:fixed;inset:0;background:rgba(8,3,4,.5);
     z-index:25;display:flex;align-items:center;justify-content:center;
     max-width:520px;margin:0 auto;padding:24px;
   }
   .dialog-backdrop.hidden{display:none;}
   .dialog{
-    background:var(--surface);border-radius:var(--radius-m);
-    width:100%;max-width:340px;padding:20px;box-shadow:var(--shadow);
+    background:linear-gradient(180deg, rgba(46,17,21,.88), rgba(22,8,10,.94));
+    -webkit-backdrop-filter:blur(26px) saturate(160%);
+    backdrop-filter:blur(26px) saturate(160%);
+    border:1px solid rgba(255,255,255,.12);border-radius:20px;
+    width:100%;max-width:340px;padding:20px;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.14), var(--shadow);
   }
   .dialog h3{font-size:16px;margin-bottom:4px;}
   .dialog p{font-size:13px;color:var(--ink-muted);margin:6px 0 14px;line-height:1.5;}
   .dialog input[type="text"]{
     width:100%;padding:10px 12px;border-radius:var(--radius-s);
-    border:1px solid var(--line);background:var(--bg);color:var(--ink);
+    border:1px solid rgba(255,255,255,.14);background:rgba(0,0,0,.28);color:var(--ink);
     font-family:var(--font-body);font-size:14px;margin-bottom:16px;
   }
   .dialog-actions{display:flex;justify-content:flex-end;gap:8px;}
@@ -689,7 +743,7 @@
     <div class="wordmark"><span class="sprocket-dot"></span>Final 1%</div>
     <!-- Set by hand on every commit that touches index.html — no build step in this project,
          so nothing computes this automatically. Format: DD.MM.YYYY, HH:MM, local time of the commit. -->
-    <span class="build-date">Aktualisiert: 13.09.2026, 22:46</span>
+    <span class="build-date">Aktualisiert: 03.10.2026, 17:33</span>
   </header>
 
   <input id="fileInput" type="file" accept="video/*" multiple class="visually-hidden">
