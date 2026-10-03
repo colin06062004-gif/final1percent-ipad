@@ -155,11 +155,6 @@
   .view.active{display:block;}
 
 
-  /* sprocket rail: perforation motif running down the list edge */
-  .track-list{
-    border-left:2px dashed rgba(255,255,255,.14);
-    padding-left:12px;
-  }
   .track-row{
     position:relative;
     /* pan-y hands vertical scrolling to the browser and keeps horizontal drags for the
@@ -190,26 +185,10 @@
     z-index:3;
     background:var(--glass-press), rgba(34,13,16,.82);
   }
-  .track-row::before{
-    content:'';
-    position:absolute;
-    left:-17px;top:50%;
-    width:6px;height:6px;
-    border-radius:50%;
-    background:#1a0b0c;
-    border:2px solid rgba(255,255,255,.26);
-    transform:translateY(-50%);
-  }
-  .track-row.playing::before{
-    border-color:var(--accent);
-    background:var(--accent-glow);
-    box-shadow:0 0 6px 0 var(--accent);
-  }
   .track-row:active{background:var(--glass-press);}
-  /* Playlist video list: no rail/dots — the playing video is lit instead, exactly like the
-     active Shuffle / "Verkürzt: An" buttons (red-tinted glass, neon rim + soft glow). */
-  #pdList.track-list{border-left:none;padding-left:0;}
-  #pdList .track-row::before{display:none;}
+  /* The playing video in a playlist is lit exactly like the active Shuffle / "Verkürzt: An"
+     buttons (red-tinted glass, neon rim + soft glow) — this replaced the old dashed rail with
+     a glowing dot next to the playing row. */
   #pdList .track-row.playing{
     background:var(--glass-red);
     border-color:rgba(255,77,94,.8);
@@ -286,7 +265,6 @@
     border:none;
     box-shadow:none;
   }
-  .track-row.grid-tile::before{display:none;}
   .track-row.grid-tile.playing{box-shadow:0 0 0 2px var(--accent), 0 0 14px -3px var(--accent);}
   .grid-tile .track-thumb{
     position:absolute;inset:0;width:100%;height:100%;
@@ -624,7 +602,6 @@
   .pick-row.checked .pick-check{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);}
   .pick-check svg{width:13px;height:13px;}
   .pick-thumb{width:36px;height:36px;border-radius:8px;object-fit:cover;background:rgba(0,0,0,.25);flex-shrink:0;}
-  .queue-list .track-row::before{display:none;}
   .queue-list .track-row{padding:8px;touch-action:pan-y;}
   .queue-list{border:none;padding-left:0;}
   .queue-note{
@@ -754,7 +731,7 @@
     <div class="wordmark"><span class="sprocket-dot"></span>Final 1%</div>
     <!-- Set by hand on every commit that touches index.html — no build step in this project,
          so nothing computes this automatically. Format: DD.MM.YYYY, HH:MM, local time of the commit. -->
-    <span class="build-date">Aktualisiert: 03.10.2026, 17:44</span>
+    <span class="build-date">Aktualisiert: 03.10.2026, 17:51</span>
   </header>
 
   <input id="fileInput" type="file" accept="video/*" multiple class="visually-hidden">
@@ -778,7 +755,7 @@
           <button id="newTrimmedPlaylistBtn" class="btn ghost">Verkürzt</button>
         </div>
       </div>
-      <ul id="playlistsList" class="track-list"></ul>
+      <ul id="playlistsList"></ul>
       <div id="playlistsEmpty" class="empty-state" hidden>
         <p>Noch keine Playlist angelegt.</p>
         <p class="hint">Erstelle eine Playlist und füge Videos aus deiner Bibliothek hinzu.</p>
@@ -801,7 +778,7 @@
         <button id="pdToggleTrim" class="btn ghost"></button>
         <button id="pdCoverRemove" class="btn ghost" hidden>Bild entfernen</button>
       </div>
-      <ul id="pdList" class="track-list"></ul>
+      <ul id="pdList"></ul>
       <div id="pdEmpty" class="empty-state" hidden>
         <p>Diese Playlist ist noch leer.</p>
         <p class="hint">Tippe auf „+ Videos“, um welche aus deiner Bibliothek hinzuzufügen.</p>
