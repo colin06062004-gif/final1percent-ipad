@@ -623,6 +623,8 @@
   }
   .setting-row{display:flex;align-items:center;gap:14px;padding:15px 2px;border-bottom:1px solid rgba(255,255,255,.08);}
   .setting-row:last-child{border-bottom:none;}
+  .lang-switch{display:flex;gap:6px;flex-shrink:0;}
+  .lang-switch .btn{padding:8px 12px;font-size:13px;}
   .setting-text{flex:1;min-width:0;}
   .setting-label{font-size:14.5px;font-weight:600;}
   .setting-hint{font-size:12.5px;color:var(--ink-muted);margin-top:4px;line-height:1.45;}
@@ -716,7 +718,7 @@
     <div class="wordmark"><img class="wordmark-helmet" src="helmet-mark.png" alt="">Final 1%</div>
     <!-- Set by hand on every commit that touches index.html — no build step in this project,
          so nothing computes this automatically. Format: DD.MM.YYYY, HH:MM, local time of the commit. -->
-    <span class="build-date">Aktualisiert: 03.10.2026, 21:12</span>
+    <span class="build-date"><span data-i18n="updated">Aktualisiert</span>: 03.10.2026, 22:21</span>
   </header>
 
   <input id="fileInput" type="file" accept="video/*" multiple class="visually-hidden">
@@ -727,8 +729,8 @@
     <section id="view-library" class="view active">
       <ul id="libraryList" class="library-grid"></ul>
       <div id="libraryEmpty" class="empty-state" hidden>
-        <p>Noch keine Videos geladen.</p>
-        <p class="hint">Tippe unten auf + und wähle Videos aus deiner Galerie.</p>
+        <p data-i18n="libEmpty">Noch keine Videos geladen.</p>
+        <p class="hint" data-i18n="libEmptyHint">Tippe unten auf + und wähle Videos aus deiner Galerie.</p>
       </div>
     </section>
 
@@ -736,58 +738,68 @@
       <div class="section-head">
         <h2>Playlists</h2>
         <div class="section-head-actions">
-          <button id="newPlaylistBtn" class="btn solid">Neue Playlist</button>
-          <button id="newTrimmedPlaylistBtn" class="btn ghost">Verkürzt</button>
+          <button id="newPlaylistBtn" class="btn solid" data-i18n="newPlaylist">Neue Playlist</button>
+          <button id="newTrimmedPlaylistBtn" class="btn ghost" data-i18n="trimmedBtn">Verkürzt</button>
         </div>
       </div>
       <ul id="playlistsList"></ul>
       <div id="playlistsEmpty" class="empty-state" hidden>
-        <p>Noch keine Playlist angelegt.</p>
-        <p class="hint">Erstelle eine Playlist und füge Videos aus deiner Bibliothek hinzu.</p>
+        <p data-i18n="plEmpty">Noch keine Playlist angelegt.</p>
+        <p class="hint" data-i18n="plEmptyHint">Erstelle eine Playlist und füge Videos aus deiner Bibliothek hinzu.</p>
       </div>
     </section>
 
     <section id="view-playlistDetail" class="view">
       <button class="back-row" id="pdBack"></button>
       <div class="pd-head">
-        <button id="pdCover" class="pd-cover" aria-label="Playlist-Bild wählen"></button>
+        <button id="pdCover" class="pd-cover" aria-label="Playlist-Bild wählen" data-i18n-aria="aCoverPick"></button>
         <div class="pd-headtext">
           <h2 class="pd-title" id="pdTitle"></h2>
           <div class="pd-count" id="pdCount"></div>
         </div>
       </div>
       <div class="pd-actions">
-        <button id="pdPlaySeq" class="btn ghost" aria-label="Playlist abspielen"></button>
+        <button id="pdPlaySeq" class="btn ghost" aria-label="Playlist abspielen" data-i18n-aria="aPlayPlaylist"></button>
         <button id="pdPlayShuffle" class="btn ghost"></button>
         <button id="pdAddVideos" class="btn ghost">+ Videos</button>
         <button id="pdToggleTrim" class="btn ghost"></button>
-        <button id="pdCoverRemove" class="btn ghost" hidden>Bild entfernen</button>
+        <button id="pdCoverRemove" class="btn ghost" hidden data-i18n="removeCover">Bild entfernen</button>
       </div>
       <ul id="pdList"></ul>
       <div id="pdEmpty" class="empty-state" hidden>
-        <p>Diese Playlist ist noch leer.</p>
-        <p class="hint">Tippe auf „+ Videos“, um welche aus deiner Bibliothek hinzuzufügen.</p>
+        <p data-i18n="pdEmpty">Diese Playlist ist noch leer.</p>
+        <p class="hint" data-i18n="pdEmptyHint">Tippe auf „+ Videos“, um welche aus deiner Bibliothek hinzuzufügen.</p>
       </div>
     </section>
 
     <section id="view-settings" class="view">
-      <div class="section-head"><h2>Einstellungen</h2></div>
+      <div class="section-head"><h2 data-i18n="settings">Einstellungen</h2></div>
       <ul class="settings-list">
         <li class="setting-row">
           <div class="setting-text">
-            <div class="setting-label">Videobild ausblenden</div>
-            <div class="setting-hint">Spielt nur den Ton ab und das Videobild wird ausgeblendet.</div>
+            <div class="setting-label" data-i18n="language">Sprache</div>
           </div>
-          <button id="setAudioOnly" class="switch" role="switch" aria-checked="false" aria-label="Videobild ausblenden"><span class="switch-knob"></span></button>
+          <!-- each language named in itself, so the way back is always readable -->
+          <div class="lang-switch" role="group" aria-label="Sprache" data-i18n-aria="language">
+            <button class="btn ghost" data-lang="de" lang="de">Deutsch</button>
+            <button class="btn ghost" data-lang="en" lang="en">English</button>
+          </div>
+        </li>
+        <li class="setting-row">
+          <div class="setting-text">
+            <div class="setting-label" data-i18n="hideVideo">Videobild ausblenden</div>
+            <div class="setting-hint" data-i18n="hideVideoHint">Spielt nur den Ton ab und das Videobild wird ausgeblendet.</div>
+          </div>
+          <button id="setAudioOnly" class="switch" role="switch" aria-checked="false" aria-label="Videobild ausblenden" data-i18n-aria="hideVideo"><span class="switch-knob"></span></button>
         </li>
         <li class="setting-row setting-row-boost">
           <div class="setting-text">
-            <div class="setting-label">Lautstärke-Verstärkung</div>
-            <div class="setting-hint">Verstärkt den Ton zusätzlich zur Handy-Lautstärke, auch über deren Maximum hinaus — für den PR-Versuch. Wird beim nächsten gestarteten Video aktiv.</div>
-            <div class="setting-warning">Sehr laute Lautstärke kann auf Dauer den Ohren schaden und je nach Kopfhörern oder Lautsprechern auch diese belasten.</div>
+            <div class="setting-label" data-i18n="boost">Lautstärke-Verstärkung</div>
+            <div class="setting-hint" data-i18n="boostHint">Verstärkt den Ton zusätzlich zur Handy-Lautstärke, auch über deren Maximum hinaus — für den PR-Versuch. Wird beim nächsten gestarteten Video aktiv.</div>
+            <div class="setting-warning" data-i18n="boostWarn">Sehr laute Lautstärke kann auf Dauer den Ohren schaden und je nach Kopfhörern oder Lautsprechern auch diese belasten.</div>
           </div>
           <div class="boost-control">
-            <input type="range" id="setVolumeBoost" min="100" max="300" step="10" value="100" aria-label="Lautstärke-Verstärkung">
+            <input type="range" id="setVolumeBoost" min="100" max="300" step="10" value="100" aria-label="Lautstärke-Verstärkung" data-i18n-aria="boost">
             <span class="boost-value" id="volumeBoostValue">100%</span>
           </div>
         </li>
@@ -803,7 +815,7 @@
   </nav>
 
   <div id="fabWrap" class="fab-wrap">
-    <button id="importBtn" class="fab-import" aria-label="Videos aus der Galerie importieren"></button>
+    <button id="importBtn" class="fab-import" aria-label="Videos aus der Galerie importieren" data-i18n-aria="aImport"></button>
   </div>
 
   <button id="miniPlayer" class="mini-player hidden">
@@ -815,9 +827,9 @@
       <div class="mini-sub mono" id="miniSub"></div>
     </div>
     <div class="mini-controls">
-      <span id="miniPlayPause" class="icon-btn" aria-label="Abspielen/Pause"></span>
-      <span id="miniNext" class="icon-btn" aria-label="Nächstes Video"></span>
-      <span id="miniStop" class="icon-btn" aria-label="Stoppen"></span>
+      <span id="miniPlayPause" class="icon-btn" aria-label="Abspielen/Pause" data-i18n-aria="aPlayPause"></span>
+      <span id="miniNext" class="icon-btn" aria-label="Nächstes Video" data-i18n-aria="aNext"></span>
+      <span id="miniStop" class="icon-btn" aria-label="Stoppen" data-i18n-aria="aStop"></span>
     </div>
   </button>
 
@@ -825,8 +837,8 @@
     <div class="fp-top">
       <span class="fp-kicker" id="fpKicker">Now Playing</span>
       <div class="fp-top-actions">
-        <button id="fpTrim" class="icon-btn" aria-label="Verkürzung für dieses Video"></button>
-        <button id="fpClose" class="icon-btn" aria-label="Player einklappen"></button>
+        <button id="fpTrim" class="icon-btn" aria-label="Verkürzung für dieses Video" data-i18n-aria="aTrimThis"></button>
+        <button id="fpClose" class="icon-btn" aria-label="Player einklappen" data-i18n-aria="aCollapse"></button>
       </div>
     </div>
     <div class="fp-stage">
@@ -844,20 +856,20 @@
       <div class="fp-context" id="fpContext"></div>
     </div>
     <div class="fp-progress-wrap">
-      <div class="fp-progress-bar" id="fpProgressBar" role="slider" aria-label="Position im Video">
+      <div class="fp-progress-bar" id="fpProgressBar" role="slider" aria-label="Position im Video" data-i18n-aria="aPosition">
         <div class="fp-progress-fill" id="fpProgressFill"></div>
         <div class="fp-progress-knob" id="fpProgressKnob"></div>
       </div>
       <div class="fp-times"><span id="fpTimeCur" class="mono">0:00</span><span id="fpTimeDur" class="mono">0:00</span></div>
     </div>
     <div class="fp-controls">
-      <button id="fpHideVideo" class="icon-btn" aria-label="Videobild für dieses Video ausblenden"></button>
-      <button id="fpShuffle" class="icon-btn" aria-label="Zufallswiedergabe"></button>
-      <button id="fpPrev" class="icon-btn" aria-label="Vorheriges Video"></button>
-      <button id="fpPlayPause" class="icon-btn big" aria-label="Abspielen/Pause"></button>
-      <button id="fpNext" class="icon-btn" aria-label="Nächstes Video"></button>
-      <button id="fpRepeat" class="icon-btn" aria-label="Wiederholen"></button>
-      <button id="fpQueue" class="icon-btn" aria-label="Warteschlange anzeigen"></button>
+      <button id="fpHideVideo" class="icon-btn" aria-label="Videobild für dieses Video ausblenden" data-i18n-aria="aHideThis"></button>
+      <button id="fpShuffle" class="icon-btn" aria-label="Zufallswiedergabe" data-i18n-aria="aShuffle"></button>
+      <button id="fpPrev" class="icon-btn" aria-label="Vorheriges Video" data-i18n-aria="aPrev"></button>
+      <button id="fpPlayPause" class="icon-btn big" aria-label="Abspielen/Pause" data-i18n-aria="aPlayPause"></button>
+      <button id="fpNext" class="icon-btn" aria-label="Nächstes Video" data-i18n-aria="aNext"></button>
+      <button id="fpRepeat" class="icon-btn" aria-label="Wiederholen" data-i18n-aria="aRepeat"></button>
+      <button id="fpQueue" class="icon-btn" aria-label="Warteschlange anzeigen" data-i18n-aria="aShowQueue"></button>
     </div>
     <div class="fp-bottom-space"></div>
   </div>
@@ -865,8 +877,8 @@
   <div id="pickSheetBackdrop" class="sheet-backdrop hidden">
     <div class="sheet">
       <div class="sheet-head">
-        <h3>Videos hinzufügen</h3>
-        <button id="pickSheetClose" class="icon-btn" aria-label="Schließen"></button>
+        <h3 data-i18n="addVideosTitle">Videos hinzufügen</h3>
+        <button id="pickSheetClose" class="icon-btn" aria-label="Schließen" data-i18n-aria="aClose"></button>
       </div>
       <ul id="pickSheetList" class="sheet-body"></ul>
     </div>
@@ -875,8 +887,8 @@
   <div id="queueSheetBackdrop" class="sheet-backdrop hidden">
     <div class="sheet">
       <div class="sheet-head">
-        <h3>Warteschlange</h3>
-        <button id="queueSheetClose" class="icon-btn" aria-label="Schließen"></button>
+        <h3 data-i18n="queue">Warteschlange</h3>
+        <button id="queueSheetClose" class="icon-btn" aria-label="Schließen" data-i18n-aria="aClose"></button>
       </div>
       <div class="queue-note" id="queueNote"></div>
       <ul id="queueList" class="sheet-body queue-list"></ul>
@@ -884,14 +896,14 @@
   </div>
 
   <div id="cropBackdrop" class="crop-backdrop hidden">
-    <div class="crop-title">Bewegen und skalieren</div>
-    <div class="crop-sub">Ziehen zum Verschieben · zwei Finger zum Zoomen</div>
+    <div class="crop-title" data-i18n="cropTitle">Bewegen und skalieren</div>
+    <div class="crop-sub" data-i18n="cropHint">Ziehen zum Verschieben · zwei Finger zum Zoomen</div>
     <div class="crop-stage" id="cropStage">
       <div class="crop-frame" id="cropFrame"></div>
     </div>
     <div class="crop-actions">
-      <button id="cropCancel" class="btn ghost">Abbrechen</button>
-      <button id="cropConfirm" class="btn solid">Auswählen</button>
+      <button id="cropCancel" class="btn ghost" data-i18n="cancel">Abbrechen</button>
+      <button id="cropConfirm" class="btn solid" data-i18n="choose">Auswählen</button>
     </div>
   </div>
 
@@ -901,7 +913,7 @@
       <p id="dialogText"></p>
       <input id="dialogInput" type="text" maxlength="60">
       <div class="dialog-actions">
-        <button id="dialogCancel" class="btn ghost">Abbrechen</button>
+        <button id="dialogCancel" class="btn ghost" data-i18n="cancel">Abbrechen</button>
         <button id="dialogConfirm" class="btn solid">OK</button>
       </div>
     </div>
@@ -940,6 +952,155 @@
     scissors:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><line x1="20" y1="4" x2="8.12" y2="15.88"/><line x1="14.47" y1="14.48" x2="20" y2="20"/><line x1="8.12" y1="8.12" x2="12" y2="12"/></svg>`,
     ffwd:`<svg viewBox="0 0 24 24" fill="currentColor"><path d="M2 5v14l9-7z"/><path d="M12 5v14l9-7z"/></svg>`
   };
+
+  /* ================= Language =================
+     Every user-visible string, keyed, in German (the original) and English. A key missing from a
+     language falls back to German. Static HTML is tagged data-i18n / data-i18n-aria and rewritten
+     by applyStaticTexts(); everything rendered from JS calls t() directly, and setLanguage()
+     re-renders what's on screen. Values can be functions for counts/names. */
+  const I18N = {
+    de: {
+      updated: 'Aktualisiert', tabLibrary: 'Bibliothek', tabSettings: 'Einstellungen',
+      library: 'Bibliothek', queue: 'Warteschlange',
+      libEmpty: 'Noch keine Videos geladen.', libEmptyHint: 'Tippe unten auf + und wähle Videos aus deiner Galerie.',
+      newPlaylist: 'Neue Playlist', trimmedBtn: 'Verkürzt',
+      plEmpty: 'Noch keine Playlist angelegt.', plEmptyHint: 'Erstelle eine Playlist und füge Videos aus deiner Bibliothek hinzu.',
+      removeCover: 'Bild entfernen',
+      pdEmpty: 'Diese Playlist ist noch leer.', pdEmptyHint: 'Tippe auf „+ Videos“, um welche aus deiner Bibliothek hinzuzufügen.',
+      settings: 'Einstellungen', language: 'Sprache',
+      hideVideo: 'Videobild ausblenden', hideVideoHint: 'Spielt nur den Ton ab und das Videobild wird ausgeblendet.',
+      boost: 'Lautstärke-Verstärkung',
+      boostHint: 'Verstärkt den Ton zusätzlich zur Handy-Lautstärke, auch über deren Maximum hinaus — für den PR-Versuch. Wird beim nächsten gestarteten Video aktiv.',
+      boostWarn: 'Sehr laute Lautstärke kann auf Dauer den Ohren schaden und je nach Kopfhörern oder Lautsprechern auch diese belasten.',
+      addVideosTitle: 'Videos hinzufügen',
+      cropTitle: 'Bewegen und skalieren', cropHint: 'Ziehen zum Verschieben · zwei Finger zum Zoomen',
+      cancel: 'Abbrechen', choose: 'Auswählen', ok: 'OK', save: 'Speichern', create: 'Erstellen', del: 'Löschen',
+      aCoverPick: 'Playlist-Bild wählen', aCoverChange: 'Playlist-Bild ändern', aPlayPlaylist: 'Playlist abspielen',
+      aImport: 'Videos aus der Galerie importieren', aPlayPause: 'Abspielen/Pause', aNext: 'Nächstes Video', aStop: 'Stoppen',
+      aTrimThis: 'Verkürzung für dieses Video', aCollapse: 'Player einklappen', aPosition: 'Position im Video',
+      aHideThis: 'Videobild für dieses Video ausblenden', aShuffle: 'Zufallswiedergabe', aPrev: 'Vorheriges Video',
+      aRepeat: 'Wiederholen', aShowQueue: 'Warteschlange anzeigen', aClose: 'Schließen',
+      aDeleteVideo: 'Video löschen', aEditName: 'Videoname bearbeiten', aRenameVideo: 'Video umbenennen',
+      aRemoveFromPl: 'Aus Playlist entfernen', aEnableInPl: 'Video für diese Playlist wieder aktivieren',
+      aDisableInPl: 'Video für diese Playlist deaktivieren', aDrag: 'Ziehen zum Umsortieren',
+      aRenamePl: 'Playlist umbenennen', aDeletePl: 'Playlist löschen',
+      inQueue: 'In der Warteschlange', playNext: 'Als nächstes',
+      disabledSuffix: ' · Deaktiviert', trimmedSuffix: ' · Verkürzt', trimmedSuffixLong: ' · Verkürzt (−5s)',
+      trimOn: 'Verkürzt: An', trimOff: 'Verkürzt: Aus',
+      videos: n => n + (n === 1 ? ' Video' : ' Videos'),
+      renameVideoTitle: 'Video umbenennen',
+      renameVideoText: 'Mit „@creator“ ohne Zahl wird automatisch weitergezählt: @name 1, @name 2 …',
+      videoNamePh: 'Name des Videos',
+      deleteVideoTitle: 'Video löschen?',
+      deleteVideoText: name => '„' + name + '“ wird aus der Bibliothek und aus allen Playlists entfernt.',
+      renamePlTitle: 'Playlist umbenennen', plNamePh: 'Name der Playlist',
+      deletePlTitle: 'Playlist löschen?',
+      deletePlText: name => '„' + name + '“ wird gelöscht. Die Videos bleiben in deiner Bibliothek.',
+      newPlTitle: 'Neue Playlist', newTrimmedTitle: 'Neue verkürzte Playlist',
+      newTrimmedText: 'Wechselt bei jedem Video automatisch 5 Sekunden vor Ende zum nächsten.',
+      nowPlaying: (name, n) => 'Läuft: ' + name + (n ? ' · ' + n + ' in der Warteschlange' : ''),
+      nothingPlaying: 'Es läuft gerade nichts.', queueEmpty: 'Nichts mehr in der Schlange.',
+      fromQueue: 'aus der Warteschlange', trackOf: (i, n) => 'Titel ' + i + ' von ' + n,
+      shuffleSuffix: ' · Zufallswiedergabe', waiting: n => n + ' wartet' + (n === 1 ? '' : 'en'),
+      importing: n => 'Importiere ' + n + ' Video' + (n > 1 ? 's' : '') + ' …',
+      imported: n => n + ' Video' + (n !== 1 ? 's' : '') + ' hinzugefügt',
+      imgLoadFail: 'Bild konnte nicht geladen werden', imgProcessFail: 'Bild konnte nicht verarbeitet werden',
+      videoDeleted: 'Video gelöscht',
+      queued: name => '„' + name + '“ in die Warteschlange',
+      nextUp: name => '„' + name + '“ ist jetzt als nächstes dran',
+      coverSet: 'Playlist-Bild gesetzt', coverRemoved: 'Playlist-Bild entfernt',
+      plEmptyToast: 'Playlist ist leer', allDisabled: 'Alle Videos in dieser Playlist sind deaktiviert',
+      trimNowOn: 'Playlist verkürzt jetzt automatisch', trimNowOff: 'Playlist spielt Videos wieder vollständig',
+      libEmptyToast: 'Bibliothek ist leer — importiere zuerst Videos',
+      hideThisOn: 'Videobild für dieses Video ausgeblendet', hideThisOff: 'Videobild für dieses Video wieder an',
+      trimOnlyTrimmed: 'Nur innerhalb einer verkürzten Playlist verfügbar',
+      trimThisOn: 'Dieses Video wird wieder verkürzt', trimThisOff: 'Dieses Video wird nicht mehr verkürzt',
+      hideVideoOn: 'Videobild aus — nur Ton', hideVideoOff: 'Videobild wieder an',
+      boostToast: pct => 'Verstärkung: ' + pct + '% — wirkt ab dem nächsten Start eines Videos',
+      repeatOn: 'Playlist wiederholt sich nach dem letzten Video', repeatOff: 'Wiederholung aus',
+      noStorage: 'Lokaler Speicher nicht verfügbar (privates Fenster?)',
+    },
+    en: {
+      updated: 'Updated', tabLibrary: 'Library', tabSettings: 'Settings',
+      library: 'Library', queue: 'Queue',
+      libEmpty: 'No videos yet.', libEmptyHint: 'Tap + below and pick videos from your gallery.',
+      newPlaylist: 'New playlist', trimmedBtn: 'Trimmed',
+      plEmpty: 'No playlists yet.', plEmptyHint: 'Create a playlist and add videos from your library.',
+      removeCover: 'Remove image',
+      pdEmpty: 'This playlist is still empty.', pdEmptyHint: 'Tap “+ Videos” to add some from your library.',
+      settings: 'Settings', language: 'Language',
+      hideVideo: 'Hide video', hideVideoHint: 'Plays only the sound and hides the video picture.',
+      boost: 'Volume boost',
+      boostHint: 'Boosts the sound on top of your phone’s volume, even beyond its maximum — for that PR attempt. Takes effect with the next video you start.',
+      boostWarn: 'Very loud volume can damage your hearing over time and, depending on your headphones or speakers, strain them as well.',
+      addVideosTitle: 'Add videos',
+      cropTitle: 'Move and scale', cropHint: 'Drag to move · two fingers to zoom',
+      cancel: 'Cancel', choose: 'Choose', ok: 'OK', save: 'Save', create: 'Create', del: 'Delete',
+      aCoverPick: 'Choose playlist image', aCoverChange: 'Change playlist image', aPlayPlaylist: 'Play playlist',
+      aImport: 'Import videos from gallery', aPlayPause: 'Play/Pause', aNext: 'Next video', aStop: 'Stop',
+      aTrimThis: 'Trimming for this video', aCollapse: 'Collapse player', aPosition: 'Position in video',
+      aHideThis: 'Hide picture for this video', aShuffle: 'Shuffle', aPrev: 'Previous video',
+      aRepeat: 'Repeat', aShowQueue: 'Show queue', aClose: 'Close',
+      aDeleteVideo: 'Delete video', aEditName: 'Edit video name', aRenameVideo: 'Rename video',
+      aRemoveFromPl: 'Remove from playlist', aEnableInPl: 'Re-enable video in this playlist',
+      aDisableInPl: 'Disable video in this playlist', aDrag: 'Drag to reorder',
+      aRenamePl: 'Rename playlist', aDeletePl: 'Delete playlist',
+      inQueue: 'In queue', playNext: 'Play next',
+      disabledSuffix: ' · Disabled', trimmedSuffix: ' · Trimmed', trimmedSuffixLong: ' · Trimmed (−5s)',
+      trimOn: 'Trimmed: On', trimOff: 'Trimmed: Off',
+      videos: n => n + (n === 1 ? ' video' : ' videos'),
+      renameVideoTitle: 'Rename video',
+      renameVideoText: 'Type “@creator” without a number and it counts up by itself: @name 1, @name 2 …',
+      videoNamePh: 'Video name',
+      deleteVideoTitle: 'Delete video?',
+      deleteVideoText: name => '“' + name + '” will be removed from your library and from all playlists.',
+      renamePlTitle: 'Rename playlist', plNamePh: 'Playlist name',
+      deletePlTitle: 'Delete playlist?',
+      deletePlText: name => '“' + name + '” will be deleted. The videos stay in your library.',
+      newPlTitle: 'New playlist', newTrimmedTitle: 'New trimmed playlist',
+      newTrimmedText: 'Automatically skips to the next video 5 seconds before each one ends.',
+      nowPlaying: (name, n) => 'Playing: ' + name + (n ? ' · ' + n + ' in queue' : ''),
+      nothingPlaying: 'Nothing is playing right now.', queueEmpty: 'Nothing left in the queue.',
+      fromQueue: 'from the queue', trackOf: (i, n) => 'Track ' + i + ' of ' + n,
+      shuffleSuffix: ' · Shuffle', waiting: n => n + ' waiting',
+      importing: n => 'Importing ' + n + ' video' + (n > 1 ? 's' : '') + ' …',
+      imported: n => n + ' video' + (n !== 1 ? 's' : '') + ' added',
+      imgLoadFail: 'Couldn’t load the image', imgProcessFail: 'Couldn’t process the image',
+      videoDeleted: 'Video deleted',
+      queued: name => '“' + name + '” added to the queue',
+      nextUp: name => '“' + name + '” plays next',
+      coverSet: 'Playlist image set', coverRemoved: 'Playlist image removed',
+      plEmptyToast: 'Playlist is empty', allDisabled: 'All videos in this playlist are disabled',
+      trimNowOn: 'Playlist now trims automatically', trimNowOff: 'Playlist plays videos in full again',
+      libEmptyToast: 'Library is empty — import some videos first',
+      hideThisOn: 'Picture hidden for this video', hideThisOff: 'Picture back on for this video',
+      trimOnlyTrimmed: 'Only available inside a trimmed playlist',
+      trimThisOn: 'This video is trimmed again', trimThisOff: 'This video is no longer trimmed',
+      hideVideoOn: 'Picture off — audio only', hideVideoOff: 'Picture back on',
+      boostToast: pct => 'Boost: ' + pct + '% — applies from the next video you start',
+      repeatOn: 'Playlist repeats after the last video', repeatOff: 'Repeat off',
+      noStorage: 'Local storage not available (private window?)',
+    },
+  };
+  let lang = 'de';
+  function t(key, ...args){
+    const v = key in I18N[lang] ? I18N[lang][key] : I18N.de[key];
+    return typeof v === 'function' ? v(...args) : v;
+  }
+  function applyStaticTexts(){
+    document.documentElement.lang = lang;
+    document.querySelectorAll('[data-i18n]').forEach(n => { n.textContent = t(n.dataset.i18n); });
+    document.querySelectorAll('[data-i18n-aria]').forEach(n => { n.setAttribute('aria-label', t(n.dataset.i18nAria)); });
+  }
+  /* queueLabel stores the fixed ids 'Bibliothek' / 'Warteschlange' for the library and ad-hoc
+     queues (older saved sessions contain exactly these too) — translate those for display;
+     playlist names pass through. queueSourceId keeps a playlist literally named "Bibliothek" from
+     being translated. */
+  function queueLabelText(){
+    if (!state.queueSourceId && state.queueLabel === 'Bibliothek') return t('library');
+    if (!state.queueSourceId && state.queueLabel === 'Warteschlange') return t('queue');
+    return state.queueLabel;
+  }
 
   /* ================= IndexedDB ================= */
   const DB_NAME = 'sprocketDB', DB_VERSION = 2;
@@ -995,13 +1156,13 @@
     playlists: [],     // {id,name,videoIds:[],createdAt,trimmed,cover?} — cover is a square JPEG data URL
     view: 'library',
     activePlaylistId: null,
-    settings: { audioOnly: false, volumeBoost: 1 }, // volumeBoost is a multiplier: 1 = 100% = off
+    settings: { audioOnly: false, volumeBoost: 1, language: 'de' }, // volumeBoost is a multiplier: 1 = 100% = off
     // playback
     currentId: null,    // id of the loaded track — may come from playOrder OR from the manual queue
     queue: [],          // manual "play next" entries {id, marked}; marked = put there by the user
     queueView: [],      // what the queue sheet currently shows, keyed so reordering can map back
     queueBase: [],      // array of video ids, natural order
-    queueLabel: '',      // e.g. playlist name or "Bibliothek"
+    queueLabel: '',      // playlist name, or the fixed ids 'Bibliothek' / 'Warteschlange' (library / ad-hoc queue — saved sessions contain these too); shown via queueLabelText()
     queueTrimmed: false, // true only for playlists marked "Verkürzt" — library never trims
     queueSourceId: null, // playlist id the current queue was built from (null = library); lets live edits to that playlist update playback immediately
     playOrder: [],       // possibly shuffled array of ids
@@ -1062,9 +1223,9 @@
   el.fpQueue.innerHTML = ICONS.queue;
   el.pickSheetClose.innerHTML = ICONS.close;
   el.queueSheetClose.innerHTML = ICONS.close;
-  document.querySelector('.tab[data-view="library"]').innerHTML = ICONS.film + '<span>Bibliothek</span>';
+  document.querySelector('.tab[data-view="library"]').innerHTML = ICONS.film + '<span data-i18n="tabLibrary">' + t('tabLibrary') + '</span>';
   document.querySelector('.tab[data-view="playlists"]').innerHTML = ICONS.listMusic + '<span>Playlists</span>';
-  document.querySelector('.tab[data-view="settings"]').innerHTML = ICONS.settings + '<span>Einstellungen</span>';
+  document.querySelector('.tab[data-view="settings"]').innerHTML = ICONS.settings + '<span data-i18n="tabSettings">' + t('tabSettings') + '</span>';
 
   /* ================= Helpers ================= */
   function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,9); }
@@ -1100,7 +1261,7 @@
       el.dialogInput.style.display = placeholder !== undefined ? '' : 'none';
       el.dialogInput.value = value || '';
       el.dialogInput.placeholder = placeholder || '';
-      el.dialogConfirm.textContent = confirmLabel || 'OK';
+      el.dialogConfirm.textContent = confirmLabel || t('ok');
       el.dialogConfirm.className = 'btn ' + (danger ? 'danger-ghost' : 'solid');
       el.dialogBackdrop.classList.remove('hidden');
       if (placeholder !== undefined) setTimeout(() => el.dialogInput.focus(), 50);
@@ -1203,11 +1364,11 @@
   async function openCropper(file){
     let loaded;
     try { loaded = await loadImageForCrop(file); }
-    catch (e) { toast('Bild konnte nicht geladen werden'); return null; }
+    catch (e) { toast(t('imgLoadFail')); return null; }
     const { img, url } = loaded;
     crop.el = img; crop.url = url;
     crop.iw = img.naturalWidth; crop.ih = img.naturalHeight;
-    if (!crop.iw || !crop.ih) { URL.revokeObjectURL(url); toast('Bild konnte nicht geladen werden'); return null; }
+    if (!crop.iw || !crop.ih) { URL.revokeObjectURL(url); toast(t('imgLoadFail')); return null; }
     img.style.width = crop.iw + 'px';
     img.style.height = crop.ih + 'px';
     img.alt = '';
@@ -1283,7 +1444,7 @@
         -crop.tx / crop.s, -crop.ty / crop.s, crop.F / crop.s, crop.F / crop.s,
         0, 0, COVER_SIZE, COVER_SIZE);
       out = canvas.toDataURL('image/jpeg', 0.82);
-    } catch (e) { console.error('Zuschnitt fehlgeschlagen', e); toast('Bild konnte nicht verarbeitet werden'); }
+    } catch (e) { console.error('Zuschnitt fehlgeschlagen', e); toast(t('imgProcessFail')); }
     closeCropper(out);
   });
 
@@ -1309,7 +1470,7 @@
     const files = Array.from(el.fileInput.files || []);
     el.fileInput.value = '';
     if (!files.length) return;
-    toast('Importiere ' + files.length + ' Video' + (files.length > 1 ? 's' : '') + ' …');
+    toast(t('importing', files.length));
     let ok = 0;
     for (const file of files) {
       try {
@@ -1324,7 +1485,7 @@
       } catch (e) { console.error('Import fehlgeschlagen', e); }
     }
     renderLibrary();
-    toast(ok + ' Video' + (ok !== 1 ? 's' : '') + ' hinzugefügt');
+    toast(t('imported', ok));
   });
 
   /* ================= Rendering: Library ================= */
@@ -1360,7 +1521,7 @@
     const badge = document.createElement('span');
     badge.className = 'queued-badge';
     badge.innerHTML = ICONS.queue;
-    badge.title = 'In der Warteschlange';
+    badge.title = t('inQueue');
     badge.hidden = true;
     li.appendChild(badge);
 
@@ -1368,7 +1529,7 @@
       const del = document.createElement('button');
       del.className = 'icon-btn grid-tile-delete';
       del.innerHTML = ICONS.trash;
-      del.setAttribute('aria-label', 'Video löschen');
+      del.setAttribute('aria-label', t('aDeleteVideo'));
       del.addEventListener('click', (e) => { e.stopPropagation(); onDelete(); });
       li.appendChild(del);
     }
@@ -1378,14 +1539,14 @@
     const nameBtn = document.createElement('button');
     nameBtn.className = 'grid-tile-name';
     nameBtn.textContent = v.name;
-    nameBtn.setAttribute('aria-label', 'Videoname bearbeiten');
+    nameBtn.setAttribute('aria-label', t('aEditName'));
     nameBtn.addEventListener('click', (e) => { e.stopPropagation(); onRename(); });
     caption.appendChild(nameBtn);
     li.appendChild(caption);
 
     const hint = document.createElement('span');
     hint.className = 'swipe-hint';
-    hint.innerHTML = ICONS.queue + '<span>Warteschlange</span>';
+    hint.innerHTML = ICONS.queue + '<span>' + t('queue') + '</span>';
     li.appendChild(hint);
 
     return li;
@@ -1410,12 +1571,12 @@
     main.appendChild(thumbWrap);
     main.appendChild(textCol);
     main.querySelector('.track-name').textContent = v.name;
-    main.querySelector('.track-sub').textContent = fmtTime(v.duration) + (disabled ? ' · Deaktiviert' : '');
+    main.querySelector('.track-sub').textContent = fmtTime(v.duration) + (disabled ? t('disabledSuffix') : '');
     main.addEventListener('click', () => { if (!li.dataset.swiped) onPlay(); });
 
     const hint = document.createElement('span');
     hint.className = 'swipe-hint';
-    hint.innerHTML = ICONS.queue + '<span>' + (swipeHint || 'Warteschlange') + '</span>';
+    hint.innerHTML = ICONS.queue + '<span>' + (swipeHint || t('queue')) + '</span>';
     li.appendChild(hint);
 
     const actions = document.createElement('div');
@@ -1424,37 +1585,37 @@
     const badge = document.createElement('span');
     badge.className = 'queued-badge';
     badge.innerHTML = ICONS.queue;
-    badge.title = 'In der Warteschlange';
+    badge.title = t('inQueue');
     badge.hidden = true;
     actions.appendChild(badge);
 
     if (onRename) {
       const btn = document.createElement('button'); btn.className = 'icon-btn'; btn.innerHTML = ICONS.pencil;
-      btn.setAttribute('aria-label', 'Video umbenennen');
+      btn.setAttribute('aria-label', t('aRenameVideo'));
       btn.addEventListener('click', (e) => { e.stopPropagation(); onRename(); });
       actions.appendChild(btn);
     }
     if (onRemove) {
       const btn = document.createElement('button'); btn.className = 'icon-btn'; btn.innerHTML = ICONS.close;
-      btn.setAttribute('aria-label', 'Aus Playlist entfernen');
+      btn.setAttribute('aria-label', t('aRemoveFromPl'));
       btn.addEventListener('click', (e) => { e.stopPropagation(); onRemove(); });
       actions.appendChild(btn);
     }
     if (onToggleDisabled) {
       const btn = document.createElement('button'); btn.className = 'icon-btn' + (disabled ? ' toggled' : ''); btn.innerHTML = ICONS.ban;
-      btn.setAttribute('aria-label', disabled ? 'Video für diese Playlist wieder aktivieren' : 'Video für diese Playlist deaktivieren');
+      btn.setAttribute('aria-label', disabled ? t('aEnableInPl') : t('aDisableInPl'));
       btn.addEventListener('click', (e) => { e.stopPropagation(); onToggleDisabled(); });
       actions.appendChild(btn);
     }
     if (onDelete) {
       const btn = document.createElement('button'); btn.className = 'icon-btn danger'; btn.innerHTML = ICONS.trash;
-      btn.setAttribute('aria-label', 'Video löschen');
+      btn.setAttribute('aria-label', t('aDeleteVideo'));
       btn.addEventListener('click', (e) => { e.stopPropagation(); onDelete(); });
       actions.appendChild(btn);
     }
     if (dragHandle) {
       const handle = document.createElement('button'); handle.className = 'icon-btn drag-handle'; handle.innerHTML = ICONS.grip;
-      handle.setAttribute('aria-label', 'Ziehen zum Umsortieren');
+      handle.setAttribute('aria-label', t('aDrag'));
       actions.appendChild(handle);
     }
 
@@ -1466,9 +1627,9 @@
      so a second clip from the same account lands as "@creator 2" rather than a clash. */
   async function renameVideo(v){
     const input = await showDialog({
-      title: 'Video umbenennen',
-      text: 'Mit „@creator“ ohne Zahl wird automatisch weitergezählt: @name 1, @name 2 …',
-      placeholder: 'Name des Videos', value: v.name, confirmLabel: 'Speichern'
+      title: t('renameVideoTitle'),
+      text: t('renameVideoText'),
+      placeholder: t('videoNamePh'), value: v.name, confirmLabel: t('save')
     });
     if (!input) return;
     let name = input.trim();
@@ -1489,7 +1650,7 @@
   async function deleteVideo(id){
     const v = videoById(id);
     if (!v) return;
-    const ok = await showDialog({ title: 'Video löschen?', text: '„' + v.name + '“ wird aus der Bibliothek und aus allen Playlists entfernt.', confirmLabel: 'Löschen', danger: true });
+    const ok = await showDialog({ title: t('deleteVideoTitle'), text: t('deleteVideoText', v.name), confirmLabel: t('del'), danger: true });
     if (!ok) return;
     await dbDelete('videos', id);
     dbDelete('videoFlags', id).catch(() => {});
@@ -1511,7 +1672,7 @@
     }
     renderLibrary(); renderPlaylists();
     if (state.view === 'playlistDetail') renderPlaylistDetail();
-    toast('Video gelöscht');
+    toast(t('videoDeleted'));
   }
 
   /* ================= Rendering: Playlists ================= */
@@ -1535,19 +1696,19 @@
       main.appendChild(thumbWrap);
       main.appendChild(textCol);
       main.querySelector('.track-name').textContent = p.name;
-      main.querySelector('.track-sub').textContent = p.videoIds.length + (p.videoIds.length === 1 ? ' Video' : ' Videos') + (p.trimmed ? ' · Verkürzt' : '');
+      main.querySelector('.track-sub').textContent = t('videos', p.videoIds.length) + (p.trimmed ? t('trimmedSuffix') : '');
       main.addEventListener('click', () => openPlaylistDetail(p.id));
       const actions = document.createElement('div'); actions.className = 'track-actions';
       const renameBtn = document.createElement('button'); renameBtn.className = 'icon-btn'; renameBtn.innerHTML = ICONS.pencil;
-      renameBtn.setAttribute('aria-label', 'Playlist umbenennen');
+      renameBtn.setAttribute('aria-label', t('aRenamePl'));
       renameBtn.addEventListener('click', (e) => { e.stopPropagation(); renamePlaylist(p); });
       actions.appendChild(renameBtn);
       const deleteBtn = document.createElement('button'); deleteBtn.className = 'icon-btn danger'; deleteBtn.innerHTML = ICONS.close;
-      deleteBtn.setAttribute('aria-label', 'Playlist löschen');
+      deleteBtn.setAttribute('aria-label', t('aDeletePl'));
       deleteBtn.addEventListener('click', (e) => { e.stopPropagation(); deletePlaylist(p); });
       actions.appendChild(deleteBtn);
       const handle = document.createElement('button'); handle.className = 'icon-btn drag-handle'; handle.innerHTML = ICONS.grip;
-      handle.setAttribute('aria-label', 'Ziehen zum Umsortieren');
+      handle.setAttribute('aria-label', t('aDrag'));
       actions.appendChild(handle);
       li.appendChild(main);
       li.appendChild(actions);
@@ -1556,7 +1717,7 @@
   }
 
   async function renamePlaylist(p){
-    const name = await showDialog({ title: 'Playlist umbenennen', placeholder: 'Name der Playlist', value: p.name, confirmLabel: 'Speichern' });
+    const name = await showDialog({ title: t('renamePlTitle'), placeholder: t('plNamePh'), value: p.name, confirmLabel: t('save') });
     if (!name) return;
     p.name = name; await dbPut('playlists', p);
     renderPlaylists();
@@ -1564,7 +1725,7 @@
   }
 
   async function deletePlaylist(p){
-    const ok = await showDialog({ title: 'Playlist löschen?', text: '„' + p.name + '“ wird gelöscht. Die Videos bleiben in deiner Bibliothek.', confirmLabel: 'Löschen', danger: true });
+    const ok = await showDialog({ title: t('deletePlTitle'), text: t('deletePlText', p.name), confirmLabel: t('del'), danger: true });
     if (!ok) return;
     await dbDelete('playlists', p.id);
     state.playlists = state.playlists.filter(x => x.id !== p.id);
@@ -1574,9 +1735,9 @@
 
   async function createPlaylist(trimmed){
     const name = await showDialog({
-      title: trimmed ? 'Neue verkürzte Playlist' : 'Neue Playlist',
-      text: trimmed ? 'Wechselt bei jedem Video automatisch 5 Sekunden vor Ende zum nächsten.' : undefined,
-      placeholder: 'Name der Playlist', confirmLabel: 'Erstellen'
+      title: trimmed ? t('newTrimmedTitle') : t('newPlTitle'),
+      text: trimmed ? t('newTrimmedText') : undefined,
+      placeholder: t('plNamePh'), confirmLabel: t('create')
     });
     if (!name) return;
     const p = { id: uid(), name, videoIds: [], createdAt: Date.now(), trimmed: !!trimmed };
@@ -1599,8 +1760,8 @@
     if (!p) { switchView('playlists'); return; }
     el.pdTitle.textContent = p.name;
     renderCover(p);
-    el.pdCount.textContent = p.videoIds.length + (p.videoIds.length === 1 ? ' Video' : ' Videos') + (p.trimmed ? ' · Verkürzt (−5s)' : '');
-    el.pdToggleTrim.textContent = p.trimmed ? 'Verkürzt: An' : 'Verkürzt: Aus';
+    el.pdCount.textContent = t('videos', p.videoIds.length) + (p.trimmed ? t('trimmedSuffixLong') : '');
+    el.pdToggleTrim.textContent = p.trimmed ? t('trimOn') : t('trimOff');
     el.pdToggleTrim.className = 'btn ' + (p.trimmed ? 'solid' : 'ghost');
     el.pdPlayShuffle.classList.toggle('active-toggle', state.shuffle);
     setPlayPauseIcon();
@@ -1711,7 +1872,7 @@
     refreshNowPlayingUI();
     if (!el.queueSheetBackdrop.classList.contains('hidden')) renderQueueSheet();
     saveState();
-    toast('„' + v.name + '“ in die Warteschlange');
+    toast(t('queued', v.name));
   }
 
   function buildQueueView(){
@@ -1727,19 +1888,19 @@
     el.queueList.innerHTML = '';
     const cur = videoById(getCurrentId());
     el.queueNote.textContent = cur
-      ? 'Läuft: ' + cur.name + (state.queue.length ? ' · ' + state.queue.length + ' in der Warteschlange' : '')
-      : 'Es läuft gerade nichts.';
+      ? t('nowPlaying', cur.name, state.queue.length)
+      : t('nothingPlaying');
     if (!state.queueView.length) {
       const li = document.createElement('li');
       li.className = 'queue-empty';
       li.style.cssText = 'padding:22px 2px;color:var(--ink-muted);font-size:13.5px;text-align:center;';
-      li.textContent = 'Nichts mehr in der Schlange.';
+      li.textContent = t('queueEmpty');
       el.queueList.appendChild(li);
       return;
     }
     state.queueView.forEach((entry) => {
       const v = videoById(entry.id);
-      const li = buildTrackRow(v, { onPlay: () => jumpToQueueEntry(entry.key), dragHandle: true, swipeHint: 'Als nächstes' });
+      const li = buildTrackRow(v, { onPlay: () => jumpToQueueEntry(entry.key), dragHandle: true, swipeHint: t('playNext') });
       li.dataset.key = entry.key;
       const badge = li.querySelector('.queued-badge');
       if (badge) badge.hidden = !entry.marked;
@@ -1757,7 +1918,7 @@
     state.playOrder = state.playOrder.slice(0, state.posIndex + 1);
     renderQueueSheet(); markQueuedRows(); refreshNowPlayingUI(); saveState();
     const v = videoById(entry.id);
-    if (v) toast('„' + v.name + '“ ist jetzt als nächstes dran');
+    if (v) toast(t('nextUp', v.name));
   }
   /* Tapping an entry plays it now; everything above it is dropped from the queue. */
   function jumpToQueueEntry(key){
@@ -1856,7 +2017,7 @@
       el.pdCover.insertAdjacentHTML('beforeend', ICONS.image);
     }
     el.pdCover.insertAdjacentHTML('beforeend', '<span class="pd-cover-badge">' + ICONS.camera + '</span>');
-    el.pdCover.setAttribute('aria-label', p.cover ? 'Playlist-Bild ändern' : 'Playlist-Bild wählen');
+    el.pdCover.setAttribute('aria-label', p.cover ? t('aCoverChange') : t('aCoverPick'));
     el.pdCoverRemove.hidden = !p.cover;
   }
 
@@ -1874,7 +2035,7 @@
     target.cover = cover;
     await dbPut('playlists', target);
     renderPlaylistDetail(); renderPlaylists();
-    toast('Playlist-Bild gesetzt');
+    toast(t('coverSet'));
   });
   el.pdCoverRemove.addEventListener('click', async () => {
     const p = playlistById(state.activePlaylistId);
@@ -1882,7 +2043,7 @@
     delete p.cover;
     await dbPut('playlists', p);
     renderPlaylistDetail(); renderPlaylists();
-    toast('Playlist-Bild entfernt');
+    toast(t('coverRemoved'));
   });
 
   enableDragReorder(el.queueList, {
@@ -1902,9 +2063,9 @@
   el.pdBack.addEventListener('click', () => switchView('playlists'));
   el.pdPlaySeq.addEventListener('click', () => {
     const p = playlistById(state.activePlaylistId);
-    if (!p || !p.videoIds.length) { toast('Playlist ist leer'); return; }
+    if (!p || !p.videoIds.length) { toast(t('plEmptyToast')); return; }
     const ids = playlistActiveIds(p);
-    if (!ids.length) { toast('Alle Videos in dieser Playlist sind deaktiviert'); return; }
+    if (!ids.length) { toast(t('allDisabled')); return; }
     // No startId and no forceShuffle: starts at track 1 normally, or — if shuffle mode is
     // already on — shuffles the whole playlist and starts with a random track. Either way this
     // only ever *reads* state.shuffle, never changes it — that's pdPlayShuffle's job alone.
@@ -1926,12 +2087,12 @@
     syncLiveQueueFromPlaylist(p);
     renderPlaylistDetail();
     renderPlaylists();
-    toast(p.trimmed ? 'Playlist verkürzt jetzt automatisch' : 'Playlist spielt Videos wieder vollständig');
+    toast(p.trimmed ? t('trimNowOn') : t('trimNowOff'));
   });
   el.pdAddVideos.addEventListener('click', () => {
     const p = playlistById(state.activePlaylistId);
     if (!p) return;
-    if (!state.videos.length) { toast('Bibliothek ist leer — importiere zuerst Videos'); return; }
+    if (!state.videos.length) { toast(t('libEmptyToast')); return; }
     el.pickSheetList.innerHTML = '';
     state.videos.slice().sort((a,b) => a.addedAt - b.addedAt).forEach(v => {
       const li = document.createElement('li');
@@ -1964,6 +2125,11 @@
     const pct = Math.round((state.settings.volumeBoost || 1) * 100);
     el.setVolumeBoost.value = pct;
     el.volumeBoostValue.textContent = pct + '%';
+    document.querySelectorAll('.lang-switch [data-lang]').forEach(b => {
+      const on = b.dataset.lang === lang;
+      b.classList.toggle('active-toggle', on);
+      b.setAttribute('aria-pressed', on ? 'true' : 'false');
+    });
   }
   /* Whether the video image is hidden combines the global "Videobild ausblenden" setting with a
      per-video override (v.hideImage, toggled from the full player, persisted in the videoFlags
@@ -2001,7 +2167,7 @@
     // time this video loads. videoFlags never touches a blob, so it can't hit either failure mode.
     await dbPut('videoFlags', { id: v.id, hideImage: v.hideImage });
     updateVideoVisibility();
-    toast(v.hideImage ? 'Videobild für dieses Video ausgeblendet' : 'Videobild für dieses Video wieder an');
+    toast(v.hideImage ? t('hideThisOn') : t('hideThisOff'));
   }
   /* "Verkürzt" (p.trimmed) is a per-playlist setting (see pdToggleTrim) that skips 5s before each
      track ends. This lets one video opt out of that while the rest of the same playlist keeps
@@ -2018,7 +2184,7 @@
   }
   async function toggleTrimExcludedForCurrent(){
     const p = playlistById(state.queueSourceId);
-    if (!p || !p.trimmed) { toast('Nur innerhalb einer verkürzten Playlist verfügbar'); return; }
+    if (!p || !p.trimmed) { toast(t('trimOnlyTrimmed')); return; }
     const id = getCurrentId();
     if (!id) return;
     p.trimExcludedIds = p.trimExcludedIds || [];
@@ -2026,7 +2192,7 @@
     p.trimExcludedIds = wasExcluded ? p.trimExcludedIds.filter(x => x !== id) : [...p.trimExcludedIds, id];
     await dbPut('playlists', p);
     updateTrimButtonUI();
-    toast(wasExcluded ? 'Dieses Video wird wieder verkürzt' : 'Dieses Video wird nicht mehr verkürzt');
+    toast(wasExcluded ? t('trimThisOn') : t('trimThisOff'));
   }
   async function saveSettings(){
     try { await dbPut('meta', { key: 'settings', value: state.settings }); } catch (e) {}
@@ -2036,12 +2202,36 @@
       const rec = await dbGet('meta', 'settings');
       if (rec && rec.value) state.settings = Object.assign(state.settings, rec.value);
     } catch (e) {}
+    lang = state.settings.language === 'en' ? 'en' : 'de';
+    applyStaticTexts();
     applySettings();
   }
+  function setLanguage(next){
+    if (next === lang) return;
+    lang = next;
+    state.settings.language = next;
+    saveSettings();
+    applyStaticTexts();
+    applySettings();
+    // JS-rendered text only picks the language up on its next render — redo whatever is on
+    // screen right now instead of waiting for the next interaction
+    renderLibrary();
+    renderPlaylists();
+    if (state.view === 'playlistDetail') renderPlaylistDetail();
+    if (!el.queueSheetBackdrop.classList.contains('hidden')) renderQueueSheet();
+    refreshNowPlayingUI();
+    markPlayingRow();
+    markQueuedRows();
+    const cur = videoById(getCurrentId());
+    if (cur) updateMediaSession(cur);
+  }
+  document.querySelectorAll('.lang-switch [data-lang]').forEach(b => {
+    b.addEventListener('click', () => setLanguage(b.dataset.lang));
+  });
   el.setAudioOnly.addEventListener('click', () => {
     state.settings.audioOnly = !state.settings.audioOnly;
     applySettings(); saveSettings();
-    toast(state.settings.audioOnly ? 'Videobild aus — nur Ton' : 'Videobild wieder an');
+    toast(state.settings.audioOnly ? t('hideVideoOn') : t('hideVideoOff'));
   });
   el.setVolumeBoost.addEventListener('input', () => {
     el.volumeBoostValue.textContent = el.setVolumeBoost.value + '%'; // live label only, no reprocessing yet
@@ -2063,7 +2253,7 @@
         warmBoostCache(ids);
       }
     }
-    toast('Verstärkung: ' + el.setVolumeBoost.value + '% — wirkt ab dem nächsten Start eines Videos');
+    toast(t('boostToast', el.setVolumeBoost.value));
   });
 
   /* ================= View switching ================= */
@@ -2307,14 +2497,14 @@
     el.fabWrap.classList.add('lifted');
     el.miniTitle.textContent = v.name;
     const fromQueue = isPlayingFromQueue();
-    el.miniSub.textContent = state.queueLabel + ' · ' + (fromQueue ? 'Warteschlange' : (state.posIndex+1) + '/' + state.playOrder.length);
+    el.miniSub.textContent = queueLabelText() + ' · ' + (fromQueue ? t('queue') : (state.posIndex+1) + '/' + state.playOrder.length);
     if (v.thumbnail) el.miniThumb.src = v.thumbnail; else el.miniThumb.removeAttribute('src');
     el.fpTitle.textContent = v.name;
-    el.fpContext.textContent = state.queueLabel
-      + ' — ' + (fromQueue ? 'aus der Warteschlange' : 'Titel ' + (state.posIndex+1) + ' von ' + state.playOrder.length)
-      + (state.shuffle ? ' · Zufallswiedergabe' : '')
-      + (state.queueTrimmed ? ' · Verkürzt' : '')
-      + (state.queue.length ? ' · ' + state.queue.length + ' wartet' + (state.queue.length === 1 ? '' : 'en') : '');
+    el.fpContext.textContent = queueLabelText()
+      + ' — ' + (fromQueue ? t('fromQueue') : t('trackOf', state.posIndex + 1, state.playOrder.length))
+      + (state.shuffle ? t('shuffleSuffix') : '')
+      + (state.queueTrimmed ? t('trimmedSuffix') : '')
+      + (state.queue.length ? ' · ' + t('waiting', state.queue.length) : '');
     el.fpQueue.classList.toggle('toggled', state.queue.length > 0);
     el.fpTimeDur.textContent = fmtTime(v.duration);
     if (!scrub) paintProgress(videoDuration() ? el.audioPlayer.currentTime / videoDuration() : 0);
@@ -2395,7 +2585,7 @@
   function toggleRepeat(){
     state.repeat = !state.repeat;
     refreshNowPlayingUI(); saveState();
-    toast(state.repeat ? 'Playlist wiederholt sich nach dem letzten Video' : 'Wiederholung aus');
+    toast(state.repeat ? t('repeatOn') : t('repeatOff'));
   }
 
   /* fully stop playback and clear the now-playing bar (distinct from pause) */
@@ -2540,7 +2730,7 @@
     navigator.mediaSession.metadata = new MediaMetadata({
       title: v.name,
       artist: 'Final 1%',
-      album: state.queueLabel,
+      album: queueLabelText(),
       artwork: v.thumbnail ? [{ src: v.thumbnail, sizes: '240x240', type: 'image/jpeg' }] : []
     });
     navigator.mediaSession.setActionHandler('play', () => { el.audioPlayer.play().catch(()=>{}); el.stageVideo.play().catch(()=>{}); });
@@ -2641,7 +2831,7 @@
       });
     } catch (e) {
       console.error('IndexedDB nicht verfügbar', e);
-      toast('Lokaler Speicher nicht verfügbar (privates Fenster?)');
+      toast(t('noStorage'));
     }
     await loadSettings();
     renderLibrary();
