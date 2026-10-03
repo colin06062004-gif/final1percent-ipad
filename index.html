@@ -551,6 +551,9 @@
   .fp-controls .icon-btn svg{width:22px;height:22px;}
   .fp-controls .icon-btn.big{
     width:62px;height:62px;border-radius:50%;
+    /* The row of seven is wider than a phone, and flex shrinks only the width, which made this
+       circle an oval. The transparent icon buttons give way instead. */
+    flex-shrink:0;
     background:radial-gradient(circle at 50% 28%, rgba(255,255,255,.16), rgba(255,255,255,.04) 62%), rgba(22,8,10,.55);
     -webkit-backdrop-filter:blur(16px) saturate(170%);
     backdrop-filter:blur(16px) saturate(170%);
@@ -718,7 +721,7 @@
     <div class="wordmark"><img class="wordmark-helmet" src="helmet-mark.png" alt="">Final 1%</div>
     <!-- Set by hand on every commit that touches index.html — no build step in this project,
          so nothing computes this automatically. Format: DD.MM.YYYY, HH:MM, local time of the commit. -->
-    <span class="build-date"><span data-i18n="updated">Aktualisiert</span>: 03.10.2026, 22:21</span>
+    <span class="build-date"><span data-i18n="updated">Aktualisiert</span>: 03.10.2026, 23:20</span>
   </header>
 
   <input id="fileInput" type="file" accept="video/*" multiple class="visually-hidden">
@@ -739,7 +742,6 @@
         <h2>Playlists</h2>
         <div class="section-head-actions">
           <button id="newPlaylistBtn" class="btn solid" data-i18n="newPlaylist">Neue Playlist</button>
-          <button id="newTrimmedPlaylistBtn" class="btn ghost" data-i18n="trimmedBtn">Verkürzt</button>
         </div>
       </div>
       <ul id="playlistsList"></ul>
@@ -963,7 +965,7 @@
       updated: 'Aktualisiert', tabLibrary: 'Bibliothek', tabSettings: 'Einstellungen',
       library: 'Bibliothek', queue: 'Warteschlange',
       libEmpty: 'Noch keine Videos geladen.', libEmptyHint: 'Tippe unten auf + und wähle Videos aus deiner Galerie.',
-      newPlaylist: 'Neue Playlist', trimmedBtn: 'Verkürzt',
+      newPlaylist: 'Neue Playlist',
       plEmpty: 'Noch keine Playlist angelegt.', plEmptyHint: 'Erstelle eine Playlist und füge Videos aus deiner Bibliothek hinzu.',
       removeCover: 'Bild entfernen',
       pdEmpty: 'Diese Playlist ist noch leer.', pdEmptyHint: 'Tippe auf „+ Videos“, um welche aus deiner Bibliothek hinzuzufügen.',
@@ -996,8 +998,7 @@
       renamePlTitle: 'Playlist umbenennen', plNamePh: 'Name der Playlist',
       deletePlTitle: 'Playlist löschen?',
       deletePlText: name => '„' + name + '“ wird gelöscht. Die Videos bleiben in deiner Bibliothek.',
-      newPlTitle: 'Neue Playlist', newTrimmedTitle: 'Neue verkürzte Playlist',
-      newTrimmedText: 'Wechselt bei jedem Video automatisch 5 Sekunden vor Ende zum nächsten.',
+      newPlTitle: 'Neue Playlist',
       nowPlaying: (name, n) => 'Läuft: ' + name + (n ? ' · ' + n + ' in der Warteschlange' : ''),
       nothingPlaying: 'Es läuft gerade nichts.', queueEmpty: 'Nichts mehr in der Schlange.',
       fromQueue: 'aus der Warteschlange', trackOf: (i, n) => 'Titel ' + i + ' von ' + n,
@@ -1024,7 +1025,7 @@
       updated: 'Updated', tabLibrary: 'Library', tabSettings: 'Settings',
       library: 'Library', queue: 'Queue',
       libEmpty: 'No videos yet.', libEmptyHint: 'Tap + below and pick videos from your gallery.',
-      newPlaylist: 'New playlist', trimmedBtn: 'Trimmed',
+      newPlaylist: 'New playlist',
       plEmpty: 'No playlists yet.', plEmptyHint: 'Create a playlist and add videos from your library.',
       removeCover: 'Remove image',
       pdEmpty: 'This playlist is still empty.', pdEmptyHint: 'Tap “+ Videos” to add some from your library.',
@@ -1057,8 +1058,7 @@
       renamePlTitle: 'Rename playlist', plNamePh: 'Playlist name',
       deletePlTitle: 'Delete playlist?',
       deletePlText: name => '“' + name + '” will be deleted. The videos stay in your library.',
-      newPlTitle: 'New playlist', newTrimmedTitle: 'New trimmed playlist',
-      newTrimmedText: 'Automatically skips to the next video 5 seconds before each one ends.',
+      newPlTitle: 'New playlist',
       nowPlaying: (name, n) => 'Playing: ' + name + (n ? ' · ' + n + ' in queue' : ''),
       nothingPlaying: 'Nothing is playing right now.', queueEmpty: 'Nothing left in the queue.',
       fromQueue: 'from the queue', trackOf: (i, n) => 'Track ' + i + ' of ' + n,
@@ -1181,7 +1181,7 @@
     topbar: $('.topbar'),
     importBtn: $('#importBtn'), fileInput: $('#fileInput'), coverInput: $('#coverInput'),
     libraryList: $('#libraryList'), libraryEmpty: $('#libraryEmpty'),
-    playlistsList: $('#playlistsList'), playlistsEmpty: $('#playlistsEmpty'), newPlaylistBtn: $('#newPlaylistBtn'), newTrimmedPlaylistBtn: $('#newTrimmedPlaylistBtn'),
+    playlistsList: $('#playlistsList'), playlistsEmpty: $('#playlistsEmpty'), newPlaylistBtn: $('#newPlaylistBtn'),
     pdBack: $('#pdBack'), pdTitle: $('#pdTitle'), pdCount: $('#pdCount'), pdList: $('#pdList'), pdEmpty: $('#pdEmpty'),
     pdPlaySeq: $('#pdPlaySeq'), pdPlayShuffle: $('#pdPlayShuffle'), pdAddVideos: $('#pdAddVideos'), pdToggleTrim: $('#pdToggleTrim'),
     pdCover: $('#pdCover'), pdCoverRemove: $('#pdCoverRemove'),
@@ -1733,21 +1733,16 @@
     if (state.view === 'playlistDetail' && state.activePlaylistId === p.id) switchView('playlists');
   }
 
-  async function createPlaylist(trimmed){
-    const name = await showDialog({
-      title: trimmed ? t('newTrimmedTitle') : t('newPlTitle'),
-      text: trimmed ? t('newTrimmedText') : undefined,
-      placeholder: t('plNamePh'), confirmLabel: t('create')
-    });
+  async function createPlaylist(){
+    const name = await showDialog({ title: t('newPlTitle'), placeholder: t('plNamePh'), confirmLabel: t('create') });
     if (!name) return;
-    const p = { id: uid(), name, videoIds: [], createdAt: Date.now(), trimmed: !!trimmed };
+    const p = { id: uid(), name, videoIds: [], createdAt: Date.now(), trimmed: false };
     await dbPut('playlists', p);
     state.playlists.push(p);
     renderPlaylists();
     openPlaylistDetail(p.id);
   }
-  el.newPlaylistBtn.addEventListener('click', () => createPlaylist(false));
-  el.newTrimmedPlaylistBtn.addEventListener('click', () => createPlaylist(true));
+  el.newPlaylistBtn.addEventListener('click', () => createPlaylist());
 
   /* ================= Playlist detail ================= */
   function openPlaylistDetail(id){
