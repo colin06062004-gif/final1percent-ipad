@@ -335,7 +335,6 @@
   }
   .empty-state svg{width:34px;height:34px;color:var(--ink-faint);margin-bottom:12px;}
   .empty-state p{margin:0;font-size:14px;line-height:1.5;}
-  .empty-state .hint{font-family:var(--font-mono);font-size:11.5px;color:var(--ink-faint);margin-top:6px;}
 
   /* Playlist detail */
   /* .views doesn't actually clip/scroll internally (the shell is min-height, not height — see
@@ -446,7 +445,6 @@
   .mini-thumb{width:38px;height:38px;border-radius:8px;object-fit:cover;background:rgba(0,0,0,.25);flex-shrink:0;}
   .mini-info{flex:1;min-width:0;text-align:left;}
   .mini-title{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-  .mini-sub{font-family:var(--font-mono);font-size:10.5px;color:var(--ink-muted);}
   /* Progress sits as a track (dim, full width) + fill (glowing, animated width) pair, inset a
      bit above the bottom border rather than sitting flush on top of it. */
   .mini-progress-track{position:absolute;bottom:6px;left:10px;right:10px;height:2.5px;border-radius:2px;background:rgba(255,255,255,.14);}
@@ -497,9 +495,8 @@
     max-width:520px;margin:0 auto;
   }
   .full-player.hidden{display:none;}
-  .fp-top{display:flex;align-items:center;justify-content:space-between;padding:16px 16px 4px;padding-top:calc(16px + env(safe-area-inset-top, 0px));}
+  .fp-top{display:flex;align-items:center;justify-content:flex-end;padding:16px 16px 4px;padding-top:calc(16px + env(safe-area-inset-top, 0px));}
   .fp-top-actions{display:flex;align-items:center;gap:4px;}
-  .fp-kicker{font-family:var(--font-mono);font-size:11px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:1px;}
   .fp-stage{
     position:relative;
     flex:1;
@@ -515,7 +512,6 @@
   }
   .fp-meta{padding:6px 24px 0;text-align:left;}
   .fp-title{font-size:21px;line-height:1.2;}
-  .fp-context{font-family:var(--font-mono);font-size:12px;color:var(--ink-muted);margin-top:5px;}
   .fp-progress-wrap{padding:22px 24px 6px;}
   .fp-progress-bar{
     position:relative;height:4px;border-radius:2px;background:rgba(255,255,255,.14);cursor:pointer;
@@ -608,10 +604,6 @@
   .pick-thumb{width:36px;height:36px;border-radius:8px;object-fit:cover;background:rgba(0,0,0,.25);flex-shrink:0;}
   .queue-list .track-row{padding:8px;touch-action:pan-y;}
   .queue-list{border:none;padding-left:0;}
-  .queue-note{
-    font-family:var(--font-mono);font-size:11px;color:var(--ink-faint);
-    padding:10px 18px 0;line-height:1.5;
-  }
 
   /* ---------- Settings ---------- */
   /* grouped glass card, iOS-settings style */
@@ -658,9 +650,8 @@
   .crop-backdrop.hidden{display:none;}
   .crop-title{
     text-align:center;font-size:15px;font-weight:600;
-    padding:calc(16px + env(safe-area-inset-top,0px)) 16px 4px;
+    padding:calc(16px + env(safe-area-inset-top,0px)) 16px 14px;
   }
-  .crop-sub{text-align:center;font-family:var(--font-mono);font-size:11px;color:var(--ink-faint);padding-bottom:10px;}
   .crop-stage{position:relative;flex:1;overflow:hidden;touch-action:none;}
   .crop-stage img{position:absolute;left:0;top:0;transform-origin:0 0;user-select:none;-webkit-user-drag:none;}
   .crop-frame{
@@ -721,7 +712,7 @@
     <div class="wordmark"><img class="wordmark-helmet" src="helmet-mark.png" alt="">Final 1%</div>
     <!-- Set by hand on every commit that touches index.html — no build step in this project,
          so nothing computes this automatically. Format: DD.MM.YYYY, HH:MM, local time of the commit. -->
-    <span class="build-date"><span data-i18n="updated">Aktualisiert</span>: 03.10.2026, 23:20</span>
+    <span class="build-date"><span data-i18n="updated">Aktualisiert</span>: 04.10.2026, 15:33</span>
   </header>
 
   <input id="fileInput" type="file" accept="video/*" multiple class="visually-hidden">
@@ -733,7 +724,6 @@
       <ul id="libraryList" class="library-grid"></ul>
       <div id="libraryEmpty" class="empty-state" hidden>
         <p data-i18n="libEmpty">Noch keine Videos geladen.</p>
-        <p class="hint" data-i18n="libEmptyHint">Tippe unten auf + und wähle Videos aus deiner Galerie.</p>
       </div>
     </section>
 
@@ -747,7 +737,6 @@
       <ul id="playlistsList"></ul>
       <div id="playlistsEmpty" class="empty-state" hidden>
         <p data-i18n="plEmpty">Noch keine Playlist angelegt.</p>
-        <p class="hint" data-i18n="plEmptyHint">Erstelle eine Playlist und füge Videos aus deiner Bibliothek hinzu.</p>
       </div>
     </section>
 
@@ -770,7 +759,6 @@
       <ul id="pdList"></ul>
       <div id="pdEmpty" class="empty-state" hidden>
         <p data-i18n="pdEmpty">Diese Playlist ist noch leer.</p>
-        <p class="hint" data-i18n="pdEmptyHint">Tippe auf „+ Videos“, um welche aus deiner Bibliothek hinzuzufügen.</p>
       </div>
     </section>
 
@@ -826,7 +814,6 @@
     <img id="miniThumb" class="mini-thumb" alt="">
     <div class="mini-info">
       <div class="mini-title" id="miniTitle"></div>
-      <div class="mini-sub mono" id="miniSub"></div>
     </div>
     <div class="mini-controls">
       <span id="miniPlayPause" class="icon-btn" aria-label="Abspielen/Pause" data-i18n-aria="aPlayPause"></span>
@@ -837,7 +824,6 @@
 
   <div id="fullPlayer" class="full-player hidden">
     <div class="fp-top">
-      <span class="fp-kicker" id="fpKicker">Now Playing</span>
       <div class="fp-top-actions">
         <button id="fpTrim" class="icon-btn" aria-label="Verkürzung für dieses Video" data-i18n-aria="aTrimThis"></button>
         <button id="fpClose" class="icon-btn" aria-label="Player einklappen" data-i18n-aria="aCollapse"></button>
@@ -855,7 +841,6 @@
     <audio id="audioPlayer" playsinline style="display:none"></audio>
     <div class="fp-meta">
       <h3 class="fp-title" id="fpTitle"></h3>
-      <div class="fp-context" id="fpContext"></div>
     </div>
     <div class="fp-progress-wrap">
       <div class="fp-progress-bar" id="fpProgressBar" role="slider" aria-label="Position im Video" data-i18n-aria="aPosition">
@@ -892,14 +877,12 @@
         <h3 data-i18n="queue">Warteschlange</h3>
         <button id="queueSheetClose" class="icon-btn" aria-label="Schließen" data-i18n-aria="aClose"></button>
       </div>
-      <div class="queue-note" id="queueNote"></div>
       <ul id="queueList" class="sheet-body queue-list"></ul>
     </div>
   </div>
 
   <div id="cropBackdrop" class="crop-backdrop hidden">
     <div class="crop-title" data-i18n="cropTitle">Bewegen und skalieren</div>
-    <div class="crop-sub" data-i18n="cropHint">Ziehen zum Verschieben · zwei Finger zum Zoomen</div>
     <div class="crop-stage" id="cropStage">
       <div class="crop-frame" id="cropFrame"></div>
     </div>
@@ -964,18 +947,18 @@
     de: {
       updated: 'Aktualisiert', tabLibrary: 'Bibliothek', tabSettings: 'Einstellungen',
       library: 'Bibliothek', queue: 'Warteschlange',
-      libEmpty: 'Noch keine Videos geladen.', libEmptyHint: 'Tippe unten auf + und wähle Videos aus deiner Galerie.',
+      libEmpty: 'Noch keine Videos geladen.',
       newPlaylist: 'Neue Playlist',
-      plEmpty: 'Noch keine Playlist angelegt.', plEmptyHint: 'Erstelle eine Playlist und füge Videos aus deiner Bibliothek hinzu.',
+      plEmpty: 'Noch keine Playlist angelegt.',
       removeCover: 'Bild entfernen',
-      pdEmpty: 'Diese Playlist ist noch leer.', pdEmptyHint: 'Tippe auf „+ Videos“, um welche aus deiner Bibliothek hinzuzufügen.',
+      pdEmpty: 'Diese Playlist ist noch leer.',
       settings: 'Einstellungen', language: 'Sprache',
       hideVideo: 'Videobild ausblenden', hideVideoHint: 'Spielt nur den Ton ab und das Videobild wird ausgeblendet.',
       boost: 'Lautstärke-Verstärkung',
       boostHint: 'Verstärkt den Ton zusätzlich zur Handy-Lautstärke, auch über deren Maximum hinaus — für den PR-Versuch. Wird beim nächsten gestarteten Video aktiv.',
       boostWarn: 'Sehr laute Lautstärke kann auf Dauer den Ohren schaden und je nach Kopfhörern oder Lautsprechern auch diese belasten.',
       addVideosTitle: 'Videos hinzufügen',
-      cropTitle: 'Bewegen und skalieren', cropHint: 'Ziehen zum Verschieben · zwei Finger zum Zoomen',
+      cropTitle: 'Bewegen und skalieren',
       cancel: 'Abbrechen', choose: 'Auswählen', ok: 'OK', save: 'Speichern', create: 'Erstellen', del: 'Löschen',
       aCoverPick: 'Playlist-Bild wählen', aCoverChange: 'Playlist-Bild ändern', aPlayPlaylist: 'Playlist abspielen',
       aImport: 'Videos aus der Galerie importieren', aPlayPause: 'Abspielen/Pause', aNext: 'Nächstes Video', aStop: 'Stoppen',
@@ -987,7 +970,6 @@
       aDisableInPl: 'Video für diese Playlist deaktivieren', aDrag: 'Ziehen zum Umsortieren',
       aRenamePl: 'Playlist umbenennen', aDeletePl: 'Playlist löschen',
       inQueue: 'In der Warteschlange', playNext: 'Als nächstes',
-      disabledSuffix: ' · Deaktiviert', trimmedSuffix: ' · Verkürzt', trimmedSuffixLong: ' · Verkürzt (−5s)',
       trimOn: 'Verkürzt: An', trimOff: 'Verkürzt: Aus',
       videos: n => n + (n === 1 ? ' Video' : ' Videos'),
       renameVideoTitle: 'Video umbenennen',
@@ -999,10 +981,7 @@
       deletePlTitle: 'Playlist löschen?',
       deletePlText: name => '„' + name + '“ wird gelöscht. Die Videos bleiben in deiner Bibliothek.',
       newPlTitle: 'Neue Playlist',
-      nowPlaying: (name, n) => 'Läuft: ' + name + (n ? ' · ' + n + ' in der Warteschlange' : ''),
-      nothingPlaying: 'Es läuft gerade nichts.', queueEmpty: 'Nichts mehr in der Schlange.',
-      fromQueue: 'aus der Warteschlange', trackOf: (i, n) => 'Titel ' + i + ' von ' + n,
-      shuffleSuffix: ' · Zufallswiedergabe', waiting: n => n + ' wartet' + (n === 1 ? '' : 'en'),
+      queueEmpty: 'Nichts mehr in der Schlange.',
       importing: n => 'Importiere ' + n + ' Video' + (n > 1 ? 's' : '') + ' …',
       imported: n => n + ' Video' + (n !== 1 ? 's' : '') + ' hinzugefügt',
       imgLoadFail: 'Bild konnte nicht geladen werden', imgProcessFail: 'Bild konnte nicht verarbeitet werden',
@@ -1024,18 +1003,18 @@
     en: {
       updated: 'Updated', tabLibrary: 'Library', tabSettings: 'Settings',
       library: 'Library', queue: 'Queue',
-      libEmpty: 'No videos yet.', libEmptyHint: 'Tap + below and pick videos from your gallery.',
+      libEmpty: 'No videos yet.',
       newPlaylist: 'New playlist',
-      plEmpty: 'No playlists yet.', plEmptyHint: 'Create a playlist and add videos from your library.',
+      plEmpty: 'No playlists yet.',
       removeCover: 'Remove image',
-      pdEmpty: 'This playlist is still empty.', pdEmptyHint: 'Tap “+ Videos” to add some from your library.',
+      pdEmpty: 'This playlist is still empty.',
       settings: 'Settings', language: 'Language',
       hideVideo: 'Hide video', hideVideoHint: 'Plays only the sound and hides the video picture.',
       boost: 'Volume boost',
       boostHint: 'Boosts the sound on top of your phone’s volume, even beyond its maximum — for that PR attempt. Takes effect with the next video you start.',
       boostWarn: 'Very loud volume can damage your hearing over time and, depending on your headphones or speakers, strain them as well.',
       addVideosTitle: 'Add videos',
-      cropTitle: 'Move and scale', cropHint: 'Drag to move · two fingers to zoom',
+      cropTitle: 'Move and scale',
       cancel: 'Cancel', choose: 'Choose', ok: 'OK', save: 'Save', create: 'Create', del: 'Delete',
       aCoverPick: 'Choose playlist image', aCoverChange: 'Change playlist image', aPlayPlaylist: 'Play playlist',
       aImport: 'Import videos from gallery', aPlayPause: 'Play/Pause', aNext: 'Next video', aStop: 'Stop',
@@ -1047,7 +1026,6 @@
       aDisableInPl: 'Disable video in this playlist', aDrag: 'Drag to reorder',
       aRenamePl: 'Rename playlist', aDeletePl: 'Delete playlist',
       inQueue: 'In queue', playNext: 'Play next',
-      disabledSuffix: ' · Disabled', trimmedSuffix: ' · Trimmed', trimmedSuffixLong: ' · Trimmed (−5s)',
       trimOn: 'Trimmed: On', trimOff: 'Trimmed: Off',
       videos: n => n + (n === 1 ? ' video' : ' videos'),
       renameVideoTitle: 'Rename video',
@@ -1059,10 +1037,7 @@
       deletePlTitle: 'Delete playlist?',
       deletePlText: name => '“' + name + '” will be deleted. The videos stay in your library.',
       newPlTitle: 'New playlist',
-      nowPlaying: (name, n) => 'Playing: ' + name + (n ? ' · ' + n + ' in queue' : ''),
-      nothingPlaying: 'Nothing is playing right now.', queueEmpty: 'Nothing left in the queue.',
-      fromQueue: 'from the queue', trackOf: (i, n) => 'Track ' + i + ' of ' + n,
-      shuffleSuffix: ' · Shuffle', waiting: n => n + ' waiting',
+      queueEmpty: 'Nothing left in the queue.',
       importing: n => 'Importing ' + n + ' video' + (n > 1 ? 's' : '') + ' …',
       imported: n => n + ' video' + (n !== 1 ? 's' : '') + ' added',
       imgLoadFail: 'Couldn’t load the image', imgProcessFail: 'Couldn’t process the image',
@@ -1186,15 +1161,15 @@
     pdPlaySeq: $('#pdPlaySeq'), pdPlayShuffle: $('#pdPlayShuffle'), pdAddVideos: $('#pdAddVideos'), pdToggleTrim: $('#pdToggleTrim'),
     pdCover: $('#pdCover'), pdCoverRemove: $('#pdCoverRemove'),
     tabs: document.querySelectorAll('.tab'),
-    miniPlayer: $('#miniPlayer'), miniThumb: $('#miniThumb'), miniTitle: $('#miniTitle'), miniSub: $('#miniSub'),
+    miniPlayer: $('#miniPlayer'), miniThumb: $('#miniThumb'), miniTitle: $('#miniTitle'),
     miniPlayPause: $('#miniPlayPause'), miniNext: $('#miniNext'), miniStop: $('#miniStop'), miniProgress: $('#miniProgress'),
     fabWrap: $('#fabWrap'),
-    fullPlayer: $('#fullPlayer'), fpClose: $('#fpClose'), fpTrim: $('#fpTrim'), fpKicker: $('#fpKicker'),
+    fullPlayer: $('#fullPlayer'), fpClose: $('#fpClose'), fpTrim: $('#fpTrim'),
     stageVideo: $('#stageVideo'), audioPlayer: $('#audioPlayer'),
-    fpTitle: $('#fpTitle'), fpContext: $('#fpContext'),
+    fpTitle: $('#fpTitle'),
     fpProgressBar: $('#fpProgressBar'), fpProgressFill: $('#fpProgressFill'), fpProgressKnob: $('#fpProgressKnob'), fpTimeCur: $('#fpTimeCur'), fpTimeDur: $('#fpTimeDur'),
     fpHideVideo: $('#fpHideVideo'), fpShuffle: $('#fpShuffle'), fpPrev: $('#fpPrev'), fpPlayPause: $('#fpPlayPause'), fpNext: $('#fpNext'), fpRepeat: $('#fpRepeat'), fpQueue: $('#fpQueue'),
-    queueSheetBackdrop: $('#queueSheetBackdrop'), queueSheetClose: $('#queueSheetClose'), queueList: $('#queueList'), queueNote: $('#queueNote'),
+    queueSheetBackdrop: $('#queueSheetBackdrop'), queueSheetClose: $('#queueSheetClose'), queueList: $('#queueList'),
     cropBackdrop: $('#cropBackdrop'), cropStage: $('#cropStage'), cropFrame: $('#cropFrame'), cropCancel: $('#cropCancel'), cropConfirm: $('#cropConfirm'),
     setAudioOnly: $('#setAudioOnly'),
     setVolumeBoost: $('#setVolumeBoost'), volumeBoostValue: $('#volumeBoostValue'),
@@ -1567,11 +1542,10 @@
     main.className = 'track-main'; main.style.cssText = 'display:flex;align-items:center;gap:12px;background:none;';
     const textCol = document.createElement('span');
     textCol.style.cssText = 'display:flex;flex-direction:column;min-width:0;flex:1;';
-    textCol.innerHTML = '<span class="track-name"></span><span class="track-sub mono"></span>';
+    textCol.innerHTML = '<span class="track-name"></span>';
     main.appendChild(thumbWrap);
     main.appendChild(textCol);
     main.querySelector('.track-name').textContent = v.name;
-    main.querySelector('.track-sub').textContent = fmtTime(v.duration) + (disabled ? t('disabledSuffix') : '');
     main.addEventListener('click', () => { if (!li.dataset.swiped) onPlay(); });
 
     const hint = document.createElement('span');
@@ -1696,7 +1670,7 @@
       main.appendChild(thumbWrap);
       main.appendChild(textCol);
       main.querySelector('.track-name').textContent = p.name;
-      main.querySelector('.track-sub').textContent = t('videos', p.videoIds.length) + (p.trimmed ? t('trimmedSuffix') : '');
+      main.querySelector('.track-sub').textContent = t('videos', p.videoIds.length);
       main.addEventListener('click', () => openPlaylistDetail(p.id));
       const actions = document.createElement('div'); actions.className = 'track-actions';
       const renameBtn = document.createElement('button'); renameBtn.className = 'icon-btn'; renameBtn.innerHTML = ICONS.pencil;
@@ -1755,7 +1729,7 @@
     if (!p) { switchView('playlists'); return; }
     el.pdTitle.textContent = p.name;
     renderCover(p);
-    el.pdCount.textContent = t('videos', p.videoIds.length) + (p.trimmed ? t('trimmedSuffixLong') : '');
+    el.pdCount.textContent = t('videos', p.videoIds.length);
     el.pdToggleTrim.textContent = p.trimmed ? t('trimOn') : t('trimOff');
     el.pdToggleTrim.className = 'btn ' + (p.trimmed ? 'solid' : 'ghost');
     el.pdPlayShuffle.classList.toggle('active-toggle', state.shuffle);
@@ -1881,10 +1855,6 @@
   function renderQueueSheet(){
     state.queueView = buildQueueView();
     el.queueList.innerHTML = '';
-    const cur = videoById(getCurrentId());
-    el.queueNote.textContent = cur
-      ? t('nowPlaying', cur.name, state.queue.length)
-      : t('nothingPlaying');
     if (!state.queueView.length) {
       const li = document.createElement('li');
       li.className = 'queue-empty';
@@ -2491,15 +2461,8 @@
     el.miniPlayer.classList.remove('hidden');
     el.fabWrap.classList.add('lifted');
     el.miniTitle.textContent = v.name;
-    const fromQueue = isPlayingFromQueue();
-    el.miniSub.textContent = queueLabelText() + ' · ' + (fromQueue ? t('queue') : (state.posIndex+1) + '/' + state.playOrder.length);
     if (v.thumbnail) el.miniThumb.src = v.thumbnail; else el.miniThumb.removeAttribute('src');
     el.fpTitle.textContent = v.name;
-    el.fpContext.textContent = queueLabelText()
-      + ' — ' + (fromQueue ? t('fromQueue') : t('trackOf', state.posIndex + 1, state.playOrder.length))
-      + (state.shuffle ? t('shuffleSuffix') : '')
-      + (state.queueTrimmed ? t('trimmedSuffix') : '')
-      + (state.queue.length ? ' · ' + t('waiting', state.queue.length) : '');
     el.fpQueue.classList.toggle('toggled', state.queue.length > 0);
     el.fpTimeDur.textContent = fmtTime(v.duration);
     if (!scrub) paintProgress(videoDuration() ? el.audioPlayer.currentTime / videoDuration() : 0);
