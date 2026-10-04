@@ -189,14 +189,15 @@
   .track-row:active{background:var(--glass-press);}
   /* The playing video in a playlist is lit exactly like the active Shuffle / "Verkürzt: An"
      buttons (red-tinted glass, neon rim + soft glow) — this replaced the old dashed rail with
-     a glowing dot next to the playing row. */
-  #pdList .track-row.playing{
+     a glowing dot next to the playing row. The playlist overview lights the playlist the
+     current video comes from the same way. */
+  #pdList .track-row.playing, #playlistsList .track-row.playing{
     background:var(--glass-red);
     border-color:rgba(255,77,94,.8);
     box-shadow:var(--glass-shine), 0 0 12px -3px rgba(228,32,44,.75);
   }
-  #pdList .track-row.playing .track-name{color:var(--accent-glow);}
-  #pdList .track-row.playing.dragging{background:var(--glass-red), rgba(34,13,16,.82);}
+  #pdList .track-row.playing .track-name, #playlistsList .track-row.playing .track-name{color:var(--accent-glow);}
+  #pdList .track-row.playing.dragging, #playlistsList .track-row.playing.dragging{background:var(--glass-red), rgba(34,13,16,.82);}
   .track-thumb{
     width:50px;height:50px;
     border-radius:9px;
@@ -715,7 +716,7 @@
     <div class="wordmark"><img class="wordmark-helmet" src="helmet-mark.png" alt="">Final 1%</div>
     <!-- Set by hand on every commit that touches index.html — no build step in this project,
          so nothing computes this automatically. Format: DD.MM.YYYY, HH:MM, local time of the commit. -->
-    <span class="build-date"><span data-i18n="updated">Aktualisiert</span>: 04.10.2026, 16:02</span>
+    <span class="build-date"><span data-i18n="updated">Aktualisiert</span>: 04.10.2026, 17:46</span>
   </header>
 
   <input id="fileInput" type="file" accept="video/*" multiple class="visually-hidden">
@@ -983,6 +984,8 @@
       renamePlTitle: 'Playlist umbenennen', plNamePh: 'Name der Playlist',
       deletePlTitle: 'Playlist löschen?',
       deletePlText: name => '„' + name + '“ wird gelöscht. Die Videos bleiben in deiner Bibliothek.',
+      removeFromPlTitle: 'Aus Playlist entfernen?', remove: 'Entfernen',
+      removeFromPlText: name => '„' + name + '“ wird aus dieser Playlist entfernt. In deiner Bibliothek bleibt es erhalten.',
       newPlTitle: 'Neue Playlist',
       queueEmpty: 'Nichts mehr in der Schlange.',
       importing: n => 'Importiere ' + n + ' Video' + (n > 1 ? 's' : '') + ' …',
@@ -997,7 +1000,7 @@
       libEmptyToast: 'Bibliothek ist leer — importiere zuerst Videos',
       hideThisOn: 'Videobild für dieses Video ausgeblendet', hideThisOff: 'Videobild für dieses Video wieder an',
       trimOnlyTrimmed: 'Nur innerhalb einer verkürzten Playlist verfügbar',
-      trimThisOn: 'Dieses Video wird wieder verkürzt', trimThisOff: 'Dieses Video wird nicht mehr verkürzt',
+      trimThisOn: 'Dieses Video wird am Ende wieder um 5 Sekunden verkürzt', trimThisOff: 'Dieses Video wird nicht mehr verkürzt',
       hideVideoOn: 'Videobild aus — nur Ton', hideVideoOff: 'Videobild wieder an',
       boostToast: pct => 'Verstärkung: ' + pct + '% — wirkt ab dem nächsten Start eines Videos',
       repeatOn: 'Playlist wiederholt sich nach dem letzten Video', repeatOff: 'Wiederholung aus',
@@ -1039,6 +1042,8 @@
       renamePlTitle: 'Rename playlist', plNamePh: 'Playlist name',
       deletePlTitle: 'Delete playlist?',
       deletePlText: name => '“' + name + '” will be deleted. The videos stay in your library.',
+      removeFromPlTitle: 'Remove from playlist?', remove: 'Remove',
+      removeFromPlText: name => '“' + name + '” will be removed from this playlist. It stays in your library.',
       newPlTitle: 'New playlist',
       queueEmpty: 'Nothing left in the queue.',
       importing: n => 'Importing ' + n + ' video' + (n > 1 ? 's' : '') + ' …',
@@ -1053,7 +1058,7 @@
       libEmptyToast: 'Library is empty — import some videos first',
       hideThisOn: 'Picture hidden for this video', hideThisOff: 'Picture back on for this video',
       trimOnlyTrimmed: 'Only available inside a trimmed playlist',
-      trimThisOn: 'This video is trimmed again', trimThisOff: 'This video is no longer trimmed',
+      trimThisOn: 'This video gets 5 seconds cut off the end again', trimThisOff: 'This video is no longer trimmed',
       hideVideoOn: 'Picture off — audio only', hideVideoOff: 'Picture back on',
       boostToast: pct => 'Boost: ' + pct + '% — applies from the next video you start',
       repeatOn: 'Playlist repeats after the last video', repeatOff: 'Repeat off',
@@ -1659,6 +1664,8 @@
     state.playlists.slice().sort((a,b) => b.createdAt - a.createdAt).forEach((p) => {
       const li = document.createElement('li');
       li.className = 'track-row';
+      li.dataset.playlistId = p.id;
+      li.classList.toggle('playing', p.id === state.queueSourceId);
       const thumbWrap = document.createElement('div');
       thumbWrap.className = 'track-thumb';
       const firstVid = p.videoIds.map(videoById).find(Boolean);
@@ -1748,6 +1755,8 @@
       el.pdList.appendChild(buildTrackRow(v, {
         onPlay: () => playQueue(playlistActiveIds(p, vid), p.name, vid, undefined, p.trimmed, p.id),
         onRemove: async () => {
+          const ok = await showDialog({ title: t('removeFromPlTitle'), text: t('removeFromPlText', v.name), confirmLabel: t('remove'), danger: true });
+          if (!ok) return;
           p.videoIds = p.videoIds.filter(x => x !== vid);
           if (p.disabledIds) p.disabledIds = p.disabledIds.filter(x => x !== vid);
           if (p.trimExcludedIds) p.trimExcludedIds = p.trimExcludedIds.filter(x => x !== vid);
@@ -2498,7 +2507,10 @@
 
   function markPlayingRow(){
     document.querySelectorAll('.track-row').forEach(row => {
-      row.classList.toggle('playing', row.dataset.id === getCurrentId());
+      // playlist-overview rows carry a playlist id instead: lit while the current video comes from it
+      row.classList.toggle('playing', row.dataset.playlistId
+        ? row.dataset.playlistId === state.queueSourceId
+        : row.dataset.id === getCurrentId());
     });
   }
 
