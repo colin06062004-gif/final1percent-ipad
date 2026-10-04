@@ -670,6 +670,9 @@
   /* ---------- Toast ---------- */
   .toast{
     position:fixed;left:50%;bottom:96px;transform:translateX(-50%);
+    /* left:50% alone would cap the width at half the screen and wrap longer messages into a
+       narrow column — size to the text instead, up to the screen width minus the margins */
+    width:max-content;max-width:calc(100vw - 32px);text-align:center;
     background:var(--ink);color:var(--bg);
     font-size:13px;font-weight:500;
     padding:10px 16px;border-radius:999px;
@@ -712,7 +715,7 @@
     <div class="wordmark"><img class="wordmark-helmet" src="helmet-mark.png" alt="">Final 1%</div>
     <!-- Set by hand on every commit that touches index.html — no build step in this project,
          so nothing computes this automatically. Format: DD.MM.YYYY, HH:MM, local time of the commit. -->
-    <span class="build-date"><span data-i18n="updated">Aktualisiert</span>: 04.10.2026, 16:01</span>
+    <span class="build-date"><span data-i18n="updated">Aktualisiert</span>: 04.10.2026, 16:02</span>
   </header>
 
   <input id="fileInput" type="file" accept="video/*" multiple class="visually-hidden">
