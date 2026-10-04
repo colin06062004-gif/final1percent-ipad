@@ -716,7 +716,7 @@
     <div class="wordmark"><img class="wordmark-helmet" src="helmet-mark.png" alt="">Final 1%</div>
     <!-- Set by hand on every commit that touches index.html — no build step in this project,
          so nothing computes this automatically. Format: DD.MM.YYYY, HH:MM, local time of the commit. -->
-    <span class="build-date"><span data-i18n="updated">Aktualisiert</span>: 04.10.2026, 17:46</span>
+    <span class="build-date"><span data-i18n="updated">Aktualisiert</span>: 04.10.2026, 18:01</span>
   </header>
 
   <input id="fileInput" type="file" accept="video/*" multiple class="visually-hidden">
@@ -2056,11 +2056,11 @@
   });
   el.pdPlayShuffle.addEventListener('click', () => {
     // Only flips the shuffle mode on/off — deliberately does NOT start playback itself (that's
-    // pdPlaySeq's job). Mirrors the global state.shuffle used everywhere else (mini/full player).
-    state.shuffle = !state.shuffle;
+    // pdPlaySeq's job). Mirrors the global state.shuffle used everywhere else (mini/full player),
+    // and goes through toggleShuffle() like the full player's button so a running queue is
+    // reordered right away — the very next video already follows the new mode.
+    toggleShuffle();
     renderPlaylistDetail();
-    refreshNowPlayingUI();
-    saveState();
   });
   el.pdToggleTrim.addEventListener('click', async () => {
     const p = playlistById(state.activePlaylistId);
@@ -2555,13 +2555,17 @@
   function toggleShuffle(){
     state.shuffle = !state.shuffle;
     const anchor = state.playOrder[state.posIndex] || getCurrentId();
-    if (state.shuffle) {
-      const rest = state.queueBase.filter(id => id !== anchor);
-      state.playOrder = [anchor, ...shuffleArr(rest)];
-      state.posIndex = 0;
-    } else {
-      state.playOrder = state.queueBase.slice();
-      state.posIndex = Math.max(0, state.playOrder.indexOf(anchor));
+    // with nothing loaded (the playlist page can toggle it then) only the mode changes —
+    // the next playQueue() reads state.shuffle
+    if (state.playOrder.length) {
+      if (state.shuffle) {
+        const rest = state.queueBase.filter(id => id !== anchor);
+        state.playOrder = [anchor, ...shuffleArr(rest)];
+        state.posIndex = 0;
+      } else {
+        state.playOrder = state.queueBase.slice();
+        state.posIndex = Math.max(0, state.playOrder.indexOf(anchor));
+      }
     }
     refreshNowPlayingUI(); saveState();
     if (!el.queueSheetBackdrop.classList.contains('hidden')) renderQueueSheet();
