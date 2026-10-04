@@ -712,7 +712,7 @@
     <div class="wordmark"><img class="wordmark-helmet" src="helmet-mark.png" alt="">Final 1%</div>
     <!-- Set by hand on every commit that touches index.html — no build step in this project,
          so nothing computes this automatically. Format: DD.MM.YYYY, HH:MM, local time of the commit. -->
-    <span class="build-date"><span data-i18n="updated">Aktualisiert</span>: 04.10.2026, 15:33</span>
+    <span class="build-date"><span data-i18n="updated">Aktualisiert</span>: 04.10.2026, 15:56</span>
   </header>
 
   <input id="fileInput" type="file" accept="video/*" multiple class="visually-hidden">
@@ -750,9 +750,9 @@
         </div>
       </div>
       <div class="pd-actions">
-        <button id="pdPlaySeq" class="btn ghost" aria-label="Playlist abspielen" data-i18n-aria="aPlayPlaylist"></button>
-        <button id="pdPlayShuffle" class="btn ghost"></button>
+        <button id="pdPlaySeq" class="btn ghost" aria-label="Playlist abspielen"></button>
         <button id="pdAddVideos" class="btn ghost">+ Videos</button>
+        <button id="pdPlayShuffle" class="btn ghost"></button>
         <button id="pdToggleTrim" class="btn ghost"></button>
         <button id="pdCoverRemove" class="btn ghost" hidden data-i18n="removeCover">Bild entfernen</button>
       </div>
@@ -960,7 +960,7 @@
       addVideosTitle: 'Videos hinzufügen',
       cropTitle: 'Bewegen und skalieren',
       cancel: 'Abbrechen', choose: 'Auswählen', ok: 'OK', save: 'Speichern', create: 'Erstellen', del: 'Löschen',
-      aCoverPick: 'Playlist-Bild wählen', aCoverChange: 'Playlist-Bild ändern', aPlayPlaylist: 'Playlist abspielen',
+      aCoverPick: 'Playlist-Bild wählen', aCoverChange: 'Playlist-Bild ändern', aPlayPlaylist: 'Playlist abspielen', aPause: 'Pausieren',
       aImport: 'Videos aus der Galerie importieren', aPlayPause: 'Abspielen/Pause', aNext: 'Nächstes Video', aStop: 'Stoppen',
       aTrimThis: 'Verkürzung für dieses Video', aCollapse: 'Player einklappen', aPosition: 'Position im Video',
       aHideThis: 'Videobild für dieses Video ausblenden', aShuffle: 'Zufallswiedergabe', aPrev: 'Vorheriges Video',
@@ -970,7 +970,7 @@
       aDisableInPl: 'Video für diese Playlist deaktivieren', aDrag: 'Ziehen zum Umsortieren',
       aRenamePl: 'Playlist umbenennen', aDeletePl: 'Playlist löschen',
       inQueue: 'In der Warteschlange', playNext: 'Als nächstes',
-      trimOn: 'Verkürzt: An', trimOff: 'Verkürzt: Aus',
+      trim: 'Verkürzt',
       videos: n => n + (n === 1 ? ' Video' : ' Videos'),
       renameVideoTitle: 'Video umbenennen',
       renameVideoText: 'Mit „@creator“ ohne Zahl wird automatisch weitergezählt: @name 1, @name 2 …',
@@ -1016,7 +1016,7 @@
       addVideosTitle: 'Add videos',
       cropTitle: 'Move and scale',
       cancel: 'Cancel', choose: 'Choose', ok: 'OK', save: 'Save', create: 'Create', del: 'Delete',
-      aCoverPick: 'Choose playlist image', aCoverChange: 'Change playlist image', aPlayPlaylist: 'Play playlist',
+      aCoverPick: 'Choose playlist image', aCoverChange: 'Change playlist image', aPlayPlaylist: 'Play playlist', aPause: 'Pause',
       aImport: 'Import videos from gallery', aPlayPause: 'Play/Pause', aNext: 'Next video', aStop: 'Stop',
       aTrimThis: 'Trimming for this video', aCollapse: 'Collapse player', aPosition: 'Position in video',
       aHideThis: 'Hide picture for this video', aShuffle: 'Shuffle', aPrev: 'Previous video',
@@ -1026,7 +1026,7 @@
       aDisableInPl: 'Disable video in this playlist', aDrag: 'Drag to reorder',
       aRenamePl: 'Rename playlist', aDeletePl: 'Delete playlist',
       inQueue: 'In queue', playNext: 'Play next',
-      trimOn: 'Trimmed: On', trimOff: 'Trimmed: Off',
+      trim: 'Trimmed',
       videos: n => n + (n === 1 ? ' video' : ' videos'),
       renameVideoTitle: 'Rename video',
       renameVideoText: 'Type “@creator” without a number and it counts up by itself: @name 1, @name 2 …',
@@ -1730,8 +1730,10 @@
     el.pdTitle.textContent = p.name;
     renderCover(p);
     el.pdCount.textContent = t('videos', p.videoIds.length);
-    el.pdToggleTrim.textContent = p.trimmed ? t('trimOn') : t('trimOff');
+    // no "An/Aus" text: the lit (red) style alone shows it's on, like the Shuffle button
+    el.pdToggleTrim.innerHTML = ICONS.scissors + '<span>' + t('trim') + '</span>';
     el.pdToggleTrim.className = 'btn ' + (p.trimmed ? 'solid' : 'ghost');
+    el.pdToggleTrim.setAttribute('aria-pressed', p.trimmed ? 'true' : 'false');
     el.pdPlayShuffle.classList.toggle('active-toggle', state.shuffle);
     setPlayPauseIcon();
     el.pdEmpty.hidden = p.videoIds.length > 0;
@@ -2028,6 +2030,10 @@
   el.pdBack.addEventListener('click', () => switchView('playlists'));
   el.pdPlaySeq.addEventListener('click', () => {
     const p = playlistById(state.activePlaylistId);
+    // While this playlist is the one loaded, the button is its play/pause toggle: pressing it
+    // again pauses or resumes the current video instead of starting the playlist over. Only a
+    // finished playlist (last video ended) or another source starts it fresh below.
+    if (p && state.queueSourceId === p.id && el.audioPlayer.src && !el.audioPlayer.ended) { togglePlayPause(); return; }
     if (!p || !p.videoIds.length) { toast(t('plEmptyToast')); return; }
     const ids = playlistActiveIds(p);
     if (!ids.length) { toast(t('allDisabled')); return; }
@@ -2477,9 +2483,14 @@
     const playing = !p.paused && !p.ended;
     el.miniPlayPause.innerHTML = playing ? ICONS.pause : ICONS.play;
     el.fpPlayPause.innerHTML = playing ? ICONS.pause : ICONS.play;
-    // playlist-detail's play button only "lights up" (solid) while something is actually
-    // playing — it's not itself a play/pause toggle, so it has no other way to show that state
-    if (el.pdPlaySeq) el.pdPlaySeq.className = 'btn ' + (playing ? 'solid' : 'ghost');
+    // playlist-detail's play button becomes a lit pause button only while *this* playlist is
+    // playing; on any other playlist's page it stays a plain "start this playlist" button
+    if (el.pdPlaySeq) {
+      const mine = playing && !!state.activePlaylistId && state.queueSourceId === state.activePlaylistId;
+      el.pdPlaySeq.className = 'btn ' + (mine ? 'solid' : 'ghost');
+      el.pdPlaySeq.innerHTML = mine ? ICONS.pause : ICONS.play;
+      el.pdPlaySeq.setAttribute('aria-label', mine ? t('aPause') : t('aPlayPlaylist'));
+    }
   }
 
   function markPlayingRow(){
