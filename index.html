@@ -706,22 +706,6 @@
     font-family:var(--font-body);font-size:14px;margin-bottom:16px;
   }
   .dialog-actions{display:flex;justify-content:flex-end;gap:8px;}
-
-  /* ---------- iOS home-screen viewport drift fix ---------- */
-  /* WebKit bug in installed web apps: after a lot of opening/closing, backgrounding or a
-     keyboard, the layer position:fixed hangs on can lose sync with the visible screen, and
-     every fixed element (bars, mini player, backdrop, watermark) slides up with the page.
-     syncFixedToViewport() measures that offset (visualViewport.offsetTop) and only then sets
-     .vv-fix + the shifts below; the healthy state is untouched. The translate property stacks
-     on top of the elements' own transforms (centering, toast slide) instead of replacing them. */
-  html.vv-fix .back-row,
-  html.vv-fix .full-player, html.vv-fix .sheet-backdrop, html.vv-fix .dialog-backdrop,
-  html.vv-fix .crop-backdrop, html.vv-fix body::before{translate:0 var(--vv-top);}
-  html.vv-fix .tabbar, html.vv-fix .mini-player, html.vv-fix .fab-wrap,
-  html.vv-fix .toast{translate:0 var(--vv-bottom);}
-  html.vv-fix .app::before{translate:0 calc((var(--vv-top) + var(--vv-bottom)) / 2);}
-  /* temporary diagnostics: tap the "Aktualisiert" date to show the viewport numbers */
-  .vv-debug{font-family:var(--font-mono);font-size:10px;line-height:1.5;color:var(--ink-muted);padding:0 18px 8px;white-space:pre-wrap;position:relative;z-index:1;}
 </style>
 
 </head>
@@ -732,9 +716,8 @@
     <div class="wordmark"><img class="wordmark-helmet" src="helmet-mark.png" alt="">Final 1%</div>
     <!-- Set by hand on every commit that touches index.html — no build step in this project,
          so nothing computes this automatically. Format: DD.MM.YYYY, HH:MM, local time of the commit. -->
-    <span class="build-date"><span data-i18n="updated">Aktualisiert</span>: 05.10.2026, 00:42</span>
+    <span class="build-date"><span data-i18n="updated">Aktualisiert</span>: 04.10.2026, 18:01</span>
   </header>
-  <div id="vvDebug" class="vv-debug" hidden></div>
 
   <input id="fileInput" type="file" accept="video/*" multiple class="visually-hidden">
   <input id="coverInput" type="file" accept="image/*" class="visually-hidden">
@@ -1267,9 +1250,6 @@
       if (placeholder !== undefined) setTimeout(() => el.dialogInput.focus(), 50);
 
       function cleanup(result){
-        // hand focus back explicitly: hiding a focused field doesn't reliably fire focusout,
-        // which the viewport-drift check (syncFixedToViewport) waits for after the keyboard
-        el.dialogInput.blur();
         el.dialogBackdrop.classList.add('hidden');
         el.dialogConfirm.removeEventListener('click', onConfirm);
         el.dialogCancel.removeEventListener('click', onCancel);
@@ -2818,70 +2798,6 @@
   document.addEventListener('wheel', (e) => {
     if (e.ctrlKey) e.preventDefault();
   }, { passive: false });
-
-  /* ================= iOS home-screen viewport drift ================= */
-  /* See the .vv-fix CSS. Installed (standalone) mode only: in the Safari tab the toolbars
-     legitimately make the visual and layout viewports differ. Zoom is blocked and there are no
-     toolbars there, so the only healthy reason for an offset is the keyboard — while a text
-     field has focus this stays out of iOS's way. vvBaseHeight is the visual viewport height
-     last seen while healthy, so a bug state that also shrinks the height (the iOS 26 keyboard
-     variant: offsetTop 24 / height -24) only moves what is actually off. */
-  const standaloneMq = window.matchMedia ? window.matchMedia('(display-mode: standalone)') : null;
-  const vvDebug = document.getElementById('vvDebug');
-  let vvBaseHeight = window.visualViewport ? window.visualViewport.height : 0;
-  let vvFixOn = false;
-  function isStandalone(){ return navigator.standalone === true || !!(standaloneMq && standaloneMq.matches); }
-  const TEXT_FIELD = 'textarea, input:not([type]), input[type="text"], input[type="search"]';   // fields that bring up the keyboard
-  function isTyping(){ const a = document.activeElement; return !!(a && a.matches && a.matches(TEXT_FIELD)); }
-  function syncFixedToViewport(){
-    const vv = window.visualViewport;
-    if (!vv) return;
-    const top = vv.offsetTop;
-    const broken = isStandalone() && !isTyping() && Math.abs(vv.scale - 1) < 0.01 && Math.abs(top) >= 1;
-    if (broken) {
-      const root = document.documentElement;
-      root.style.setProperty('--vv-top', top + 'px');
-      root.style.setProperty('--vv-bottom', (top + vv.height - vvBaseHeight) + 'px');
-      if (!vvFixOn) { root.classList.add('vv-fix'); vvFixOn = true; }
-    } else {
-      if (!isTyping()) vvBaseHeight = vv.height;
-      if (vvFixOn) { document.documentElement.classList.remove('vv-fix'); vvFixOn = false; }
-    }
-    if (!vvDebug.hidden) renderVvDebug();
-  }
-  // Reported to make WebKit re-sync on its own: a 1px scroll there and back. Only when the
-  // offset is actually there, and never during the user's own scrolling.
-  function nudgeViewport(){
-    const vv = window.visualViewport;
-    if (!vv || !isStandalone() || isTyping() || Math.abs(vv.offsetTop) < 1) return;
-    if (window.scrollY > 0) { window.scrollBy(0, -1); window.scrollBy(0, 1); }
-    else { window.scrollBy(0, 1); window.scrollBy(0, -1); }
-    syncFixedToViewport();
-  }
-  function settleViewport(){ syncFixedToViewport(); setTimeout(nudgeViewport, 350); setTimeout(syncFixedToViewport, 700); }
-  function renderVvDebug(){
-    const vv = window.visualViewport;
-    const bar = document.querySelector('.tabbar').getBoundingClientRect();
-    vvDebug.textContent =
-      'standalone ' + isStandalone() + ' · fix ' + (vvFixOn ? 'AN' : 'aus') + '\n' +
-      'vv h ' + (vv ? Math.round(vv.height) : '-') + ' top ' + (vv ? Math.round(vv.offsetTop) : '-') +
-      ' pageTop ' + (vv ? Math.round(vv.pageTop) : '-') + ' base ' + Math.round(vvBaseHeight) + '\n' +
-      'inner ' + window.innerHeight + ' client ' + document.documentElement.clientHeight +
-      ' screen ' + screen.height + ' scrollY ' + Math.round(window.scrollY) + ' tabbar ' + Math.round(bar.top) + '-' + Math.round(bar.bottom);
-  }
-  if (window.visualViewport) {
-    window.visualViewport.addEventListener('resize', syncFixedToViewport);
-    window.visualViewport.addEventListener('scroll', syncFixedToViewport);
-  }
-  window.addEventListener('scroll', syncFixedToViewport, { passive: true });
-  document.addEventListener('focusin', syncFixedToViewport);
-  document.addEventListener('focusout', (e) => { if (e.target.matches && e.target.matches(TEXT_FIELD)) settleViewport(); });   // keyboard closing
-  document.addEventListener('visibilitychange', () => { if (!document.hidden) settleViewport(); });
-  window.addEventListener('pageshow', settleViewport);
-  document.querySelector('.build-date').addEventListener('click', () => {
-    vvDebug.hidden = !vvDebug.hidden;
-    if (!vvDebug.hidden) renderVvDebug();
-  });
 
   /* ================= Boot ================= */
   async function boot(){
