@@ -745,7 +745,7 @@
     <div class="wordmark"><img class="wordmark-helmet" src="helmet-mark.png" alt="">Final 1%</div>
     <!-- Set by hand on every commit that touches index.html — no build step in this project,
          so nothing computes this automatically. Format: DD.MM.YYYY, HH:MM, local time of the commit. -->
-    <span class="build-date"><span data-i18n="updated">Aktualisiert</span>: 06.10.2026, 00:47</span>
+    <span class="build-date"><span data-i18n="updated">Aktualisiert</span>: 06.10.2026, 23:51</span>
   </header>
 
   <input id="fileInput" type="file" accept="video/*" multiple class="visually-hidden">
@@ -1990,6 +1990,33 @@
   /* ================= Drag to reorder (press the grip handle, drag up/down) ================= */
   function enableDragReorder(listEl, { getOrder, onDrop }){
     let drag = null;
+    // Holding a row near the top/bottom edge scrolls the list along, so a video can travel the
+    // whole playlist in one drag. The queue sheet's list scrolls itself; the others scroll the page.
+    const scroller = listEl.classList.contains('sheet-body') ? listEl : null;
+    const scrollPos = () => scroller ? scroller.scrollTop : window.scrollY;
+    function visibleBand(){
+      if (scroller) { const r = scroller.getBoundingClientRect(); return { top: r.top, bottom: r.bottom }; }
+      // the page area not covered by the fixed bars
+      let top = 0, bottom = window.innerHeight;
+      const back = document.querySelector('.back-row');
+      if (back.getClientRects().length) top = back.getBoundingClientRect().bottom;
+      ['#miniPlayer', '.tabbar'].forEach(sel => {
+        const bar = document.querySelector(sel);
+        if (bar.getClientRects().length) bottom = Math.min(bottom, bar.getBoundingClientRect().top);
+      });
+      return { top, bottom };
+    }
+    function autoScrollTick(){
+      if (!drag) return;
+      const EDGE = 70, MAX = 14, band = visibleBand(), y = drag.lastY;
+      let v = 0;
+      if (y < band.top + EDGE) v = -Math.ceil(MAX * Math.min(1, (band.top + EDGE - y) / EDGE));
+      else if (y > band.bottom - EDGE) v = Math.ceil(MAX * Math.min(1, (y - band.bottom + EDGE) / EDGE));
+      if (!v) return;
+      const before = scrollPos();
+      if (scroller) scroller.scrollTop += v; else window.scrollBy(0, v);
+      if (scrollPos() !== before) followPointer();
+    }
     listEl.addEventListener('pointerdown', (e) => {
       const handle = e.target.closest('.drag-handle');
       if (!handle) return;
@@ -1999,30 +2026,41 @@
       const rows = [...listEl.children];
       const startIndex = rows.indexOf(row);
       const rect = row.getBoundingClientRect();
-      drag = { row, startIndex, currentIndex: startIndex, startY: e.clientY, rowHeight: rect.height, pointerId: e.pointerId, rows };
+      drag = { row, startIndex, currentIndex: startIndex, startY: e.clientY, lastY: e.clientY, startScroll: scrollPos(), rowHeight: rect.height, pointerId: e.pointerId, rows,
+               timer: setInterval(autoScrollTick, 16) };   // a timer, not rAF: keeps running however the page is scrolled
       row.classList.add('dragging');
       try { handle.setPointerCapture(e.pointerId); } catch (err) {}
     });
     listEl.addEventListener('pointermove', (e) => {
       if (!drag || e.pointerId !== drag.pointerId) return;
-      const dy = e.clientY - drag.startY;
+      drag.lastY = e.clientY;
+      followPointer();
+    });
+    // keeps the held row under the finger and the others in their new slots; scrolled distance
+    // counts as movement too, since the list moves under a finger that may be standing still
+    function followPointer(){
+      const dy = drag.lastY - drag.startY + (scrollPos() - drag.startScroll);
       drag.row.style.transform = `translateY(${dy}px)`;
       let slot = drag.startIndex + Math.round(dy / drag.rowHeight);
       slot = Math.max(0, Math.min(drag.rows.length - 1, slot));
       if (slot !== drag.currentIndex) {
+        // every row between the start and the new slot makes room, measured from the start —
+        // auto-scroll can move the slot several rows at once
+        const start = drag.startIndex;
         drag.rows.forEach((r, i) => {
           if (r === drag.row) return;
           let shift = 0;
-          if (drag.currentIndex < slot) { if (i > drag.currentIndex && i <= slot) shift = -1; }
-          else { if (i >= slot && i < drag.currentIndex) shift = 1; }
+          if (slot > start && i > start && i <= slot) shift = -1;
+          else if (slot < start && i >= slot && i < start) shift = 1;
           r.style.transform = shift ? `translateY(${shift * drag.rowHeight}px)` : '';
         });
         drag.currentIndex = slot;
       }
-    });
+    }
     function finish(e){
       if (!drag || (e.pointerId !== undefined && e.pointerId !== drag.pointerId)) return;
       const { startIndex, currentIndex, rows } = drag;
+      clearInterval(drag.timer);
       drag.row.classList.remove('dragging');
       drag.row.style.transform = '';
       rows.forEach(r => { r.style.transform = ''; });
