@@ -273,8 +273,9 @@
     border-radius:0;
   }
   .grid-tile .track-thumb img{width:100%;height:100%;object-fit:cover;display:block;}
+  /* left:36px — the top-left corner belongs to the gear (per-video volume) */
   .grid-tile .queued-badge{
-    position:absolute;top:6px;left:6px;z-index:2;
+    position:absolute;top:6px;left:36px;z-index:2;
     width:22px;height:22px;border-radius:50%;
     background:rgba(0,0,0,.5);
   }
@@ -284,6 +285,14 @@
     background:rgba(0,0,0,.5);color:var(--ink-faint);
   }
   .grid-tile-delete svg{width:15px;height:15px;}
+  .grid-tile-settings{
+    position:absolute;top:4px;left:4px;z-index:2;
+    width:26px;height:26px;border-radius:50%;
+    background:rgba(0,0,0,.5);color:var(--ink-faint);
+  }
+  .grid-tile-settings svg{width:15px;height:15px;}
+  /* lit like the other "on" states while the video has its own volume */
+  .grid-tile-settings.custom{color:var(--accent-glow);box-shadow:0 0 0 1px rgba(255,77,94,.8), 0 0 10px -2px var(--accent);}
   .grid-tile-caption{
     position:absolute;left:0;right:0;bottom:0;z-index:1;
     padding:16px 6px 6px;
@@ -735,6 +744,8 @@
     font-family:var(--font-body);font-size:14px;margin-bottom:16px;
   }
   .dialog-actions{display:flex;justify-content:flex-end;gap:8px;}
+  .clip-vol-control{margin-bottom:18px;}
+  .clip-vol-reset{margin-right:auto;}
 </style>
 
 </head>
@@ -745,7 +756,7 @@
     <div class="wordmark"><img class="wordmark-helmet" src="helmet-mark.png" alt="">Final 1%</div>
     <!-- Set by hand on every commit that touches index.html — no build step in this project,
          so nothing computes this automatically. Format: DD.MM.YYYY, HH:MM, local time of the commit. -->
-    <span class="build-date"><span data-i18n="updated">Aktualisiert</span>: 06.10.2026, 23:51</span>
+    <span class="build-date"><span data-i18n="updated">Aktualisiert</span>: 08.10.2026, 00:38</span>
   </header>
 
   <input id="fileInput" type="file" accept="video/*" multiple class="visually-hidden">
@@ -949,6 +960,23 @@
     </div>
   </div>
 
+  <!-- per-video volume, opened from the gear on a library tile -->
+  <div id="clipVolBackdrop" class="dialog-backdrop hidden">
+    <div class="dialog">
+      <h3 data-i18n="clipVolTitle">Lautstärke</h3>
+      <p id="clipVolText"></p>
+      <div class="boost-control clip-vol-control">
+        <input type="range" id="clipVolRange" min="20" max="300" step="10" value="100" aria-label="Lautstärke" data-i18n-aria="clipVolTitle">
+        <span class="boost-value" id="clipVolValue">100%</span>
+      </div>
+      <div class="dialog-actions">
+        <button id="clipVolReset" class="btn ghost clip-vol-reset" data-i18n="resetDefault">Standard</button>
+        <button id="clipVolCancel" class="btn ghost" data-i18n="cancel">Abbrechen</button>
+        <button id="clipVolSave" class="btn solid" data-i18n="save">Speichern</button>
+      </div>
+    </div>
+  </div>
+
   <div id="toast" class="toast"></div>
 </div>
 
@@ -974,6 +1002,7 @@
     listMusic:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h11M4 12h11M4 18h7"/><circle cx="19" cy="16" r="2.3"/><path d="M21.3 16V7l-3 1"/></svg>`,
     pencil:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19.5 8.5a2.1 2.1 0 0 0-3-3L5 17z"/><path d="M14.5 6.5l3 3"/></svg>`,
     search:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.2-4.2"/></svg>`,
+    gear:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>`,
     queue:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h12M3 12h12M3 18h7"/><path d="M16.5 13.5l5.5 3.3-5.5 3.3z" fill="currentColor" stroke="none"/></svg>`,
     settings:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.1"/><path d="M12 2.6L14.74 5.39L18.65 5.35L18.61 9.26L21.4 12L18.61 14.74L18.65 18.65L14.74 18.61L12 21.4L9.26 18.61L5.35 18.65L5.39 14.74L2.6 12L5.39 9.26L5.35 5.35L9.26 5.39Z"/></svg>`,
     image:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2.5"/><circle cx="8.6" cy="9.6" r="1.7"/><path d="M20.5 15.5L16 11l-8.5 8.5"/></svg>`,
@@ -1028,6 +1057,10 @@
       deletePlText: name => '„' + name + '“ wird gelöscht. Die Videos bleiben in deiner Bibliothek.',
       removeFromPlTitle: 'Aus Playlist entfernen?', remove: 'Entfernen',
       searchPlaylistPh: 'In Playlist suchen', searchVideosPh: 'Videos suchen', noMatches: 'Keine passenden Videos',
+      aClipSettings: 'Lautstärke dieses Videos', clipVolTitle: 'Lautstärke', resetDefault: 'Standard',
+      clipVolText: name => '„' + name + '“ — gilt dauerhaft für dieses Video, zusätzlich zur Verstärkung in den Einstellungen.',
+      clipVolSaved: pct => 'Lautstärke ' + pct + '% gespeichert — gilt ab dem nächsten Start des Videos',
+      clipVolResetDone: 'Lautstärke auf Standard (100%) zurückgesetzt',
       removeFromPlText: name => '„' + name + '“ wird aus dieser Playlist entfernt. In deiner Bibliothek bleibt es erhalten.',
       newPlTitle: 'Neue Playlist',
       queueEmpty: 'Nichts mehr in der Schlange.',
@@ -1087,6 +1120,10 @@
       deletePlText: name => '“' + name + '” will be deleted. The videos stay in your library.',
       removeFromPlTitle: 'Remove from playlist?', remove: 'Remove',
       searchPlaylistPh: 'Search in playlist', searchVideosPh: 'Search videos', noMatches: 'No matching videos',
+      aClipSettings: 'Volume of this video', clipVolTitle: 'Volume', resetDefault: 'Default',
+      clipVolText: name => '“' + name + '” — applies to this video permanently, on top of the boost in Settings.',
+      clipVolSaved: pct => 'Volume ' + pct + '% saved — applies from the next time the video starts',
+      clipVolResetDone: 'Volume reset to default (100%)',
       removeFromPlText: name => '“' + name + '” will be removed from this playlist. It stays in your library.',
       newPlTitle: 'New playlist',
       queueEmpty: 'Nothing left in the queue.',
@@ -1199,8 +1236,8 @@
     earlyAdvanceDone: false, // guards the "skip 5s before end" auto-advance from firing more than once per track
     playerExpanded: false,
     currentObjectUrl: null,
-    boostedCache: new Map(),  // videoId -> object URL of its offline-boosted WAV, for boostedCacheLevel only
-    boostedCacheLevel: 1      // the volumeBoost value boostedCache was built for; a mismatch means it's stale
+    boostedCache: new Map()   // videoId -> { gain, url }: its offline-rendered WAV and the gain it was rendered at
+                              // (global boost x the video's own volume); a gain mismatch means it's stale
   };
 
   const $ = (sel) => document.querySelector(sel);
@@ -1210,6 +1247,8 @@
     libraryList: $('#libraryList'), libraryEmpty: $('#libraryEmpty'),
     playlistsList: $('#playlistsList'), playlistsEmpty: $('#playlistsEmpty'), newPlaylistBtn: $('#newPlaylistBtn'),
     pdBack: $('#pdBack'), pdTitle: $('#pdTitle'), pdCount: $('#pdCount'), pdList: $('#pdList'), pdEmpty: $('#pdEmpty'),
+    clipVolBackdrop: $('#clipVolBackdrop'), clipVolText: $('#clipVolText'), clipVolRange: $('#clipVolRange'), clipVolValue: $('#clipVolValue'),
+    clipVolReset: $('#clipVolReset'), clipVolCancel: $('#clipVolCancel'), clipVolSave: $('#clipVolSave'),
     pdSearchWrap: $('#pdSearchWrap'), pdSearch: $('#pdSearch'), pdNoMatch: $('#pdNoMatch'), pickSearch: $('#pickSearch'), pickNoMatch: $('#pickNoMatch'),
     pdPlaySeq: $('#pdPlaySeq'), pdPlayShuffle: $('#pdPlayShuffle'), pdAddVideos: $('#pdAddVideos'), pdToggleTrim: $('#pdToggleTrim'),
     pdCover: $('#pdCover'), pdCoverRemove: $('#pdCoverRemove'),
@@ -1525,17 +1564,58 @@
       el.libraryList.appendChild(buildGridTile(v, {
         onRename: () => renameVideo(v),
         onPlay: () => playQueue(state.videos.map(x => x.id), 'Bibliothek', v.id),
-        onDelete: () => deleteVideo(v.id)
+        onDelete: () => deleteVideo(v.id),
+        onSettings: () => openClipVolume(v)
       }));
     });
     markPlayingRow();
   }
 
+  /* ================= Per-video volume (gear on a library tile) ================= */
+  /* Stored in the blob-free videoFlags store (never on the video record — see
+     toggleVideoHiddenForCurrent for why), multiplied with the global boost and rendered through
+     the same offline pipeline as the boost. Like a boost change, it never touches what is
+     already playing (swapping a live #audioPlayer's src isn't lock-safe), so it applies from the
+     video's next start; the warm-up here gets that start a head start. */
+  let clipVolVideo = null;
+  function openClipVolume(v){
+    clipVolVideo = v;
+    const pct = Math.round(clipVolumeOf(v) * 100);
+    el.clipVolText.textContent = t('clipVolText', v.name);
+    el.clipVolRange.value = pct;
+    el.clipVolValue.textContent = pct + '%';
+    el.clipVolBackdrop.classList.remove('hidden');
+  }
+  function closeClipVolume(){ el.clipVolBackdrop.classList.add('hidden'); clipVolVideo = null; }
+  async function setClipVolume(v, level){
+    v.clipVolume = level;
+    await saveVideoFlags(v);
+    renderLibrary();                 // gear lights up / goes back to normal
+    warmBoostCache([v.id]);
+  }
+  el.clipVolRange.addEventListener('input', () => { el.clipVolValue.textContent = el.clipVolRange.value + '%'; });
+  el.clipVolSave.addEventListener('click', async () => {
+    const v = clipVolVideo; if (!v) return;
+    const level = Number(el.clipVolRange.value) / 100;
+    closeClipVolume();
+    if (level === clipVolumeOf(v)) return;
+    await setClipVolume(v, level);
+    toast(t('clipVolSaved', Math.round(level * 100)));
+  });
+  el.clipVolReset.addEventListener('click', async () => {
+    const v = clipVolVideo; if (!v) return;
+    closeClipVolume();
+    if (clipVolumeOf(v) !== 1) await setClipVolume(v, 1);
+    toast(t('clipVolResetDone'));
+  });
+  el.clipVolCancel.addEventListener('click', closeClipVolume);
+  el.clipVolBackdrop.addEventListener('click', (e) => { if (e.target === el.clipVolBackdrop) closeClipVolume(); });
+
   /* TikTok-style grid tile for the library: full-bleed thumbnail, editable name
      overlaid at the bottom in place of a view count. Keeps the .track-row/data-id/
      .queued-badge/.swipe-hint contract so markPlayingRow/markQueuedRows/enableSwipeToQueue
      keep working on it unchanged. */
-  function buildGridTile(v, { onPlay, onDelete, onRename }){
+  function buildGridTile(v, { onPlay, onDelete, onRename, onSettings }){
     const li = document.createElement('li');
     li.className = 'track-row grid-tile';
     li.dataset.id = v.id;
@@ -1561,6 +1641,15 @@
       del.setAttribute('aria-label', t('aDeleteVideo'));
       del.addEventListener('click', (e) => { e.stopPropagation(); onDelete(); });
       li.appendChild(del);
+    }
+
+    if (onSettings) {
+      const gear = document.createElement('button');
+      gear.className = 'icon-btn grid-tile-settings' + (clipVolumeOf(v) !== 1 ? ' custom' : '');
+      gear.innerHTML = ICONS.gear;
+      gear.setAttribute('aria-label', t('aClipSettings'));
+      gear.addEventListener('click', (e) => { e.stopPropagation(); onSettings(); });
+      li.appendChild(gear);
     }
 
     const caption = document.createElement('div');
@@ -2269,6 +2358,8 @@
       el.stageVideo.play().catch(() => {});
     }
   }
+  // one videoFlags record per video holds every flag, so each write carries all of them
+  function saveVideoFlags(v){ return dbPut('videoFlags', { id: v.id, hideImage: !!v.hideImage, clipVolume: clipVolumeOf(v) }); }
   async function toggleVideoHiddenForCurrent(){
     const v = videoById(getCurrentId());
     if (!v) return;
@@ -2278,7 +2369,7 @@
     // fails that write ("Error preparing Blob/File data...") and, even on the one call that does
     // succeed, silently invalidates the in-memory v.blob reference, breaking playback the next
     // time this video loads. videoFlags never touches a blob, so it can't hit either failure mode.
-    await dbPut('videoFlags', { id: v.id, hideImage: v.hideImage });
+    await saveVideoFlags(v);
     updateVideoVisibility();
     toast(v.hideImage ? t('hideThisOn') : t('hideThisOff'));
   }
@@ -2359,12 +2450,11 @@
       // isn't safe here. The new level takes effect next time each track is (re)started; this
       // just gets a head start on the tracks most likely to be needed next.
       clearBoostCache();
-      if (newLevel > 1) {
-        const ids = state.playOrder.slice();
-        const curId = getCurrentId();
-        if (curId) { const i = ids.indexOf(curId); if (i > 0) ids.splice(i, 1); if (!ids.includes(curId) || i > 0) ids.unshift(curId); }
-        warmBoostCache(ids);
-      }
+      // warm regardless of the new level: videos with their own volume need rendering even at 100%
+      const ids = state.playOrder.slice();
+      const curId = getCurrentId();
+      if (curId) { const i = ids.indexOf(curId); if (i > 0) ids.splice(i, 1); if (!ids.includes(curId) || i > 0) ids.unshift(curId); }
+      warmBoostCache(ids);
     }
     toast(t('boostToast', el.setVolumeBoost.value));
   });
@@ -2486,8 +2576,9 @@
     // this whole feature has to avoid. So boost must already be sitting in boostedCache *before*
     // this runs — see warmBoostCache(). If it isn't there yet, this one playthrough is un-boosted
     // and a warm is kicked off (fire-and-forget, not awaited) so the next one is ready.
-    const boost = state.settings.volumeBoost || 1;
-    const cachedBoost = boost > 1 && state.boostedCacheLevel === boost ? state.boostedCache.get(v.id) : null;
+    const gain = effectiveGain(v);
+    const entry = gain !== 1 ? state.boostedCache.get(v.id) : null;
+    const cachedBoost = entry && entry.gain === gain ? entry.url : null;
     el.audioPlayer.src = cachedBoost || state.currentObjectUrl;
     el.audioPlayer.currentTime = 0;
     el.stageVideo.src = state.currentObjectUrl;
@@ -2502,19 +2593,23 @@
     markPlayingRow();
     markQueuedRows();
     saveState();
-    if (boost > 1) {
-      const toWarm = [];
-      if (!cachedBoost) toWarm.push(v.id); // wasn't ready this time — get it ready for next time
-      if (state.playOrder.length > 1) {
-        const nextId = state.playOrder[(state.posIndex + 1) % state.playOrder.length];
-        if (nextId && nextId !== v.id) toWarm.push(nextId); // likely needed soon — get a head start
-      }
-      if (toWarm.length) warmBoostCache(toWarm);
+    const toWarm = [];
+    if (gain !== 1 && !cachedBoost) toWarm.push(v.id); // wasn't ready this time — get it ready for next time
+    if (state.playOrder.length > 1) {
+      const nextId = state.playOrder[(state.posIndex + 1) % state.playOrder.length];
+      if (nextId && nextId !== v.id) toWarm.push(nextId); // likely needed soon — get a head start
     }
+    if (toWarm.length) warmBoostCache(toWarm);   // skips every video that plays at 100% anyway
   }
 
+  // the video's own volume (gear on its library tile); 1 = 100% = unchanged
+  function clipVolumeOf(v){ return v && v.clipVolume ? v.clipVolume : 1; }
+  // what its audio is actually rendered at: the global boost (Settings) times its own volume
+  function effectiveGain(v){ return Math.round((state.settings.volumeBoost || 1) * clipVolumeOf(v) * 100) / 100; }
+  // never revoke the file #audioPlayer is playing right now — it would cut the running track
+  function releaseBoostUrl(url){ if (el.audioPlayer.src !== url) URL.revokeObjectURL(url); }
   function clearBoostCache(){
-    state.boostedCache.forEach(url => URL.revokeObjectURL(url));
+    state.boostedCache.forEach(entry => releaseBoostUrl(entry.url));
     state.boostedCache.clear();
   }
 
@@ -2522,19 +2617,20 @@
      never awaited by anything that plays audio. This is what makes loadCurrentTrack() safe to
      stay fully synchronous: it only ever reads whatever's already sitting in the cache. */
   async function warmBoostCache(videoIds){
-    const level = state.settings.volumeBoost || 1;
-    if (level <= 1) return;
-    if (state.boostedCacheLevel !== level) { clearBoostCache(); state.boostedCacheLevel = level; }
     for (const id of videoIds) {
-      if ((state.settings.volumeBoost || 1) !== level) return; // superseded by a newer boost change
-      if (state.boostedCache.has(id)) continue;
       const v = videoById(id);
       if (!v) continue;
+      const gain = effectiveGain(v);
+      if (gain === 1) continue;                       // plays the original file, nothing to render
+      const have = state.boostedCache.get(id);
+      if (have && have.gain === gain) continue;
       try {
-        const blob = await renderBoostedAudio(v.blob, level);
-        if ((state.settings.volumeBoost || 1) !== level) return; // stale by the time this finished
-        state.boostedCache.set(id, URL.createObjectURL(blob));
-      } catch (e) { /* skip this one — it'll just keep playing un-boosted */ }
+        const blob = await renderBoostedAudio(v.blob, gain);
+        if (effectiveGain(v) !== gain) continue;      // boost or its own volume changed meanwhile
+        const old = state.boostedCache.get(id);
+        if (old) releaseBoostUrl(old.url);
+        state.boostedCache.set(id, { gain, url: URL.createObjectURL(blob) });
+      } catch (e) { /* skip this one — it'll just keep playing at its original volume */ }
     }
   }
 
@@ -2947,6 +3043,7 @@
       state.videos.forEach(v => {
         const f = flagsById.get(v.id);
         v.hideImage = f ? !!f.hideImage : !!v.hideImage;
+        v.clipVolume = f && f.clipVolume ? f.clipVolume : 1;
       });
     } catch (e) {
       console.error('IndexedDB nicht verfügbar', e);
@@ -2958,7 +3055,7 @@
     await restoreState();
     // get a head start on the restored queue's boosted audio, if boost is already on, so it's
     // ready by the time the user taps play — not awaited, doesn't block the app becoming usable
-    if ((state.settings.volumeBoost || 1) > 1 && state.playOrder.length) warmBoostCache(state.playOrder.slice());
+    if (state.playOrder.length) warmBoostCache(state.playOrder.slice());   // only renders videos not at 100%
   }
   boot();
 
