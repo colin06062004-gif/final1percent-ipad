@@ -745,6 +745,15 @@
   }
   .dialog-actions{display:flex;justify-content:flex-end;gap:8px;}
   .clip-vol-control{margin-bottom:18px;}
+  .clip-section{font-size:13px;font-weight:600;color:var(--ink);margin-top:4px;}
+  .clip-cover-row{display:flex;align-items:center;gap:10px;margin:10px 0 20px;}
+  .clip-cover-thumb{
+    width:52px;height:52px;flex-shrink:0;border-radius:10px;overflow:hidden;
+    display:flex;align-items:center;justify-content:center;
+    background:rgba(0,0,0,.28);border:1px solid var(--glass-edge);color:var(--ink-faint);
+  }
+  .clip-cover-thumb img{width:100%;height:100%;object-fit:cover;display:block;}
+  .clip-cover-thumb svg{width:22px;height:22px;}
   .clip-vol-reset{margin-right:auto;}
 </style>
 
@@ -756,10 +765,11 @@
     <div class="wordmark"><img class="wordmark-helmet" src="helmet-mark.png" alt="">Final 1%</div>
     <!-- Set by hand on every commit that touches index.html — no build step in this project,
          so nothing computes this automatically. Format: DD.MM.YYYY, HH:MM, local time of the commit. -->
-    <span class="build-date"><span data-i18n="updated">Aktualisiert</span>: 08.10.2026, 00:38</span>
+    <span class="build-date"><span data-i18n="updated">Aktualisiert</span>: 08.10.2026, 12:59</span>
   </header>
 
-  <input id="fileInput" type="file" accept="video/*" multiple class="visually-hidden">
+  <input id="fileInput" type="file" accept="video/*,audio/*,.mp3" multiple class="visually-hidden">
+  <input id="clipCoverInput" type="file" accept="image/*" class="visually-hidden">
   <input id="coverInput" type="file" accept="image/*" class="visually-hidden">
 
   <main class="views">
@@ -882,7 +892,7 @@
     </div>
     <div class="fp-stage">
       <video id="stageVideo" playsinline muted></video>
-      <div class="fp-art" aria-hidden="true"></div>
+      <div class="fp-art" id="fpArt" aria-hidden="true"></div>
     </div>
     <!-- The actual sound source, always. #stageVideo is muted and purely visual — iOS reliably
          keeps a genuinely audible <audio> element playing across a screen lock, but not a <video>,
@@ -960,14 +970,22 @@
     </div>
   </div>
 
-  <!-- per-video volume, opened from the gear on a library tile -->
+  <!-- per-video settings (volume, cover), opened from the gear on a library tile -->
   <div id="clipVolBackdrop" class="dialog-backdrop hidden">
     <div class="dialog">
-      <h3 data-i18n="clipVolTitle">Lautstärke</h3>
-      <p id="clipVolText"></p>
+      <h3 id="clipVolName"></h3>
+      <div class="clip-section" data-i18n="clipVolTitle">Lautstärke</div>
+      <p data-i18n="clipVolHint">Gilt dauerhaft für dieses Video, zusätzlich zur Verstärkung in den Einstellungen.</p>
       <div class="boost-control clip-vol-control">
         <input type="range" id="clipVolRange" min="20" max="300" step="10" value="100" aria-label="Lautstärke" data-i18n-aria="clipVolTitle">
         <span class="boost-value" id="clipVolValue">100%</span>
+      </div>
+      <!-- the cover applies right away (like a playlist image); "Speichern" is for the volume -->
+      <div class="clip-section" data-i18n="clipCoverTitle">Cover-Bild</div>
+      <div class="clip-cover-row">
+        <div class="clip-cover-thumb" id="clipCoverThumb"></div>
+        <button id="clipCoverPick" class="btn ghost"></button>
+        <button id="clipCoverRemove" class="btn ghost" data-i18n="removeCover">Bild entfernen</button>
       </div>
       <div class="dialog-actions">
         <button id="clipVolReset" class="btn ghost clip-vol-reset" data-i18n="resetDefault">Standard</button>
@@ -1003,6 +1021,7 @@
     pencil:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19.5 8.5a2.1 2.1 0 0 0-3-3L5 17z"/><path d="M14.5 6.5l3 3"/></svg>`,
     search:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.2-4.2"/></svg>`,
     gear:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>`,
+    music:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>`,
     queue:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h12M3 12h12M3 18h7"/><path d="M16.5 13.5l5.5 3.3-5.5 3.3z" fill="currentColor" stroke="none"/></svg>`,
     settings:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.1"/><path d="M12 2.6L14.74 5.39L18.65 5.35L18.61 9.26L21.4 12L18.61 14.74L18.65 18.65L14.74 18.61L12 21.4L9.26 18.61L5.35 18.65L5.39 14.74L2.6 12L5.39 9.26L5.35 5.35L9.26 5.39Z"/></svg>`,
     image:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2.5"/><circle cx="8.6" cy="9.6" r="1.7"/><path d="M20.5 15.5L16 11l-8.5 8.5"/></svg>`,
@@ -1057,8 +1076,10 @@
       deletePlText: name => '„' + name + '“ wird gelöscht. Die Videos bleiben in deiner Bibliothek.',
       removeFromPlTitle: 'Aus Playlist entfernen?', remove: 'Entfernen',
       searchPlaylistPh: 'In Playlist suchen', searchVideosPh: 'Videos suchen', noMatches: 'Keine passenden Videos',
-      aClipSettings: 'Lautstärke dieses Videos', clipVolTitle: 'Lautstärke', resetDefault: 'Standard',
-      clipVolText: name => '„' + name + '“ — gilt dauerhaft für dieses Video, zusätzlich zur Verstärkung in den Einstellungen.',
+      aClipSettings: 'Einstellungen dieses Videos', clipVolTitle: 'Lautstärke', resetDefault: 'Standard',
+      clipVolHint: 'Gilt dauerhaft für dieses Video, zusätzlich zur Verstärkung in den Einstellungen.',
+      clipCoverTitle: 'Cover-Bild', clipCoverPick: 'Bild wählen', clipCoverChange: 'Bild ändern',
+      clipCoverSet: 'Cover-Bild gesetzt', clipCoverRemoved: 'Cover-Bild entfernt',
       clipVolSaved: pct => 'Lautstärke ' + pct + '% gespeichert — gilt ab dem nächsten Start des Videos',
       clipVolResetDone: 'Lautstärke auf Standard (100%) zurückgesetzt',
       removeFromPlText: name => '„' + name + '“ wird aus dieser Playlist entfernt. In deiner Bibliothek bleibt es erhalten.',
@@ -1120,8 +1141,10 @@
       deletePlText: name => '“' + name + '” will be deleted. The videos stay in your library.',
       removeFromPlTitle: 'Remove from playlist?', remove: 'Remove',
       searchPlaylistPh: 'Search in playlist', searchVideosPh: 'Search videos', noMatches: 'No matching videos',
-      aClipSettings: 'Volume of this video', clipVolTitle: 'Volume', resetDefault: 'Default',
-      clipVolText: name => '“' + name + '” — applies to this video permanently, on top of the boost in Settings.',
+      aClipSettings: 'Settings for this video', clipVolTitle: 'Volume', resetDefault: 'Default',
+      clipVolHint: 'Applies to this video permanently, on top of the boost in Settings.',
+      clipCoverTitle: 'Cover image', clipCoverPick: 'Choose image', clipCoverChange: 'Change image',
+      clipCoverSet: 'Cover image set', clipCoverRemoved: 'Cover image removed',
       clipVolSaved: pct => 'Volume ' + pct + '% saved — applies from the next time the video starts',
       clipVolResetDone: 'Volume reset to default (100%)',
       removeFromPlText: name => '“' + name + '” will be removed from this playlist. It stays in your library.',
@@ -1247,7 +1270,8 @@
     libraryList: $('#libraryList'), libraryEmpty: $('#libraryEmpty'),
     playlistsList: $('#playlistsList'), playlistsEmpty: $('#playlistsEmpty'), newPlaylistBtn: $('#newPlaylistBtn'),
     pdBack: $('#pdBack'), pdTitle: $('#pdTitle'), pdCount: $('#pdCount'), pdList: $('#pdList'), pdEmpty: $('#pdEmpty'),
-    clipVolBackdrop: $('#clipVolBackdrop'), clipVolText: $('#clipVolText'), clipVolRange: $('#clipVolRange'), clipVolValue: $('#clipVolValue'),
+    clipVolBackdrop: $('#clipVolBackdrop'), clipVolName: $('#clipVolName'), fpArt: $('#fpArt'),
+    clipCoverInput: $('#clipCoverInput'), clipCoverThumb: $('#clipCoverThumb'), clipCoverPick: $('#clipCoverPick'), clipCoverRemove: $('#clipCoverRemove'), clipVolRange: $('#clipVolRange'), clipVolValue: $('#clipVolValue'),
     clipVolReset: $('#clipVolReset'), clipVolCancel: $('#clipVolCancel'), clipVolSave: $('#clipVolSave'),
     pdSearchWrap: $('#pdSearchWrap'), pdSearch: $('#pdSearch'), pdNoMatch: $('#pdNoMatch'), pickSearch: $('#pickSearch'), pickNoMatch: $('#pickNoMatch'),
     pdPlaySeq: $('#pdPlaySeq'), pdPlayShuffle: $('#pdPlayShuffle'), pdAddVideos: $('#pdAddVideos'), pdToggleTrim: $('#pdToggleTrim'),
@@ -1542,13 +1566,19 @@
     let ok = 0;
     for (const file of files) {
       try {
+        // MP3 & co. go through the same pipeline: <video> reads their duration and plays them fine
+        const audio = (file.type || '').startsWith('audio/') || /\.(mp3|m4a|aac|wav)$/i.test(file.name);
         const meta = await readVideoMeta(file);
         const rec = {
           id: uid(), name: file.name.replace(/\.[^.]+$/, ''), creator: null, blob: file,
-          duration: meta.duration || 0, thumbnail: meta.thumbnail, addedAt: Date.now()
+          duration: meta.duration || 0, addedAt: Date.now(),
+          // a "frame" of an audio file is just black — show the note icon (or a chosen cover) instead
+          thumbnail: audio ? null : meta.thumbnail, audio
         };
         await dbPut('videos', rec);
         state.videos.push(rec);
+        // nothing to see, so the player shows its picture placeholder (or the cover) from the start
+        if (audio) { rec.hideImage = true; await saveVideoFlags(rec); }
         ok++;
       } catch (e) { console.error('Import fehlgeschlagen', e); }
     }
@@ -1581,11 +1611,46 @@
   function openClipVolume(v){
     clipVolVideo = v;
     const pct = Math.round(clipVolumeOf(v) * 100);
-    el.clipVolText.textContent = t('clipVolText', v.name);
+    el.clipVolName.textContent = v.name;
     el.clipVolRange.value = pct;
     el.clipVolValue.textContent = pct + '%';
+    renderClipCover(v);
     el.clipVolBackdrop.classList.remove('hidden');
   }
+  function renderClipCover(v){
+    el.clipCoverThumb.innerHTML = '';
+    if (thumbOf(v)) { const img = document.createElement('img'); img.src = thumbOf(v); img.alt = ''; el.clipCoverThumb.appendChild(img); }
+    else el.clipCoverThumb.innerHTML = v.audio ? ICONS.music : ICONS.film;
+    el.clipCoverPick.textContent = v.cover ? t('clipCoverChange') : t('clipCoverPick');
+    el.clipCoverRemove.hidden = !v.cover;
+  }
+  // a new cover shows up everywhere the video has a small square: library, playlists, pickers,
+  // mini player, lock screen — and in the full player whenever its picture is hidden
+  async function setClipCover(v, cover){
+    v.cover = cover;
+    await saveVideoFlags(v);
+    renderLibrary(); renderPlaylists();
+    if (state.view === 'playlistDetail') renderPlaylistDetail();
+    if (v.id === getCurrentId()) { refreshNowPlayingUI(); updateMediaSession(v); }
+    renderClipCover(v);
+  }
+  el.clipCoverPick.addEventListener('click', () => { if (clipVolVideo) el.clipCoverInput.click(); });
+  el.clipCoverInput.addEventListener('change', async () => {
+    const file = (el.clipCoverInput.files || [])[0];
+    el.clipCoverInput.value = '';
+    const v = clipVolVideo;
+    if (!file || !v) return;
+    const cover = await openCropper(file);   // same square cropper as playlist images, shown above this dialog
+    if (!cover) return;
+    await setClipCover(v, cover);
+    toast(t('clipCoverSet'));
+  });
+  el.clipCoverRemove.addEventListener('click', async () => {
+    const v = clipVolVideo;
+    if (!v || !v.cover) return;
+    await setClipCover(v, null);
+    toast(t('clipCoverRemoved'));
+  });
   function closeClipVolume(){ el.clipVolBackdrop.classList.add('hidden'); clipVolVideo = null; }
   async function setClipVolume(v, level){
     v.clipVolume = level;
@@ -1623,8 +1688,8 @@
 
     const thumb = document.createElement('div');
     thumb.className = 'track-thumb';
-    if (v.thumbnail) { const img = document.createElement('img'); img.src = v.thumbnail; img.alt = ''; thumb.appendChild(img); }
-    else { thumb.innerHTML = ICONS.film; }
+    if (thumbOf(v)) { const img = document.createElement('img'); img.src = thumbOf(v); img.alt = ''; thumb.appendChild(img); }
+    else { thumb.innerHTML = v.audio ? ICONS.music : ICONS.film; }
     li.appendChild(thumb);
 
     const badge = document.createElement('span');
@@ -1678,8 +1743,8 @@
 
     const thumbWrap = document.createElement('div');
     thumbWrap.className = 'track-thumb';
-    if (v.thumbnail) { const img = document.createElement('img'); img.src = v.thumbnail; img.alt=''; img.style.cssText='width:100%;height:100%;object-fit:cover;'; thumbWrap.appendChild(img); }
-    else { thumbWrap.innerHTML = ICONS.film; }
+    if (thumbOf(v)) { const img = document.createElement('img'); img.src = thumbOf(v); img.alt=''; img.style.cssText='width:100%;height:100%;object-fit:cover;'; thumbWrap.appendChild(img); }
+    else { thumbWrap.innerHTML = v.audio ? ICONS.music : ICONS.film; }
 
     const main = document.createElement('button');
     main.className = 'track-main'; main.style.cssText = 'display:flex;align-items:center;gap:12px;background:none;';
@@ -1804,7 +1869,7 @@
       const thumbWrap = document.createElement('div');
       thumbWrap.className = 'track-thumb';
       const firstVid = p.videoIds.map(videoById).find(Boolean);
-      const thumbSrc = p.cover || (firstVid && firstVid.thumbnail) || null;
+      const thumbSrc = p.cover || (firstVid && thumbOf(firstVid)) || null;
       if (thumbSrc) { const img = document.createElement('img'); img.src = thumbSrc; img.alt=''; img.style.cssText='width:100%;height:100%;object-fit:cover;'; thumbWrap.appendChild(img); }
       else thumbWrap.innerHTML = ICONS.listMusic;
       const main = document.createElement('button');
@@ -2288,7 +2353,7 @@
       li.className = 'pick-row' + (p.videoIds.includes(v.id) ? ' checked' : '');
       li.dataset.name = v.name.toLowerCase();
       const thumb = document.createElement('div'); thumb.className = 'pick-thumb';
-      if (v.thumbnail) thumb.style.cssText = 'background-image:url(' + v.thumbnail + ');background-size:cover;background-position:center;';
+      if (thumbOf(v)) thumb.style.cssText = 'background-image:url(' + thumbOf(v) + ');background-size:cover;background-position:center;';
       const check = document.createElement('span'); check.className = 'pick-check'; check.innerHTML = ICONS.check;
       const name = document.createElement('span'); name.className = 'pick-name'; name.textContent = v.name;
       li.appendChild(check); li.appendChild(thumb); li.appendChild(name);
@@ -2343,6 +2408,8 @@
     const hiddenForThisVideo = !!(v && v.hideImage);
     const hidden = !!state.settings.audioOnly || hiddenForThisVideo;
     document.body.classList.toggle('audio-only', hidden);
+    // with the picture hidden (always for MP3s), the video's own cover replaces the helmet
+    el.fpArt.style.backgroundImage = v && v.cover ? 'url(' + v.cover + ')' : '';
     if (el.fpHideVideo) el.fpHideVideo.classList.toggle('toggled', hiddenForThisVideo);
     // #stageVideo is purely decorative (#audioPlayer is the real, always-audible sound source —
     // see the playback-engine comment) — no reason to keep it actively decoding while hidden, so
@@ -2359,7 +2426,9 @@
     }
   }
   // one videoFlags record per video holds every flag, so each write carries all of them
-  function saveVideoFlags(v){ return dbPut('videoFlags', { id: v.id, hideImage: !!v.hideImage, clipVolume: clipVolumeOf(v) }); }
+  function saveVideoFlags(v){ return dbPut('videoFlags', { id: v.id, hideImage: !!v.hideImage, clipVolume: clipVolumeOf(v), cover: v.cover || null }); }
+  // the picture shown for a video in every small square: its own cover if it has one, else the frame from import
+  function thumbOf(v){ return (v && (v.cover || v.thumbnail)) || null; }
   async function toggleVideoHiddenForCurrent(){
     const v = videoById(getCurrentId());
     if (!v) return;
@@ -2706,7 +2775,7 @@
     el.miniPlayer.classList.remove('hidden');
     el.fabWrap.classList.add('lifted');
     el.miniTitle.textContent = v.name;
-    if (v.thumbnail) el.miniThumb.src = v.thumbnail; else el.miniThumb.removeAttribute('src');
+    if (thumbOf(v)) el.miniThumb.src = thumbOf(v); else el.miniThumb.removeAttribute('src');
     el.fpTitle.textContent = v.name;
     el.fpQueue.classList.toggle('toggled', state.queue.length > 0);
     el.fpTimeDur.textContent = fmtTime(v.duration);
@@ -2946,7 +3015,7 @@
       title: v.name,
       artist: 'Final 1%',
       album: queueLabelText(),
-      artwork: v.thumbnail ? [{ src: v.thumbnail, sizes: '240x240', type: 'image/jpeg' }] : []
+      artwork: thumbOf(v) ? [{ src: thumbOf(v), sizes: '240x240', type: 'image/jpeg' }] : []
     });
     navigator.mediaSession.setActionHandler('play', () => { el.audioPlayer.play().catch(()=>{}); el.stageVideo.play().catch(()=>{}); });
     navigator.mediaSession.setActionHandler('pause', () => { el.audioPlayer.pause(); el.stageVideo.pause(); });
@@ -3044,6 +3113,7 @@
         const f = flagsById.get(v.id);
         v.hideImage = f ? !!f.hideImage : !!v.hideImage;
         v.clipVolume = f && f.clipVolume ? f.clipVolume : 1;
+        v.cover = f && f.cover ? f.cover : null;
       });
     } catch (e) {
       console.error('IndexedDB nicht verfügbar', e);
