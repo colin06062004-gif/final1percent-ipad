@@ -765,7 +765,7 @@
     <div class="wordmark"><img class="wordmark-helmet" src="helmet-mark.png" alt="">Final 1%</div>
     <!-- Set by hand on every commit that touches index.html — no build step in this project,
          so nothing computes this automatically. Format: DD.MM.YYYY, HH:MM, local time of the commit. -->
-    <span class="build-date"><span data-i18n="updated">Aktualisiert</span>: 08.10.2026, 14:37</span>
+    <span class="build-date"><span data-i18n="updated">Aktualisiert</span>: 08.10.2026, 17:06</span>
   </header>
 
   <input id="fileInput" type="file" accept="video/*,audio/*,.mp3" multiple class="visually-hidden">
@@ -2539,10 +2539,7 @@
       // just gets a head start on the tracks most likely to be needed next.
       clearBoostCache();
       // warm regardless of the new level: videos with their own volume need rendering even at 100%
-      const ids = state.playOrder.slice();
-      const curId = getCurrentId();
-      if (curId) { const i = ids.indexOf(curId); if (i > 0) ids.splice(i, 1); if (!ids.includes(curId) || i > 0) ids.unshift(curId); }
-      warmBoostCache(ids);
+      warmBoostCache([nextTrackId(), getCurrentId()].filter(Boolean));
     }
     toast(t('boostToast', el.setVolumeBoost.value));
   });
@@ -2667,7 +2664,9 @@
     const gain = effectiveGain(v);
     const entry = gain !== 1 ? state.boostedCache.get(v.id) : null;
     const cachedBoost = entry && entry.gain === gain ? entry.url : null;
+    if (cachedBoost) { state.boostedCache.delete(v.id); state.boostedCache.set(v.id, entry); }   // most recently used
     el.audioPlayer.src = cachedBoost || state.currentObjectUrl;
+    boostUrlsToRevoke = boostUrlsToRevoke.filter(u => { if (u === el.audioPlayer.src) return true; URL.revokeObjectURL(u); return false; });
     el.audioPlayer.currentTime = 0;
     el.stageVideo.src = state.currentObjectUrl;
     el.stageVideo.currentTime = 0;
@@ -2682,11 +2681,9 @@
     markQueuedRows();
     saveState();
     const toWarm = [];
-    if (gain !== 1 && !cachedBoost) toWarm.push(v.id); // wasn't ready this time — get it ready for next time
-    if (state.playOrder.length > 1) {
-      const nextId = state.playOrder[(state.posIndex + 1) % state.playOrder.length];
-      if (nextId && nextId !== v.id) toWarm.push(nextId); // likely needed soon — get a head start
-    }
+    const nextId = nextTrackId();
+    if (nextId && nextId !== v.id) toWarm.push(nextId);  // likely needed soon — get a head start
+    if (gain !== 1 && !cachedBoost) toWarm.push(v.id);   // wasn't ready this time — ready for its next start
     if (toWarm.length) warmBoostCache(toWarm);   // skips every video that plays at 100% anyway
   }
 
@@ -2694,8 +2691,13 @@
   function clipVolumeOf(v){ return v && v.clipVolume ? v.clipVolume : 1; }
   // what its audio is actually rendered at: the global boost (Settings) times its own volume
   function effectiveGain(v){ return Math.round((state.settings.volumeBoost || 1) * clipVolumeOf(v) * 100) / 100; }
-  // never revoke the file #audioPlayer is playing right now — it would cut the running track
-  function releaseBoostUrl(url){ if (el.audioPlayer.src !== url) URL.revokeObjectURL(url); }
+  // never revoke the file #audioPlayer is playing right now — it would cut the running track;
+  // it's parked and revoked as soon as the player has moved on (see loadCurrentTrack)
+  let boostUrlsToRevoke = [];
+  function releaseBoostUrl(url){
+    if (el.audioPlayer.src === url) boostUrlsToRevoke.push(url);
+    else URL.revokeObjectURL(url);
+  }
   function clearBoostCache(){
     state.boostedCache.forEach(entry => releaseBoostUrl(entry.url));
     state.boostedCache.clear();
@@ -2703,22 +2705,51 @@
 
   /* Pre-renders boosted audio for the given video ids into state.boostedCache, in the background,
      never awaited by anything that plays audio. This is what makes loadCurrentTrack() safe to
-     stay fully synchronous: it only ever reads whatever's already sitting in the cache. */
-  async function warmBoostCache(videoIds){
-    for (const id of videoIds) {
-      const v = videoById(id);
-      if (!v) continue;
-      const gain = effectiveGain(v);
-      if (gain === 1) continue;                       // plays the original file, nothing to render
-      const have = state.boostedCache.get(id);
-      if (have && have.gain === gain) continue;
-      try {
-        const blob = await renderBoostedAudio(v.blob, gain);
-        if (effectiveGain(v) !== gain) continue;      // boost or its own volume changed meanwhile
-        const old = state.boostedCache.get(id);
-        if (old) releaseBoostUrl(old.url);
-        state.boostedCache.set(id, { gain, url: URL.createObjectURL(blob) });
-      } catch (e) { /* skip this one — it'll just keep playing at its original volume */ }
+     stay fully synchronous: it only ever reads whatever's already sitting in the cache.
+     Rendering is memory-heavy — for a moment the whole file, its decoded audio, the rendered audio
+     and the WAV all sit in memory (easily 100-200 MB for a few minutes of video). So it runs
+     strictly one at a time, only for what's about to play, and only BOOST_KEEP results are kept:
+     warming whole playlists (at startup and on every slider change), several passes in parallel,
+     and never letting go of the results ran iOS out of memory and crashed the app on launch. */
+  const BOOST_KEEP = 3;   // rendered files kept: the current track, the next one and a spare
+  let warmQueue = [], warmRunning = false;
+  function warmBoostCache(videoIds){
+    // the newest request is the most urgent; older ones not started yet fall off the end
+    warmQueue = [...new Set([...videoIds, ...warmQueue])].slice(0, BOOST_KEEP);
+    if (!warmRunning) runWarmQueue();
+  }
+  async function runWarmQueue(){
+    warmRunning = true;
+    try {
+      while (warmQueue.length) {
+        const id = warmQueue.shift();
+        const v = videoById(id);
+        if (!v) continue;
+        const gain = effectiveGain(v);
+        if (gain === 1) continue;                       // plays the original file, nothing to render
+        const have = state.boostedCache.get(id);
+        if (have && have.gain === gain) continue;
+        try {
+          const blob = await renderBoostedAudio(v.blob, gain);
+          if (effectiveGain(v) !== gain) continue;      // boost or its own volume changed meanwhile
+          const old = state.boostedCache.get(id);
+          if (old) releaseBoostUrl(old.url);
+          state.boostedCache.delete(id);                // re-insert = newest (Map keeps insertion order)
+          state.boostedCache.set(id, { gain, url: URL.createObjectURL(blob) });
+          trimBoostCache();
+        } catch (e) { /* skip this one — it'll just keep playing at its original volume */ }
+      }
+    } finally { warmRunning = false; }
+  }
+  function nextTrackId(){ return state.playOrder.length > 1 ? state.playOrder[(state.posIndex + 1) % state.playOrder.length] : null; }
+  // drops the oldest renders beyond BOOST_KEEP, never the current or the next track's
+  function trimBoostCache(){
+    const keep = new Set([getCurrentId(), nextTrackId()]);
+    for (const [id, entry] of state.boostedCache) {
+      if (state.boostedCache.size <= BOOST_KEEP) break;
+      if (keep.has(id)) continue;
+      releaseBoostUrl(entry.url);
+      state.boostedCache.delete(id);
     }
   }
 
@@ -2914,7 +2945,12 @@
     dbDelete('meta', 'lastState').catch(() => {});
   }
 
-  el.audioPlayer.addEventListener('play', () => { setPlayPauseIcon(); if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'playing'; });
+  el.audioPlayer.addEventListener('play', () => {
+    setPlayPauseIcon(); if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'playing';
+    // also covers pressing play on the track restored at launch, which never went through
+    // loadCurrentTrack — the queue skips anything already rendered, so resumes cost nothing
+    warmBoostCache([nextTrackId(), getCurrentId()].filter(Boolean));
+  });
   el.audioPlayer.addEventListener('pause', () => { setPlayPauseIcon(); if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'paused'; saveState(); });
   el.audioPlayer.addEventListener('ended', nextTrack);
   el.audioPlayer.addEventListener('timeupdate', () => {
@@ -3153,9 +3189,10 @@
     renderLibrary();
     renderPlaylists();
     await restoreState();
-    // get a head start on the restored queue's boosted audio, if boost is already on, so it's
-    // ready by the time the user taps play — not awaited, doesn't block the app becoming usable
-    if (state.playOrder.length) warmBoostCache(state.playOrder.slice());   // only renders videos not at 100%
+    // Deliberately NO pre-rendering here: warming the restored queue at launch is what ran iOS out
+    // of memory a few seconds after opening — and since it ran on every launch, the app crashed
+    // again on every reopen ("ist wiederholt ein Problem aufgetreten"). Rendering starts once the
+    // user actually plays something (loadCurrentTrack); the first track then plays un-boosted.
   }
   boot();
 
