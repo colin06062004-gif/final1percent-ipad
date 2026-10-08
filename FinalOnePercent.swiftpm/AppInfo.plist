@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Keeps playing with the screen locked or the app in the background, like a music app.
+	     Swift Playgrounds' capabilities screen has no switch for this, so it comes in here. -->
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>audio</string>
+	</array>
+	<!-- The name under the icon. The product name stays without "%" since it also names files. -->
+	<key>CFBundleDisplayName</key>
+	<string>Final 1%</string>
+	<!-- Uses no encryption beyond Apple's own — skips the export question on every upload. -->
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
+</dict>
+</plist>
