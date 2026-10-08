@@ -767,6 +767,11 @@
   .tut-bubble p{margin:0;}
   .tut-skip{position:fixed;top:calc(10px + env(safe-area-inset-top, 0px));right:12px;pointer-events:auto;}
   .tut-next{position:fixed;right:16px;bottom:calc(16px + env(safe-area-inset-bottom, 0px));pointer-events:auto;}
+  /* while the step's own name dialog is open: above the dialog (25) so the hint isn't dimmed by its
+     backdrop — the layer itself stays click-through, only the hint shows */
+  .tut.over-dialog{z-index:26;}
+  /* "Abbrechen" in that dialog: cancelling would silently skip the step */
+  .tut-locked{opacity:.35;pointer-events:none;}
   .clip-section{font-size:13px;font-weight:600;color:var(--ink);margin-top:4px;}
   .clip-cover-row{display:flex;align-items:center;gap:10px;margin:10px 0 20px;}
   .clip-cover-thumb{
@@ -787,7 +792,7 @@
     <div class="wordmark"><img class="wordmark-helmet" src="helmet-mark.png" alt="">Final 1%</div>
     <!-- Set by hand on every commit that touches index.html — no build step in this project,
          so nothing computes this automatically. Format: DD.MM.YYYY, HH:MM, local time of the commit. -->
-    <span class="build-date"><span data-i18n="updated">Aktualisiert</span>: 08.10.2026, 17:40</span>
+    <span class="build-date"><span data-i18n="updated">Aktualisiert</span>: 08.10.2026, 17:49</span>
   </header>
 
   <input id="fileInput" type="file" accept="video/*,audio/*,.mp3" multiple class="visually-hidden">
@@ -3255,7 +3260,7 @@
     { text: 'tutHideVideo', info: true, target: () => el.setAudioOnly.closest('.setting-row') },
     { text: 'tutBoost', info: true, target: () => $('.setting-row-boost') }
   ];
-  const tut = { on: false, i: 0, snap: null, timer: 0, scrolled: -1 };
+  const tut = { on: false, i: 0, snap: null, timer: 0, scrolled: -1, confirming: false };
   const tutEls = {
     root: $('#tut'), hole: $('#tutHole'), bubble: $('#tutBubble'), text: $('#tutText'), next: $('#tutNext'), skip: $('#tutSkip'),
     blocks: ['#tutBlockTop', '#tutBlockBottom', '#tutBlockLeft', '#tutBlockRight', '#tutBlockHole'].map($)
@@ -3286,6 +3291,8 @@
     tut.on = false;
     clearInterval(tut.timer);
     tutEls.root.hidden = true;
+    tutEls.root.classList.remove('over-dialog');
+    el.dialogCancel.classList.remove('tut-locked');
     state.settings.tutorialDone = true;
     saveSettings();
     if (finished) toast(t('tutFinished'));
@@ -3310,11 +3317,23 @@
     tutEls.skip.hidden = modal;
     tutEls.next.hidden = modal || !step.info;
     tutEls.next.textContent = tut.i === tutSteps.length - 1 ? t('tutDone') : t('tutNext');
+    // the step's own name dialog (not the skip confirmation, which uses the same dialog)
+    const ownDialog = modal && !tut.confirming && !!step.modalText && !el.dialogBackdrop.classList.contains('hidden');
+    tutEls.root.classList.toggle('over-dialog', ownDialog);
+    el.dialogCancel.classList.toggle('tut-locked', ownDialog);
+    tutEls.bubble.hidden = modal && (tut.confirming || !step.modalText);
     if (modal || !visible) {
       tutEls.hole.hidden = true;
       tutEls.blocks.forEach(b => { b.hidden = true; });
-      tutEls.bubble.style.top = 'calc(12px + env(safe-area-inset-top, 0px))';
-      tutEls.bubble.style.bottom = '';
+      if (ownDialog) {
+        // right above the dialog box (follows it when the keyboard moves it)
+        const box = el.dialogBackdrop.querySelector('.dialog').getBoundingClientRect();
+        tutEls.bubble.style.top = '';
+        tutEls.bubble.style.bottom = (window.innerHeight - box.top + 12) + 'px';
+      } else {
+        tutEls.bubble.style.top = 'calc(12px + env(safe-area-inset-top, 0px))';
+        tutEls.bubble.style.bottom = '';
+      }
       return;
     }
     let r = target.getBoundingClientRect();
@@ -3344,7 +3363,9 @@
   }
   tutEls.next.addEventListener('click', tutAdvance);
   tutEls.skip.addEventListener('click', async () => {
+    tut.confirming = true;
     const ok = await showDialog({ title: t('tutSkipTitle'), text: t('tutSkipText'), confirmLabel: t('tutSkip') });
+    tut.confirming = false;
     if (ok) endTutorial(false);
   });
   el.setTutorial.addEventListener('click', startTutorial);
