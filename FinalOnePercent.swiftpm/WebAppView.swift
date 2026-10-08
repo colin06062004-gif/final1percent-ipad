@@ -19,7 +19,10 @@ struct WebAppView: UIViewRepresentable {
 
         let webView = WKWebView(frame: .zero, configuration: config)
         let background = UIColor(red: 14 / 255, green: 9 / 255, blue: 9 / 255, alpha: 1)   // #0E0909, the page's own
-        webView.isOpaque = false
+        // Opaque on purpose: in a transparent web view WebKit gets backdrop-filter wrong, and the
+        // glass buttons inside glass cards ("English", "Starten") came out solid white.
+        webView.isOpaque = true
+        webView.underPageBackgroundColor = background          // shown before the page paints, so no white flash
         webView.backgroundColor = background
         webView.scrollView.backgroundColor = background
         webView.scrollView.contentInsetAdjustmentBehavior = .never   // safe areas are handled by the page's CSS
