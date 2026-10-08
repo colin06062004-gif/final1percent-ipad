@@ -792,7 +792,7 @@
     <div class="wordmark"><img class="wordmark-helmet" src="helmet-mark.png" alt="">Final 1%</div>
     <!-- Set by hand on every commit that touches index.html — no build step in this project,
          so nothing computes this automatically. Format: DD.MM.YYYY, HH:MM, local time of the commit. -->
-    <span class="build-date"><span data-i18n="updated">Aktualisiert</span>: 08.10.2026, 17:49</span>
+    <span class="build-date"><span data-i18n="updated">Aktualisiert</span>: 08.10.2026, 17:56</span>
   </header>
 
   <input id="fileInput" type="file" accept="video/*,audio/*,.mp3" multiple class="visually-hidden">
@@ -3361,6 +3361,12 @@
     if (y + h / 2 < H / 2) { tutEls.bubble.style.top = (y + h + 14) + 'px'; tutEls.bubble.style.bottom = ''; }
     else { tutEls.bubble.style.bottom = (H - y + 14) + 'px'; tutEls.bubble.style.top = ''; }
   }
+  // No scrolling while the tutorial runs, so the page stays put under the spotlight (its own
+  // window.scrollBy for an off-screen target still works). Its dialogs and sheets keep scrolling:
+  // "Videos hinzufügen" can be a long list to find the video in.
+  const tutNoScroll = (e) => { if (tut.on && !tutModalOpen()) e.preventDefault(); };
+  document.addEventListener('touchmove', tutNoScroll, { passive: false });
+  document.addEventListener('wheel', tutNoScroll, { passive: false });
   tutEls.next.addEventListener('click', tutAdvance);
   tutEls.skip.addEventListener('click', async () => {
     tut.confirming = true;
