@@ -420,6 +420,8 @@
   }
   .search-field input::placeholder{color:var(--ink-faint);}
   .pd-search{margin:0 2px 12px;}
+  .lib-search{margin:2px 0 12px;animation:libSearchIn .22s ease;}
+  @keyframes libSearchIn{from{opacity:0;transform:translateY(-8px);}to{opacity:1;transform:none;}}
   .sheet-search{margin:12px 18px 2px;flex-shrink:0;}
   .search-nomatch{margin:0;padding:22px 2px;text-align:center;color:var(--ink-muted);font-size:13.5px;}
   /* drag-to-reorder maps row positions onto the playlist order, so it needs every row shown */
@@ -785,7 +787,7 @@
     <div class="wordmark"><img class="wordmark-helmet" src="helmet-mark.png" alt="">Final 1%</div>
     <!-- Set by hand on every commit that touches index.html — no build step in this project,
          so nothing computes this automatically. Format: DD.MM.YYYY, HH:MM, local time of the commit. -->
-    <span class="build-date"><span data-i18n="updated">Aktualisiert</span>: 08.10.2026, 18:17</span>
+    <span class="build-date"><span data-i18n="updated">Aktualisiert</span>: 08.10.2026, 18:54</span>
   </header>
 
   <input id="fileInput" type="file" accept="video/*,audio/*,.mp3" multiple class="visually-hidden">
@@ -795,7 +797,13 @@
   <main class="views">
 
     <section id="view-library" class="view active">
+      <!-- shows up when pulling further up at the top of the library (see revealLibSearch) -->
+      <label class="search-field lib-search" id="libSearchWrap" hidden>
+        <span class="search-icon"></span>
+        <input id="libSearch" type="search" enterkeyhint="search" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+      </label>
       <ul id="libraryList" class="library-grid"></ul>
+      <p id="libNoMatch" class="search-nomatch" hidden></p>
       <div id="libraryEmpty" class="empty-state" hidden>
         <p data-i18n="libEmpty">Noch keine Videos geladen.</p>
       </div>
@@ -1117,7 +1125,7 @@
       deletePlTitle: 'Playlist löschen?',
       deletePlText: name => '„' + name + '“ wird gelöscht. Die Videos bleiben in deiner Bibliothek.',
       removeFromPlTitle: 'Aus Playlist entfernen?', remove: 'Entfernen',
-      searchPlaylistPh: 'In Playlist suchen', searchVideosPh: 'Videos suchen', noMatches: 'Keine passenden Videos',
+      searchLibraryPh: 'In Bibliothek suchen', searchPlaylistPh: 'In Playlist suchen', searchVideosPh: 'Videos suchen', noMatches: 'Keine passenden Videos',
       aClipSettings: 'Einstellungen dieses Videos', clipVolTitle: 'Lautstärke', resetDefault: 'Standard',
       clipVolHint: 'Gilt dauerhaft für dieses Video, zusätzlich zur Verstärkung in den Einstellungen. 200 % = gefühlt doppelt, 50 % = halb so laut.',
       tutSetting: 'Tutorial', tutSettingHint: 'Zeigt dir die wichtigsten Funktionen Schritt für Schritt.', tutStart: 'Starten',
@@ -1200,7 +1208,7 @@
       deletePlTitle: 'Delete playlist?',
       deletePlText: name => '“' + name + '” will be deleted. The videos stay in your library.',
       removeFromPlTitle: 'Remove from playlist?', remove: 'Remove',
-      searchPlaylistPh: 'Search in playlist', searchVideosPh: 'Search videos', noMatches: 'No matching videos',
+      searchLibraryPh: 'Search library', searchPlaylistPh: 'Search in playlist', searchVideosPh: 'Search videos', noMatches: 'No matching videos',
       aClipSettings: 'Settings for this video', clipVolTitle: 'Volume', resetDefault: 'Default',
       clipVolHint: 'Applies to this video permanently, on top of the boost in Settings. 200% = twice as loud, 50% = half as loud.',
       tutSetting: 'Tutorial', tutSettingHint: 'Walks you through the most important features step by step.', tutStart: 'Start',
@@ -1280,7 +1288,7 @@
           if (!db.objectStoreNames.contains('videos')) db.createObjectStore('videos', { keyPath: 'id' });
           if (!db.objectStoreNames.contains('playlists')) db.createObjectStore('playlists', { keyPath: 'id' });
           if (!db.objectStoreNames.contains('meta')) db.createObjectStore('meta', { keyPath: 'key' });
-          // v2: small, blob-free per-video flags (hideImage, clipVolume, cover). Kept out of the
+          // v2: small, blob-free per-video flags (hideImage, clipVolume, cover, name). Kept out of the
           // `videos` store on purpose — re-`put()`ing a record that carries a video Blob just to
           // flip an unrelated boolean is what corrupted the in-memory blob reference on WebKit in
           // the first place (see toggleVideoHiddenForCurrent()). This store never touches a blob.
@@ -1350,6 +1358,7 @@
     clipVolBackdrop: $('#clipVolBackdrop'), clipVolName: $('#clipVolName'), fpArt: $('#fpArt'),
     clipCoverInput: $('#clipCoverInput'), clipCoverThumb: $('#clipCoverThumb'), clipCoverPick: $('#clipCoverPick'), clipCoverRemove: $('#clipCoverRemove'), clipVolRange: $('#clipVolRange'), clipVolValue: $('#clipVolValue'),
     clipVolReset: $('#clipVolReset'), clipVolCancel: $('#clipVolCancel'), clipVolSave: $('#clipVolSave'),
+    libSearchWrap: $('#libSearchWrap'), libSearch: $('#libSearch'), libNoMatch: $('#libNoMatch'),
     pdSearchWrap: $('#pdSearchWrap'), pdSearch: $('#pdSearch'), pdNoMatch: $('#pdNoMatch'), pickSearch: $('#pickSearch'), pickNoMatch: $('#pickNoMatch'),
     pdPlaySeq: $('#pdPlaySeq'), pdPlayShuffle: $('#pdPlayShuffle'), pdAddVideos: $('#pdAddVideos'), pdToggleTrim: $('#pdToggleTrim'),
     pdCover: $('#pdCover'), pdCoverRemove: $('#pdCoverRemove'),
@@ -1676,7 +1685,40 @@
       }));
     });
     markPlayingRow();
+    el.libSearch.placeholder = t('searchLibraryPh');
+    el.libSearch.setAttribute('aria-label', t('searchLibraryPh'));
+    el.libNoMatch.textContent = t('noMatches');
+    applyLibSearch();   // a re-render keeps the current filter
   }
+
+  /* Library search, Spotify-style: pulling further up while already at the top brings it in.
+     Not tucked away behind a scroll offset like the playlist's — the library's "Final 1%" header
+     scrolls with the page, so that would push it under the status bar. Every visit starts hidden
+     and empty (switchView). */
+  function applyLibSearch(){
+    const q = el.libSearch.value.trim().toLowerCase();
+    let shown = 0;
+    el.libraryList.querySelectorAll('.grid-tile').forEach(tile => {
+      const v = videoById(tile.dataset.id);
+      const hit = !q || !!(v && v.name.toLowerCase().includes(q));
+      tile.hidden = !hit;
+      if (hit) shown++;
+    });
+    el.libNoMatch.hidden = !q || shown > 0;
+  }
+  el.libSearch.addEventListener('input', applyLibSearch);
+  function revealLibSearch(){
+    if (!el.libSearchWrap.hidden || state.view !== 'library' || !state.videos.length || tut.on) return;
+    el.libSearchWrap.hidden = false;
+  }
+  let libPull = null;   // finger position of a touch that started at the very top of the library
+  document.addEventListener('touchstart', (e) => {
+    libPull = state.view === 'library' && window.scrollY <= 0 && e.touches.length === 1 ? e.touches[0].clientY : null;
+  }, { passive: true });
+  document.addEventListener('touchmove', (e) => {
+    if (libPull !== null && e.touches[0].clientY - libPull > 40) { libPull = null; revealLibSearch(); }
+  }, { passive: true });
+  document.addEventListener('wheel', (e) => { if (e.deltaY < 0 && state.view === 'library' && window.scrollY <= 0) revealLibSearch(); }, { passive: true });
 
   /* ================= Per-video volume (gear on a library tile) ================= */
   /* Stored in the blob-free videoFlags store (never on the video record — see
@@ -1887,7 +1929,10 @@
     }
     v.name = name;
     v.creator = creator;
-    await dbPut('videos', v);
+    // into the blob-free videoFlags store, NOT dbPut('videos', v): re-writing the record would
+    // re-serialize the video file just to change its name — the WebKit pattern that once broke
+    // playback (see toggleVideoHiddenForCurrent). Boot lays these over the record's import name.
+    await saveVideoFlags(v);
     renderLibrary();
     if (state.view === 'playlistDetail') renderPlaylistDetail();
     refreshNowPlayingUI();
@@ -1910,6 +1955,8 @@
         await dbPut('playlists', p);
       }
     }
+    // out of the manual "play next" queue too — a leftover entry would make the next skip land on nothing
+    if (state.queue.some(e => e.id === id)) { state.queue = state.queue.filter(e => e.id !== id); markQueuedRows(); saveState(); }
     if (state.queueBase.includes(id)) {
       // remove from live queue without interrupting playback of a different current track
       const wasCurrent = getCurrentId() === id;
@@ -2022,7 +2069,7 @@
   }
   el.pdSearch.addEventListener('input', applyPdSearch);
   // "Suchen" on the keyboard just closes it — the list already filters while typing
-  [el.pdSearch, el.pickSearch].forEach(input => input.addEventListener('keydown', (e) => { if (e.key === 'Enter') input.blur(); }));
+  [el.pdSearch, el.pickSearch, el.libSearch].forEach(input =>input.addEventListener('keydown', (e) => { if (e.key === 'Enter') input.blur(); }));
   function renderPlaylistDetail(){
     const p = playlistById(state.activePlaylistId);
     if (!p) { switchView('playlists'); return; }
@@ -2491,7 +2538,7 @@
     }
   }
   // one videoFlags record per video holds every flag, so each write carries all of them
-  function saveVideoFlags(v){ return dbPut('videoFlags', { id: v.id, hideImage: !!v.hideImage, clipVolume: clipVolumeOf(v), cover: v.cover || null }); }
+  function saveVideoFlags(v){ return dbPut('videoFlags', { id: v.id, hideImage: !!v.hideImage, clipVolume: clipVolumeOf(v), cover: v.cover || null, name: v.name, creator: v.creator || null }); }
   // the picture shown for a video in every small square: its own cover if it has one, else the frame from import
   function thumbOf(v){ return (v && (v.cover || v.thumbnail)) || null; }
   async function toggleVideoHiddenForCurrent(){
@@ -2613,6 +2660,8 @@
   function switchView(view){
     state.view = view;
     el.pdSearch.blur();   // leaving the playlist with the keyboard up shouldn't leave it open
+    // the library search starts hidden and empty on every visit, like the playlist's
+    el.libSearch.blur(); el.libSearch.value = ''; el.libSearchWrap.hidden = true; applyLibSearch();
     document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
     $('#view-' + view).classList.add('active');
     el.tabs.forEach(t => t.classList.toggle('active', t.dataset.view === view || (view === 'playlistDetail' && t.dataset.view === 'playlists')));
@@ -2932,6 +2981,8 @@
     else { p.pause(); el.stageVideo.pause(); }
   }
   function nextTrack(){
+    // entries whose video is gone (deleted meanwhile) are skipped, never "played" as nothing
+    while (state.queue.length && !videoById(state.queue[0].id)) state.queue.shift();
     // queued entries always come first, then playback resumes where the list left off
     if (state.queue.length) {
       const entry = state.queue.shift();
@@ -3375,6 +3426,8 @@
         v.hideImage = f ? !!f.hideImage : !!v.hideImage;
         v.clipVolume = f && f.clipVolume ? f.clipVolume : 1;
         v.cover = f && f.cover ? f.cover : null;
+        // names are renamed in videoFlags (never by re-writing the record); older renames still sit on the record
+        if (f && f.name) { v.name = f.name; v.creator = f.creator || null; }
       });
     } catch (e) {
       console.error('IndexedDB nicht verfügbar', e);
