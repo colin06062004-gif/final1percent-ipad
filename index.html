@@ -765,7 +765,7 @@
     <div class="wordmark"><img class="wordmark-helmet" src="helmet-mark.png" alt="">Final 1%</div>
     <!-- Set by hand on every commit that touches index.html — no build step in this project,
          so nothing computes this automatically. Format: DD.MM.YYYY, HH:MM, local time of the commit. -->
-    <span class="build-date"><span data-i18n="updated">Aktualisiert</span>: 08.10.2026, 13:57</span>
+    <span class="build-date"><span data-i18n="updated">Aktualisiert</span>: 08.10.2026, 14:37</span>
   </header>
 
   <input id="fileInput" type="file" accept="video/*,audio/*,.mp3" multiple class="visually-hidden">
@@ -975,9 +975,9 @@
     <div class="dialog">
       <h3 id="clipVolName"></h3>
       <div class="clip-section" data-i18n="clipVolTitle">Lautstärke</div>
-      <p data-i18n="clipVolHint">Gilt dauerhaft für dieses Video, zusätzlich zur Verstärkung in den Einstellungen.</p>
+      <p data-i18n="clipVolHint">Gilt dauerhaft für dieses Video, zusätzlich zur Verstärkung in den Einstellungen. 200 % = gefühlt doppelt, 50 % = halb so laut.</p>
       <div class="boost-control clip-vol-control">
-        <input type="range" id="clipVolRange" min="20" max="300" step="10" value="100" aria-label="Lautstärke" data-i18n-aria="clipVolTitle">
+        <input type="range" id="clipVolRange" min="20" max="200" step="10" value="100" aria-label="Lautstärke" data-i18n-aria="clipVolTitle">
         <span class="boost-value" id="clipVolValue">100%</span>
       </div>
       <!-- the cover applies right away (like a playlist image); "Speichern" is for the volume -->
@@ -1077,7 +1077,7 @@
       removeFromPlTitle: 'Aus Playlist entfernen?', remove: 'Entfernen',
       searchPlaylistPh: 'In Playlist suchen', searchVideosPh: 'Videos suchen', noMatches: 'Keine passenden Videos',
       aClipSettings: 'Einstellungen dieses Videos', clipVolTitle: 'Lautstärke', resetDefault: 'Standard',
-      clipVolHint: 'Gilt dauerhaft für dieses Video, zusätzlich zur Verstärkung in den Einstellungen.',
+      clipVolHint: 'Gilt dauerhaft für dieses Video, zusätzlich zur Verstärkung in den Einstellungen. 200 % = gefühlt doppelt, 50 % = halb so laut.',
       clipCoverTitle: 'Cover-Bild', clipCoverPick: 'Bild wählen', clipCoverChange: 'Bild ändern',
       clipCoverSet: 'Cover-Bild gesetzt', clipCoverRemoved: 'Cover-Bild entfernt',
       clipVolSaved: pct => 'Lautstärke ' + pct + '% gespeichert — gilt ab dem nächsten Start des Videos',
@@ -1142,7 +1142,7 @@
       removeFromPlTitle: 'Remove from playlist?', remove: 'Remove',
       searchPlaylistPh: 'Search in playlist', searchVideosPh: 'Search videos', noMatches: 'No matching videos',
       aClipSettings: 'Settings for this video', clipVolTitle: 'Volume', resetDefault: 'Default',
-      clipVolHint: 'Applies to this video permanently, on top of the boost in Settings.',
+      clipVolHint: 'Applies to this video permanently, on top of the boost in Settings. 200% = twice as loud, 50% = half as loud.',
       clipCoverTitle: 'Cover image', clipCoverPick: 'Choose image', clipCoverChange: 'Change image',
       clipCoverSet: 'Cover image set', clipCoverRemoved: 'Cover image removed',
       clipVolSaved: pct => 'Volume ' + pct + '% saved — applies from the next time the video starts',
@@ -1243,7 +1243,7 @@
     playlists: [],     // {id,name,videoIds:[],createdAt,trimmed,cover?} — cover is a square JPEG data URL
     view: 'library',
     activePlaylistId: null,
-    settings: { audioOnly: false, volumeBoost: 1, language: 'de' }, // volumeBoost is the amplitude factor: 1 = 100% = off (the slider shows it on a loudness scale, see boostPctToGain)
+    settings: { audioOnly: false, volumeBoost: 1, language: 'de' }, // volumeBoost is the amplitude factor: 1 = 100% = off (the slider shows it on a loudness scale, see loudPctToGain)
     // playback
     currentId: null,    // id of the loaded track — may come from playOrder OR from the manual queue
     queue: [],          // manual "play next" entries {id, marked}; marked = put there by the user
@@ -1610,7 +1610,7 @@
   let clipVolVideo = null;
   function openClipVolume(v){
     clipVolVideo = v;
-    const pct = Math.round(clipVolumeOf(v) * 100);
+    const pct = loudGainToPct(clipVolumeOf(v), 20, 200);
     el.clipVolName.textContent = v.name;
     el.clipVolRange.value = pct;
     el.clipVolValue.textContent = pct + '%';
@@ -1661,7 +1661,7 @@
   el.clipVolRange.addEventListener('input', () => { el.clipVolValue.textContent = el.clipVolRange.value + '%'; });
   el.clipVolSave.addEventListener('click', async () => {
     const v = clipVolVideo; if (!v) return;
-    const level = Number(el.clipVolRange.value) / 100;
+    const level = loudPctToGain(Number(el.clipVolRange.value));
     closeClipVolume();
     if (level === clipVolumeOf(v)) return;
     await setClipVolume(v, level);
@@ -2389,7 +2389,7 @@
   function applySettings(){
     updateVideoVisibility();
     el.setAudioOnly.setAttribute('aria-checked', state.settings.audioOnly ? 'true' : 'false');
-    const pct = boostGainToPct(state.settings.volumeBoost || 1);
+    const pct = loudGainToPct(state.settings.volumeBoost || 1, 100, 200);
     el.setVolumeBoost.value = pct;
     el.volumeBoostValue.textContent = pct + '%';
     document.querySelectorAll('.lang-switch [data-lang]').forEach(b => {
@@ -2478,9 +2478,7 @@
     // Until Oct 2026 the slider went to 300% and stored the plain amplitude factor (300% = 3x =
     // +9.5 dB). Convert once onto the loudness scale, rounding up so nobody ends up quieter.
     if (state.settings.boostScale !== 'loudness') {
-      const g = state.settings.volumeBoost || 1;
-      const pct = g <= 1 ? 100 : Math.min(200, Math.ceil(100 * Math.pow(2, 20 * Math.log10(g) / 10) / 10 - 1e-6) * 10);
-      state.settings.volumeBoost = boostPctToGain(pct);
+      state.settings.volumeBoost = loudPctToGain(loudGainToPct(state.settings.volumeBoost || 1, 100, 200, true));
       state.settings.boostScale = 'loudness';
       saveSettings();
     }
@@ -2523,10 +2521,15 @@
      amplitude factor reads misleadingly — 300% (3x) is only +9.5 dB, i.e. roughly double, which
      is exactly what a user measured with a dB meter. volumeBoost stays the amplitude factor the
      audio is rendered with (effectiveGain). */
-  function boostPctToGain(pct){ return Math.round(Math.pow(10, 10 * Math.log2(pct / 100) / 20) * 100) / 100; }
-  function boostGainToPct(gain){ return Math.min(200, Math.max(100, Math.round(100 * Math.pow(2, 20 * Math.log10(gain) / 10) / 10) * 10)); }
+  function loudPctToGain(pct){ return Math.round(Math.pow(10, 10 * Math.log2(pct / 100) / 20) * 100) / 100; }
+  // back to the slider's 10% grid, clamped to that slider's range; up = round up (for converting
+  // old values, so nothing ends up quieter than it was)
+  function loudGainToPct(gain, min, max, up){
+    const steps = 100 * Math.pow(2, 20 * Math.log10(gain) / 10) / 10;
+    return Math.min(max, Math.max(min, (up ? Math.ceil(steps - 1e-6) : Math.round(steps)) * 10));
+  }
   el.setVolumeBoost.addEventListener('change', () => {
-    const newLevel = boostPctToGain(Number(el.setVolumeBoost.value));
+    const newLevel = loudPctToGain(Number(el.setVolumeBoost.value));
     if (newLevel !== state.settings.volumeBoost) {
       state.settings.volumeBoost = newLevel;
       saveSettings();
@@ -3136,6 +3139,17 @@
       toast(t('noStorage'));
     }
     await loadSettings();
+    // per-video volumes saved before Oct 2026 were plain amplitude factors (20-300%): move them
+    // onto the loudness scale once, rounded up like the boost (old 300% -> 200%)
+    if (state.settings.clipVolScale !== 'loudness') {
+      for (const v of state.videos) {
+        if (clipVolumeOf(v) === 1) continue;
+        v.clipVolume = loudPctToGain(loudGainToPct(v.clipVolume, 20, 200, true));
+        try { await saveVideoFlags(v); } catch (e) {}
+      }
+      state.settings.clipVolScale = 'loudness';
+      saveSettings();
+    }
     renderLibrary();
     renderPlaylists();
     await restoreState();
