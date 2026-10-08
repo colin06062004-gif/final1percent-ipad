@@ -745,6 +745,28 @@
   }
   .dialog-actions{display:flex;justify-content:flex-end;gap:8px;}
   .clip-vol-control{margin-bottom:18px;}
+
+  /* ---------- Onboarding tutorial ---------- */
+  /* z-index 24: above the bars, sheets (20) and the full player, below dialogs (25) so the
+     "Neue Playlist" name dialog and the skip confirmation stay usable on top of it. */
+  .tut{position:fixed;inset:0;z-index:24;pointer-events:none;}
+  .tut-hole{
+    position:fixed;border-radius:14px;pointer-events:none;
+    box-shadow:0 0 0 200vmax rgba(5,2,3,.76), 0 0 0 2px rgba(255,77,94,.9), 0 0 18px 2px rgba(228,32,44,.55);
+    transition:top .2s ease, left .2s ease, width .2s ease, height .2s ease;
+  }
+  .tut-block{position:fixed;pointer-events:auto;}
+  .tut-bubble{
+    position:fixed;left:16px;right:16px;max-width:360px;margin:0 auto;
+    padding:14px 16px;border-radius:16px;pointer-events:none;
+    background:linear-gradient(180deg, rgba(46,17,21,.96), rgba(20,7,9,.98));
+    border:1px solid rgba(255,77,94,.55);
+    box-shadow:0 0 16px -4px rgba(228,32,44,.6), 0 12px 28px -12px rgba(0,0,0,.9);
+    color:var(--ink);font-size:15px;line-height:1.45;
+  }
+  .tut-bubble p{margin:0;}
+  .tut-skip{position:fixed;top:calc(10px + env(safe-area-inset-top, 0px));right:12px;pointer-events:auto;}
+  .tut-next{position:fixed;right:16px;bottom:calc(16px + env(safe-area-inset-bottom, 0px));pointer-events:auto;}
   .clip-section{font-size:13px;font-weight:600;color:var(--ink);margin-top:4px;}
   .clip-cover-row{display:flex;align-items:center;gap:10px;margin:10px 0 20px;}
   .clip-cover-thumb{
@@ -765,7 +787,7 @@
     <div class="wordmark"><img class="wordmark-helmet" src="helmet-mark.png" alt="">Final 1%</div>
     <!-- Set by hand on every commit that touches index.html — no build step in this project,
          so nothing computes this automatically. Format: DD.MM.YYYY, HH:MM, local time of the commit. -->
-    <span class="build-date"><span data-i18n="updated">Aktualisiert</span>: 08.10.2026, 17:06</span>
+    <span class="build-date"><span data-i18n="updated">Aktualisiert</span>: 08.10.2026, 17:40</span>
   </header>
 
   <input id="fileInput" type="file" accept="video/*,audio/*,.mp3" multiple class="visually-hidden">
@@ -853,6 +875,13 @@
             <input type="range" id="setVolumeBoost" min="100" max="200" step="10" value="100" aria-label="Lautstärke-Verstärkung" data-i18n-aria="boost">
             <span class="boost-value" id="volumeBoostValue">100%</span>
           </div>
+        </li>
+        <li class="setting-row">
+          <div class="setting-text">
+            <div class="setting-label" data-i18n="tutSetting">Tutorial</div>
+            <div class="setting-hint" data-i18n="tutSettingHint">Zeigt dir die wichtigsten Funktionen Schritt für Schritt.</div>
+          </div>
+          <button id="setTutorial" class="btn ghost" data-i18n="tutStart">Starten</button>
         </li>
       </ul>
     </section>
@@ -995,6 +1024,21 @@
     </div>
   </div>
 
+  <!-- Onboarding tutorial: a spotlight hole (its huge box-shadow darkens everything else), four
+       transparent blockers around it so only the highlighted control can be tapped, the
+       explanation bubble and the Weiter / Überspringen buttons. Driven by the Tutorial section. -->
+  <div id="tut" class="tut" hidden>
+    <div class="tut-hole" id="tutHole"></div>
+    <div class="tut-block" id="tutBlockTop"></div>
+    <div class="tut-block" id="tutBlockBottom"></div>
+    <div class="tut-block" id="tutBlockLeft"></div>
+    <div class="tut-block" id="tutBlockRight"></div>
+    <div class="tut-block" id="tutBlockHole"></div>
+    <div class="tut-bubble" id="tutBubble"><p id="tutText"></p></div>
+    <button class="btn ghost tut-skip" id="tutSkip" data-i18n="tutSkip">Überspringen</button>
+    <button class="btn solid tut-next" id="tutNext" data-i18n="tutNext">Weiter</button>
+  </div>
+
   <div id="toast" class="toast"></div>
 </div>
 
@@ -1078,6 +1122,24 @@
       searchPlaylistPh: 'In Playlist suchen', searchVideosPh: 'Videos suchen', noMatches: 'Keine passenden Videos',
       aClipSettings: 'Einstellungen dieses Videos', clipVolTitle: 'Lautstärke', resetDefault: 'Standard',
       clipVolHint: 'Gilt dauerhaft für dieses Video, zusätzlich zur Verstärkung in den Einstellungen. 200 % = gefühlt doppelt, 50 % = halb so laut.',
+      tutSetting: 'Tutorial', tutSettingHint: 'Zeigt dir die wichtigsten Funktionen Schritt für Schritt.', tutStart: 'Starten',
+      tutNext: 'Weiter', tutDone: 'Fertig', tutSkip: 'Überspringen', tutSkipTitle: 'Tutorial überspringen?',
+      tutSkipText: 'Du kannst es jederzeit in den Einstellungen unter „Tutorial“ wieder starten.',
+      tutFinished: 'Tutorial abgeschlossen — viel Erfolg beim Training!',
+      tutImport: 'Tippe auf das +, um ein Video aus deiner Galerie in die App zu laden.',
+      tutToPlaylists: 'Super! Tippe jetzt unten auf „Playlists“.',
+      tutNewPlaylist: 'Tippe auf „Neue Playlist“, um deine erste Playlist zu erstellen.',
+      tutNewPlaylistModal: 'Gib deiner Playlist einen Namen und tippe auf „Erstellen“.',
+      tutAddVideos: 'Tippe auf „+ Videos“, um dein Video in die Playlist zu packen.',
+      tutAddVideosModal: 'Setze den Haken bei deinem Video und schließe das Fenster dann oben rechts mit dem X.',
+      tutShuffle: 'Shuffle: Die Playlist läuft in zufälliger Reihenfolge. Leuchtet der Button rot, ist es an.',
+      tutTrim: 'Verkürzt: Jedes Video endet 5 Sekunden früher. Über die Schere im Player kannst du einzelne Videos davon ausnehmen.',
+      tutRemove: 'Mit dem X nimmst du ein Video aus der Playlist. In deiner Bibliothek bleibt es erhalten.',
+      tutDisable: 'Mit diesem Symbol sperrst du ein Video: Es bleibt in der Playlist, wird beim Abspielen aber übersprungen.',
+      tutDrag: 'Halte die sechs Punkte gedrückt und ziehe, um die Reihenfolge zu ändern.',
+      tutToSettings: 'Tippe zum Schluss unten auf „Einstellungen“.',
+      tutHideVideo: 'Hier blendest du das Videobild für alle Videos aus, dann läuft nur der Ton. Im Player kannst du das auch für jedes Video einzeln einstellen.',
+      tutBoost: 'Hier machst du alle Videos lauter. Über das Zahnrad in der Bibliothek kannst du die Lautstärke auch für jedes Video einzeln anpassen.',
       clipCoverTitle: 'Cover-Bild', clipCoverPick: 'Bild wählen', clipCoverChange: 'Bild ändern',
       clipCoverSet: 'Cover-Bild gesetzt', clipCoverRemoved: 'Cover-Bild entfernt',
       clipVolSaved: pct => 'Lautstärke ' + pct + '% gespeichert — gilt ab dem nächsten Start des Videos',
@@ -1143,6 +1205,24 @@
       searchPlaylistPh: 'Search in playlist', searchVideosPh: 'Search videos', noMatches: 'No matching videos',
       aClipSettings: 'Settings for this video', clipVolTitle: 'Volume', resetDefault: 'Default',
       clipVolHint: 'Applies to this video permanently, on top of the boost in Settings. 200% = twice as loud, 50% = half as loud.',
+      tutSetting: 'Tutorial', tutSettingHint: 'Walks you through the most important features step by step.', tutStart: 'Start',
+      tutNext: 'Next', tutDone: 'Done', tutSkip: 'Skip', tutSkipTitle: 'Skip the tutorial?',
+      tutSkipText: 'You can start it again any time in Settings under “Tutorial”.',
+      tutFinished: 'Tutorial complete — have a great workout!',
+      tutImport: 'Tap the + to load a video from your gallery into the app.',
+      tutToPlaylists: 'Great! Now tap “Playlists” at the bottom.',
+      tutNewPlaylist: 'Tap “New playlist” to create your first playlist.',
+      tutNewPlaylistModal: 'Give your playlist a name and tap “Create”.',
+      tutAddVideos: 'Tap “+ Videos” to put your video into the playlist.',
+      tutAddVideosModal: 'Tick your video, then close the window with the X at the top right.',
+      tutShuffle: 'Shuffle: the playlist plays in random order. When the button glows red, it is on.',
+      tutTrim: 'Trimmed: every video ends 5 seconds early. With the scissors in the player you can exclude single videos.',
+      tutRemove: 'The X takes a video out of the playlist. It stays in your library.',
+      tutDisable: 'This symbol locks a video: it stays in the playlist but is skipped during playback.',
+      tutDrag: 'Press and drag the six dots to change the order.',
+      tutToSettings: 'Finally, tap “Settings” at the bottom.',
+      tutHideVideo: 'Here you hide the video picture for all videos, so only the sound plays. In the player you can also set this for each video.',
+      tutBoost: 'Here you make all videos louder. With the gear in the library you can also adjust the volume of each video.',
       clipCoverTitle: 'Cover image', clipCoverPick: 'Choose image', clipCoverChange: 'Change image',
       clipCoverSet: 'Cover image set', clipCoverRemoved: 'Cover image removed',
       clipVolSaved: pct => 'Volume ' + pct + '% saved — applies from the next time the video starts',
@@ -1287,7 +1367,7 @@
     fpHideVideo: $('#fpHideVideo'), fpShuffle: $('#fpShuffle'), fpPrev: $('#fpPrev'), fpPlayPause: $('#fpPlayPause'), fpNext: $('#fpNext'), fpRepeat: $('#fpRepeat'), fpQueue: $('#fpQueue'),
     queueSheetBackdrop: $('#queueSheetBackdrop'), queueSheetClose: $('#queueSheetClose'), queueList: $('#queueList'),
     cropBackdrop: $('#cropBackdrop'), cropStage: $('#cropStage'), cropFrame: $('#cropFrame'), cropCancel: $('#cropCancel'), cropConfirm: $('#cropConfirm'),
-    setAudioOnly: $('#setAudioOnly'),
+    setAudioOnly: $('#setAudioOnly'), setTutorial: $('#setTutorial'),
     setVolumeBoost: $('#setVolumeBoost'), volumeBoostValue: $('#volumeBoostValue'),
     pickSheetBackdrop: $('#pickSheetBackdrop'), pickSheetList: $('#pickSheetList'), pickSheetClose: $('#pickSheetClose'),
     dialogBackdrop: $('#dialogBackdrop'), dialogTitle: $('#dialogTitle'), dialogText: $('#dialogText'),
@@ -1779,13 +1859,13 @@
     }
     if (onRemove) {
       const btn = document.createElement('button'); btn.className = 'icon-btn'; btn.innerHTML = ICONS.close;
-      btn.setAttribute('aria-label', t('aRemoveFromPl'));
+      btn.setAttribute('aria-label', t('aRemoveFromPl')); btn.dataset.tut = 'remove';   // data-tut: found by the tutorial
       btn.addEventListener('click', (e) => { e.stopPropagation(); onRemove(); });
       actions.appendChild(btn);
     }
     if (onToggleDisabled) {
       const btn = document.createElement('button'); btn.className = 'icon-btn' + (disabled ? ' toggled' : ''); btn.innerHTML = ICONS.ban;
-      btn.setAttribute('aria-label', disabled ? t('aEnableInPl') : t('aDisableInPl'));
+      btn.setAttribute('aria-label', disabled ? t('aEnableInPl') : t('aDisableInPl')); btn.dataset.tut = 'disable';
       btn.addEventListener('click', (e) => { e.stopPropagation(); onToggleDisabled(); });
       actions.appendChild(btn);
     }
@@ -1797,7 +1877,7 @@
     }
     if (dragHandle) {
       const handle = document.createElement('button'); handle.className = 'icon-btn drag-handle'; handle.innerHTML = ICONS.grip;
-      handle.setAttribute('aria-label', t('aDrag'));
+      handle.setAttribute('aria-label', t('aDrag')); handle.dataset.tut = 'drag';
       actions.appendChild(handle);
     }
 
@@ -3150,6 +3230,125 @@
     if (e.ctrlKey) e.preventDefault();
   }, { passive: false });
 
+  /* ================= Tutorial (onboarding) ================= */
+  /* Starts by itself on a genuinely first open (empty library) and any time from Settings ->
+     Tutorial. Action steps wait until the user has really done the thing — only the highlighted
+     control can be tapped; explanation steps ("info") have "Weiter" instead. One timer re-measures
+     the highlighted element, so the spotlight follows scrolling, re-renders and view changes
+     without hooks into the rest of the app (a timer rather than rAF so throttled tabs keep going).
+     While a dialog or sheet that belongs to the step is open (playlist name, "Videos hinzufügen"),
+     nothing is dimmed or blocked — only a hint stays at the top. */
+  const tutSteps = [
+    { text: 'tutImport', target: () => $('#importBtn'), done: s => state.videos.length > s.videos },
+    { text: 'tutToPlaylists', target: () => $('.tab[data-view="playlists"]'), done: () => state.view === 'playlists' },
+    // creating a playlist opens it right away, so "tap the new playlist" needs no step of its own
+    { text: 'tutNewPlaylist', modalText: 'tutNewPlaylistModal', target: () => el.newPlaylistBtn,
+      done: s => state.playlists.length > s.playlists && state.view === 'playlistDetail' },
+    { text: 'tutAddVideos', modalText: 'tutAddVideosModal', target: () => el.pdAddVideos,
+      done: () => { const p = playlistById(state.activePlaylistId); return !!(p && p.videoIds.length) && el.pickSheetBackdrop.classList.contains('hidden'); } },
+    { text: 'tutShuffle', info: true, target: () => el.pdPlayShuffle },
+    { text: 'tutTrim', info: true, target: () => el.pdToggleTrim },
+    { text: 'tutRemove', info: true, target: () => $('#pdList [data-tut="remove"]') },
+    { text: 'tutDisable', info: true, target: () => $('#pdList [data-tut="disable"]') },
+    { text: 'tutDrag', info: true, target: () => $('#pdList [data-tut="drag"]') },
+    { text: 'tutToSettings', target: () => $('.tab[data-view="settings"]'), done: () => state.view === 'settings' },
+    { text: 'tutHideVideo', info: true, target: () => el.setAudioOnly.closest('.setting-row') },
+    { text: 'tutBoost', info: true, target: () => $('.setting-row-boost') }
+  ];
+  const tut = { on: false, i: 0, snap: null, timer: 0, scrolled: -1 };
+  const tutEls = {
+    root: $('#tut'), hole: $('#tutHole'), bubble: $('#tutBubble'), text: $('#tutText'), next: $('#tutNext'), skip: $('#tutSkip'),
+    blocks: ['#tutBlockTop', '#tutBlockBottom', '#tutBlockLeft', '#tutBlockRight', '#tutBlockHole'].map($)
+  };
+  function startTutorial(){
+    // a clean starting point: library, nothing open on top
+    collapsePlayer();
+    [el.pickSheetBackdrop, el.queueSheetBackdrop, el.clipVolBackdrop].forEach(b => b.classList.add('hidden'));
+    switchView('library');
+    tut.on = true;
+    tutGo(0);
+    tutEls.root.hidden = false;
+    clearInterval(tut.timer);
+    tut.timer = setInterval(tutTick, 120);
+    tutTick();
+  }
+  function tutGo(i){
+    tut.i = i;
+    tut.snap = { videos: state.videos.length, playlists: state.playlists.length };   // "has the user done it" is measured from here
+    tut.scrolled = -1;
+  }
+  function tutAdvance(){
+    if (tut.i >= tutSteps.length - 1) { endTutorial(true); return; }
+    tutGo(tut.i + 1);
+    tutTick();
+  }
+  function endTutorial(finished){
+    tut.on = false;
+    clearInterval(tut.timer);
+    tutEls.root.hidden = true;
+    state.settings.tutorialDone = true;
+    saveSettings();
+    if (finished) toast(t('tutFinished'));
+  }
+  function tutModalOpen(){
+    return [el.dialogBackdrop, el.pickSheetBackdrop, el.cropBackdrop, el.clipVolBackdrop, el.queueSheetBackdrop]
+      .some(b => !b.classList.contains('hidden'));
+  }
+  function tutPlace(node, x, y, w, h){
+    node.style.left = x + 'px'; node.style.top = y + 'px';
+    node.style.width = Math.max(0, w) + 'px'; node.style.height = Math.max(0, h) + 'px';
+  }
+  function tutTick(){
+    if (!tut.on) return;
+    const step = tutSteps[tut.i];
+    if (!step.info && step.done(tut.snap)) { tutAdvance(); return; }
+    const modal = tutModalOpen();
+    const target = modal ? null : step.target();
+    const visible = !!(target && target.getClientRects().length);
+    if (step.info && !modal && !visible) { tutAdvance(); return; }   // nothing to point at (e.g. no row) — move on
+    tutEls.text.textContent = t(modal && step.modalText ? step.modalText : step.text);
+    tutEls.skip.hidden = modal;
+    tutEls.next.hidden = modal || !step.info;
+    tutEls.next.textContent = tut.i === tutSteps.length - 1 ? t('tutDone') : t('tutNext');
+    if (modal || !visible) {
+      tutEls.hole.hidden = true;
+      tutEls.blocks.forEach(b => { b.hidden = true; });
+      tutEls.bubble.style.top = 'calc(12px + env(safe-area-inset-top, 0px))';
+      tutEls.bubble.style.bottom = '';
+      return;
+    }
+    let r = target.getBoundingClientRect();
+    // once per step: an explanation target hidden under the bars or off screen is scrolled into view
+    if (tut.scrolled !== tut.i) {
+      tut.scrolled = tut.i;
+      if (step.info && (r.top < 90 || r.bottom > window.innerHeight - 170)) {
+        window.scrollBy(0, r.top - window.innerHeight / 2 + r.height / 2);
+        r = target.getBoundingClientRect();
+      }
+    }
+    const pad = 6, x = r.left - pad, y = r.top - pad, w = r.width + pad * 2, h = r.height + pad * 2;
+    const W = window.innerWidth, H = window.innerHeight;
+    const [top, bottom, left, right, over] = tutEls.blocks;
+    tutEls.hole.hidden = false;
+    tutPlace(tutEls.hole, x, y, w, h);
+    [top, bottom, left, right].forEach(b => { b.hidden = false; });
+    tutPlace(top, 0, 0, W, y);
+    tutPlace(bottom, 0, y + h, W, H - y - h);
+    tutPlace(left, 0, y, x, h);
+    tutPlace(right, x + w, y, W - x - w, h);
+    tutPlace(over, x, y, w, h);
+    over.hidden = !step.info;   // explanation steps: the highlighted control itself isn't tappable either
+    // the bubble goes below a spotlight in the upper half of the screen, above one in the lower half
+    if (y + h / 2 < H / 2) { tutEls.bubble.style.top = (y + h + 14) + 'px'; tutEls.bubble.style.bottom = ''; }
+    else { tutEls.bubble.style.bottom = (H - y + 14) + 'px'; tutEls.bubble.style.top = ''; }
+  }
+  tutEls.next.addEventListener('click', tutAdvance);
+  tutEls.skip.addEventListener('click', async () => {
+    const ok = await showDialog({ title: t('tutSkipTitle'), text: t('tutSkipText'), confirmLabel: t('tutSkip') });
+    if (ok) endTutorial(false);
+  });
+  el.setTutorial.addEventListener('click', startTutorial);
+
   /* ================= Boot ================= */
   async function boot(){
     try {
@@ -3189,6 +3388,12 @@
     renderLibrary();
     renderPlaylists();
     await restoreState();
+    // A first open ever (nothing imported yet) starts the tutorial by itself. Anyone who already
+    // has videos never gets it forced on them; Settings -> Tutorial starts it any time.
+    if (!state.settings.tutorialDone) {
+      if (state.videos.length) { state.settings.tutorialDone = true; saveSettings(); }
+      else startTutorial();
+    }
     // Deliberately NO pre-rendering here: warming the restored queue at launch is what ran iOS out
     // of memory a few seconds after opening — and since it ran on every launch, the app crashed
     // again on every reopen ("ist wiederholt ein Problem aufgetreten"). Rendering starts once the
