@@ -23,12 +23,10 @@
      equivalent worth making, so this commits to the dark palette outright. */
   :root{
     --bg:#0E0909;
-    --surface:#181010;
     --surface-2:#221717;
     --ink:#F5E7E7;
     --ink-muted:#A8898B;
     --ink-faint:#6E5658;
-    --line:#301D1E;
     /* Liquid glass. Glass only reads as glass when it is LIGHTER than what's behind it and
        there is something luminous behind it to see through: a white-tinted translucent
        material + bright edge highlights over the red --ambient backdrop. (Four earlier
@@ -51,7 +49,6 @@
     --accent-glow:#FF4D5E;
     --accent-ink:#FCEAEA;
     --danger:#E2604A;
-    --danger-ink:#1A0708;
     --shadow:0 12px 28px -14px rgba(0,0,0,.7);
     --radius-s:6px;
     --radius-m:10px;
@@ -132,8 +129,6 @@
   }
   .icon-btn svg{width:22px;height:22px;}
   .icon-btn:active{background:rgba(255,255,255,.09);}
-  .icon-btn.primary{background:var(--accent);color:var(--accent-ink);}
-  .icon-btn.primary:active{filter:brightness(.92);}
 
   /* Brand watermark: one fixed layer behind every view, so the helmet stays put once the
      library fills up and is never cropped — background-size:contain always fits it whole. */
@@ -151,7 +146,7 @@
     z-index:0;
   }
   .topbar{position:relative;z-index:1;}
-  .views{position:relative;z-index:1;flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;padding:2px 18px 130px;}
+  .views{position:relative;z-index:1;flex:1;overflow-y:auto;overscroll-behavior:contain;padding:2px 18px 130px;}
   .view{display:none;}
   .view.active{display:block;}
 
@@ -249,7 +244,7 @@
   .track-actions .icon-btn.danger:active{color:var(--danger);}
   .track-actions .icon-btn.toggled{color:var(--accent-glow);}
 
-  /* TikTok-style thumbnail grid for the library, in place of the sprocket list */
+  /* TikTok-style thumbnail grid for the library */
   .library-grid{
     display:grid;grid-template-columns:repeat(3, 1fr);gap:4px;
   }
@@ -495,9 +490,9 @@
   .mini-controls{display:flex;align-items:center;gap:2px;}
 
   /* ---------- Floating import button ---------- */
-  /* bottom-center, reachable while browsing or while a video is loaded (mini player).
-     Sits BEHIND the full-screen player (z-index below .full-player) — that view gets
-     its own import button in its header instead, so nothing overlaps its controls. */
+  /* bottom-center in the library, lifted above the mini player while a video is loaded.
+     Sits BEHIND the full-screen player (z-index below .full-player), so it never covers
+     the player's controls. */
   .fab-wrap{
     position:fixed;
     left:0;right:0;
@@ -571,7 +566,7 @@
   }
   .fp-progress-bar.scrubbing .fp-progress-knob{width:20px;height:20px;}
   .fp-times{display:flex;justify-content:space-between;font-family:var(--font-mono);font-size:11px;color:var(--ink-faint);padding-top:7px;}
-  /* Six controls now, so the gap gives way before the buttons do. */
+  /* Seven controls, so the gap gives way before the buttons do. */
   .fp-controls{
     display:flex;align-items:center;justify-content:center;
     gap:clamp(6px, 3.4vw, 20px);
@@ -579,8 +574,6 @@
   }
   @media (max-width: 360px){
     .fp-controls{gap:6px;padding:14px 8px 8px;}
-    .fp-controls .icon-btn{width:40px;height:40px;}
-    .fp-controls .icon-btn.big{width:56px;height:56px;}
   }
   .fp-controls .icon-btn{width:44px;height:44px;color:var(--ink-muted);}
   .fp-controls .icon-btn svg{width:22px;height:22px;}
@@ -792,7 +785,7 @@
     <div class="wordmark"><img class="wordmark-helmet" src="helmet-mark.png" alt="">Final 1%</div>
     <!-- Set by hand on every commit that touches index.html — no build step in this project,
          so nothing computes this automatically. Format: DD.MM.YYYY, HH:MM, local time of the commit. -->
-    <span class="build-date"><span data-i18n="updated">Aktualisiert</span>: 08.10.2026, 17:56</span>
+    <span class="build-date"><span data-i18n="updated">Aktualisiert</span>: 08.10.2026, 18:17</span>
   </header>
 
   <input id="fileInput" type="file" accept="video/*,audio/*,.mp3" multiple class="visually-hidden">
@@ -1108,7 +1101,7 @@
       aTrimThis: 'Verkürzung für dieses Video', aCollapse: 'Player einklappen', aPosition: 'Position im Video',
       aHideThis: 'Videobild für dieses Video ausblenden', aShuffle: 'Zufallswiedergabe', aPrev: 'Vorheriges Video',
       aRepeat: 'Wiederholen', aShowQueue: 'Warteschlange anzeigen', aClose: 'Schließen',
-      aDeleteVideo: 'Video löschen', aEditName: 'Videoname bearbeiten', aRenameVideo: 'Video umbenennen',
+      aDeleteVideo: 'Video löschen', aEditName: 'Videoname bearbeiten',
       aRemoveFromPl: 'Aus Playlist entfernen', aEnableInPl: 'Video für diese Playlist wieder aktivieren',
       aDisableInPl: 'Video für diese Playlist deaktivieren', aDrag: 'Ziehen zum Umsortieren',
       aRenamePl: 'Playlist umbenennen', aDeletePl: 'Playlist löschen',
@@ -1191,7 +1184,7 @@
       aTrimThis: 'Trimming for this video', aCollapse: 'Collapse player', aPosition: 'Position in video',
       aHideThis: 'Hide picture for this video', aShuffle: 'Shuffle', aPrev: 'Previous video',
       aRepeat: 'Repeat', aShowQueue: 'Show queue', aClose: 'Close',
-      aDeleteVideo: 'Delete video', aEditName: 'Edit video name', aRenameVideo: 'Rename video',
+      aDeleteVideo: 'Delete video', aEditName: 'Edit video name',
       aRemoveFromPl: 'Remove from playlist', aEnableInPl: 'Re-enable video in this playlist',
       aDisableInPl: 'Disable video in this playlist', aDrag: 'Drag to reorder',
       aRenamePl: 'Rename playlist', aDeletePl: 'Delete playlist',
@@ -1287,7 +1280,7 @@
           if (!db.objectStoreNames.contains('videos')) db.createObjectStore('videos', { keyPath: 'id' });
           if (!db.objectStoreNames.contains('playlists')) db.createObjectStore('playlists', { keyPath: 'id' });
           if (!db.objectStoreNames.contains('meta')) db.createObjectStore('meta', { keyPath: 'key' });
-          // v2: small, blob-free per-video flags (currently just hideImage). Kept out of the
+          // v2: small, blob-free per-video flags (hideImage, clipVolume, cover). Kept out of the
           // `videos` store on purpose — re-`put()`ing a record that carries a video Blob just to
           // flip an unrelated boolean is what corrupted the in-memory blob reference on WebKit in
           // the first place (see toggleVideoHiddenForCurrent()). This store never touches a blob.
@@ -1324,7 +1317,7 @@
 
   /* ================= State ================= */
   const state = {
-    videos: [],       // {id,name,blob,duration,thumbnail,addedAt}
+    videos: [],       // {id,name,creator,blob,duration,thumbnail,addedAt,audio} + hideImage/clipVolume/cover merged in from videoFlags
     playlists: [],     // {id,name,videoIds:[],createdAt,trimmed,cover?} — cover is a square JPEG data URL
     view: 'library',
     activePlaylistId: null,
@@ -1342,7 +1335,6 @@
     shuffle: false,
     repeat: false,
     earlyAdvanceDone: false, // guards the "skip 5s before end" auto-advance from firing more than once per track
-    playerExpanded: false,
     currentObjectUrl: null,
     boostedCache: new Map()   // videoId -> { gain, url }: its offline-rendered WAV and the gain it was rendered at
                               // (global boost x the video's own volume); a gain mismatch means it's stale
@@ -1820,7 +1812,7 @@
     return li;
   }
 
-  function buildTrackRow(v, { onPlay, onRemove, onDelete, onRename, onToggleDisabled, disabled, dragHandle, swipeHint }){
+  function buildTrackRow(v, { onPlay, onRemove, onToggleDisabled, disabled, dragHandle, swipeHint }){
     const li = document.createElement('li');
     li.className = 'track-row';
     li.classList.toggle('disabled', !!disabled);
@@ -1856,12 +1848,6 @@
     badge.hidden = true;
     actions.appendChild(badge);
 
-    if (onRename) {
-      const btn = document.createElement('button'); btn.className = 'icon-btn'; btn.innerHTML = ICONS.pencil;
-      btn.setAttribute('aria-label', t('aRenameVideo'));
-      btn.addEventListener('click', (e) => { e.stopPropagation(); onRename(); });
-      actions.appendChild(btn);
-    }
     if (onRemove) {
       const btn = document.createElement('button'); btn.className = 'icon-btn'; btn.innerHTML = ICONS.close;
       btn.setAttribute('aria-label', t('aRemoveFromPl')); btn.dataset.tut = 'remove';   // data-tut: found by the tutorial
@@ -1872,12 +1858,6 @@
       const btn = document.createElement('button'); btn.className = 'icon-btn' + (disabled ? ' toggled' : ''); btn.innerHTML = ICONS.ban;
       btn.setAttribute('aria-label', disabled ? t('aEnableInPl') : t('aDisableInPl')); btn.dataset.tut = 'disable';
       btn.addEventListener('click', (e) => { e.stopPropagation(); onToggleDisabled(); });
-      actions.appendChild(btn);
-    }
-    if (onDelete) {
-      const btn = document.createElement('button'); btn.className = 'icon-btn danger'; btn.innerHTML = ICONS.trash;
-      btn.setAttribute('aria-label', t('aDeleteVideo'));
-      btn.addEventListener('click', (e) => { e.stopPropagation(); onDelete(); });
       actions.appendChild(btn);
     }
     if (dragHandle) {
@@ -3145,8 +3125,8 @@
   el.fpProgressBar.addEventListener('pointerup', endScrub);
   el.fpProgressBar.addEventListener('pointercancel', endScrub);
 
-  function expandPlayer(){ el.fullPlayer.classList.remove('hidden'); state.playerExpanded = true; }
-  function collapsePlayer(){ el.fullPlayer.classList.add('hidden'); state.playerExpanded = false; }
+  function expandPlayer(){ el.fullPlayer.classList.remove('hidden'); }
+  function collapsePlayer(){ el.fullPlayer.classList.add('hidden'); }
 
   /* ================= Media Session (lock screen controls) ================= */
   function updateMediaSession(v){
