@@ -765,7 +765,7 @@
     <div class="wordmark"><img class="wordmark-helmet" src="helmet-mark.png" alt="">Final 1%</div>
     <!-- Set by hand on every commit that touches index.html — no build step in this project,
          so nothing computes this automatically. Format: DD.MM.YYYY, HH:MM, local time of the commit. -->
-    <span class="build-date"><span data-i18n="updated">Aktualisiert</span>: 08.10.2026, 12:59</span>
+    <span class="build-date"><span data-i18n="updated">Aktualisiert</span>: 08.10.2026, 13:57</span>
   </header>
 
   <input id="fileInput" type="file" accept="video/*,audio/*,.mp3" multiple class="visually-hidden">
@@ -850,7 +850,7 @@
             <div class="setting-warning" data-i18n="boostWarn">Sehr laute Lautstärke kann auf Dauer den Ohren schaden und je nach Kopfhörern oder Lautsprechern auch diese belasten.</div>
           </div>
           <div class="boost-control">
-            <input type="range" id="setVolumeBoost" min="100" max="300" step="10" value="100" aria-label="Lautstärke-Verstärkung" data-i18n-aria="boost">
+            <input type="range" id="setVolumeBoost" min="100" max="200" step="10" value="100" aria-label="Lautstärke-Verstärkung" data-i18n-aria="boost">
             <span class="boost-value" id="volumeBoostValue">100%</span>
           </div>
         </li>
@@ -1243,7 +1243,7 @@
     playlists: [],     // {id,name,videoIds:[],createdAt,trimmed,cover?} — cover is a square JPEG data URL
     view: 'library',
     activePlaylistId: null,
-    settings: { audioOnly: false, volumeBoost: 1, language: 'de' }, // volumeBoost is a multiplier: 1 = 100% = off
+    settings: { audioOnly: false, volumeBoost: 1, language: 'de' }, // volumeBoost is the amplitude factor: 1 = 100% = off (the slider shows it on a loudness scale, see boostPctToGain)
     // playback
     currentId: null,    // id of the loaded track — may come from playOrder OR from the manual queue
     queue: [],          // manual "play next" entries {id, marked}; marked = put there by the user
@@ -2389,7 +2389,7 @@
   function applySettings(){
     updateVideoVisibility();
     el.setAudioOnly.setAttribute('aria-checked', state.settings.audioOnly ? 'true' : 'false');
-    const pct = Math.round((state.settings.volumeBoost || 1) * 100);
+    const pct = boostGainToPct(state.settings.volumeBoost || 1);
     el.setVolumeBoost.value = pct;
     el.volumeBoostValue.textContent = pct + '%';
     document.querySelectorAll('.lang-switch [data-lang]').forEach(b => {
@@ -2475,6 +2475,15 @@
       const rec = await dbGet('meta', 'settings');
       if (rec && rec.value) state.settings = Object.assign(state.settings, rec.value);
     } catch (e) {}
+    // Until Oct 2026 the slider went to 300% and stored the plain amplitude factor (300% = 3x =
+    // +9.5 dB). Convert once onto the loudness scale, rounding up so nobody ends up quieter.
+    if (state.settings.boostScale !== 'loudness') {
+      const g = state.settings.volumeBoost || 1;
+      const pct = g <= 1 ? 100 : Math.min(200, Math.ceil(100 * Math.pow(2, 20 * Math.log10(g) / 10) / 10 - 1e-6) * 10);
+      state.settings.volumeBoost = boostPctToGain(pct);
+      state.settings.boostScale = 'loudness';
+      saveSettings();
+    }
     lang = state.settings.language === 'en' ? 'en' : 'de';
     applyStaticTexts();
     applySettings();
@@ -2509,8 +2518,15 @@
   el.setVolumeBoost.addEventListener('input', () => {
     el.volumeBoostValue.textContent = el.setVolumeBoost.value + '%'; // live label only, no reprocessing yet
   });
+  /* The boost slider is on a loudness scale, not an amplitude one: the ear hears about +10 dB as
+     "twice as loud", so 200% = +10 dB (3.16x amplitude), 150% = +5.8 dB (1.96x). A plain
+     amplitude factor reads misleadingly — 300% (3x) is only +9.5 dB, i.e. roughly double, which
+     is exactly what a user measured with a dB meter. volumeBoost stays the amplitude factor the
+     audio is rendered with (effectiveGain). */
+  function boostPctToGain(pct){ return Math.round(Math.pow(10, 10 * Math.log2(pct / 100) / 20) * 100) / 100; }
+  function boostGainToPct(gain){ return Math.min(200, Math.max(100, Math.round(100 * Math.pow(2, 20 * Math.log10(gain) / 10) / 10) * 10)); }
   el.setVolumeBoost.addEventListener('change', () => {
-    const newLevel = Number(el.setVolumeBoost.value) / 100;
+    const newLevel = boostPctToGain(Number(el.setVolumeBoost.value));
     if (newLevel !== state.settings.volumeBoost) {
       state.settings.volumeBoost = newLevel;
       saveSettings();
