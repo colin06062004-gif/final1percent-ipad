@@ -546,7 +546,10 @@
     box-shadow:var(--shadow);
   }
   .fp-meta{padding:6px 24px 0;text-align:left;}
-  .fp-title{font-size:21px;line-height:1.2;}
+  .fp-title{
+    font-size:21px;line-height:1.2;overflow-wrap:anywhere;
+    display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
+  }
   .fp-progress-wrap{padding:22px 24px 6px;}
   .fp-progress-bar{
     position:relative;height:4px;border-radius:2px;background:rgba(255,255,255,.14);cursor:pointer;
@@ -636,7 +639,6 @@
   .pick-check svg{width:13px;height:13px;}
   .pick-thumb{width:36px;height:36px;border-radius:8px;object-fit:cover;background:rgba(0,0,0,.25);flex-shrink:0;}
   .queue-list .track-row{padding:8px;touch-action:pan-y;}
-  .queue-list{border:none;padding-left:0;}
 
   /* ---------- Settings ---------- */
   /* grouped glass card, iOS-settings style */
@@ -790,7 +792,7 @@
     <div class="wordmark"><img class="wordmark-helmet" src="helmet-mark.png" alt="">Final 1%</div>
     <!-- Set by hand on every commit that touches index.html — no build step in this project,
          so nothing computes this automatically. Format: DD.MM.YYYY, HH:MM, local time of the commit. -->
-    <span class="build-date"><span data-i18n="updated">Aktualisiert</span>: 09.10.2026, 16:03</span>
+    <span class="build-date"><span data-i18n="updated">Aktualisiert</span>: 09.10.2026, 18:56</span>
   </header>
 
   <input id="fileInput" type="file" accept="video/*,audio/*,.mp3" multiple class="visually-hidden">
@@ -1171,7 +1173,6 @@
       imgLoadFail: 'Bild konnte nicht geladen werden', imgProcessFail: 'Bild konnte nicht verarbeitet werden',
       videoDeleted: 'Video gelöscht',
       queued: name => '„' + name + '“ in die Warteschlange',
-      nextUp: name => '„' + name + '“ ist jetzt als nächstes dran',
       coverSet: 'Playlist-Bild gesetzt', coverRemoved: 'Playlist-Bild entfernt',
       coverMenuTitle: 'Playlist-Bild', coverMenuPick: 'Foto auswählen',
       plEmptyToast: 'Playlist ist leer', allDisabled: 'Alle Videos in dieser Playlist sind deaktiviert',
@@ -1253,7 +1254,6 @@
       imgLoadFail: 'Couldn’t load the image', imgProcessFail: 'Couldn’t process the image',
       videoDeleted: 'Video deleted',
       queued: name => '“' + name + '” added to the queue',
-      nextUp: name => '“' + name + '” plays next',
       coverSet: 'Playlist image set', coverRemoved: 'Playlist image removed',
       coverMenuTitle: 'Playlist image', coverMenuPick: 'Choose photo',
       plEmptyToast: 'Playlist is empty', allDisabled: 'All videos in this playlist are disabled',
@@ -2171,6 +2171,9 @@
   }
 
   /* ================= Queue ================= */
+  /* state.queue is the "Warteschlange" proper: videos put in line by a swipe, each marked with the
+     badge, played before the list goes on and in the order they were added. state.playOrder always
+     stays the whole list (never cut short), so "Wiederholen" can come round to every video again. */
   function isPlayingFromQueue(){
     return !!state.currentId && state.currentId !== state.playOrder[state.posIndex];
   }
@@ -2184,15 +2187,31 @@
       if (badge && !row.closest('.queue-list')) badge.hidden = !ids.has(row.dataset.id);
     });
   }
+  // where a newly queued video goes: behind everything already waiting with the badge
+  function queueInsertIndex(){
+    let i = 0;
+    while (i < state.queue.length && state.queue[i].marked) i++;
+    return i;
+  }
+  // A queued video isn't played a second time at its list place in this round: that place moves
+  // to just before the current list position, i.e. the end of the round (where "Wiederholen"
+  // comes round to it again). Already played this round, or not in the list: nothing to move.
+  function takeOutOfRound(id){
+    const i = state.playOrder.indexOf(id);
+    if (i <= state.posIndex) return;
+    state.playOrder.splice(i, 1);
+    state.playOrder.splice(state.posIndex, 0, id);
+    state.posIndex++;
+  }
   function queueVideo(id){
     const v = videoById(id);
     if (!v) return;
-    state.queue.push({ id, marked: true });
+    state.queue.splice(queueInsertIndex(), 0, { id, marked: true });
     if (!state.playOrder.length || state.posIndex < 0 || !state.currentId) {
       // nothing playing yet — the queue itself becomes the source so the swipe never dead-ends
       if (!state.queueLabel) state.queueLabel = 'Warteschlange';
       nextTrack();
-    }
+    } else takeOutOfRound(id);
     markQueuedRows();
     refreshNowPlayingUI();
     if (!el.queueSheetBackdrop.classList.contains('hidden')) renderQueueSheet();
@@ -2203,9 +2222,11 @@
   function buildQueueView(){
     const view = [];
     state.queue.forEach((e, i) => { if (videoById(e.id)) view.push({ key: 'q' + i, id: e.id, marked: !!e.marked }); });
-    for (let i = state.posIndex + 1; i < state.playOrder.length; i++) {
-      if (videoById(state.playOrder[i])) view.push({ key: 'p' + i, id: state.playOrder[i], marked: false });
-    }
+    const listEntry = (i) => { if (videoById(state.playOrder[i])) view.push({ key: 'p' + i, id: state.playOrder[i], marked: false }); };
+    for (let i = state.posIndex + 1; i < state.playOrder.length; i++) listEntry(i);
+    // with "Wiederholen" the list starts over after its end — that round is shown too, up to the
+    // current video, so whatever just played is already waiting at the bottom again
+    if (state.repeat) for (let i = 0; i < state.posIndex; i++) listEntry(i);
     return view;
   }
   function renderQueueSheet(){
@@ -2228,27 +2249,31 @@
       el.queueList.appendChild(li);
     });
   }
-  /* Swiping a queue-sheet entry moves it straight to the front, so it plays next. */
+  /* Swiping a queue-sheet entry puts it in the queue, with the badge, behind what's already waiting
+     there — the same as swiping it in a list. Entries that already have the badge stay put. */
   function promoteQueueEntry(key){
-    const idx = state.queueView.findIndex(e => e.key === key);
-    if (idx <= 0) return;
-    const entry = state.queueView[idx];
-    const rest = state.queueView.slice(0, idx).concat(state.queueView.slice(idx + 1));
-    const newView = [entry, ...rest];
-    state.queue = newView.map(e => ({ id: e.id, marked: e.marked }));
-    state.playOrder = state.playOrder.slice(0, state.posIndex + 1);
+    const entry = state.queueView.find(e => e.key === key);
+    if (!entry || entry.marked) return;
+    if (key[0] === 'q') state.queue.splice(Number(key.slice(1)), 1);   // an unmarked one from an older version
+    else takeOutOfRound(entry.id);
+    state.queue.splice(queueInsertIndex(), 0, { id: entry.id, marked: true });
     renderQueueSheet(); markQueuedRows(); refreshNowPlayingUI(); saveState();
     const v = videoById(entry.id);
-    if (v) toast(t('nextUp', v.name));
+    if (v) toast(t('queued', v.name));
   }
-  /* Tapping an entry plays it now; everything above it is dropped from the queue. */
+  /* Tapping an entry plays it now; everything above it is skipped. */
   function jumpToQueueEntry(key){
-    const idx = state.queueView.findIndex(e => e.key === key);
-    if (idx < 0) return;
-    const rest = state.queueView.slice(idx);
-    state.queue = rest.map(e => ({ id: e.id, marked: e.marked }));
-    state.playOrder = state.playOrder.slice(0, state.posIndex + 1);
-    nextTrack();
+    if (!state.queueView.some(e => e.key === key)) return;
+    if (key[0] === 'q') {
+      state.queue = state.queue.slice(Number(key.slice(1)));   // queued entries above it are dropped
+      nextTrack();
+    } else {
+      // the whole queue sits above any list entry; the list goes on from this one
+      state.queue = [];
+      state.posIndex = Number(key.slice(1));
+      state.currentId = state.playOrder[state.posIndex];
+      loadCurrentTrack(true);
+    }
     renderQueueSheet(); markQueuedRows();
   }
   el.fpQueue.addEventListener('click', () => { renderQueueSheet(); el.queueSheetBackdrop.classList.remove('hidden'); });
@@ -2417,10 +2442,26 @@
   enableDragReorder(el.queueList, {
     getOrder: () => state.queueView.map(e => e.key),
     onDrop: (newKeys) => {
-      // The visible order becomes the queue outright, so a reordered list plays exactly as shown.
+      // Plays exactly as shown. Everything down to the last queue entry is the queue (list videos
+      // dragged up into it join it and leave this round, see takeOutOfRound); below that is the list
+      // in its new order, with as many videos left in this round as before — the rest, shown under
+      // "Wiederholen", comes after the restart. The list itself is never cut short.
       const byKey = new Map(state.queueView.map(e => [e.key, e]));
-      state.queue = newKeys.map(k => byKey.get(k)).filter(Boolean).map(e => ({ id: e.id, marked: e.marked }));
-      state.playOrder = state.playOrder.slice(0, state.posIndex + 1);
+      const entries = newKeys.map(k => byKey.get(k)).filter(Boolean);
+      const isQ = e => e.key[0] === 'q';
+      const lastQ = entries.map(isQ).lastIndexOf(true);
+      const queued = entries.slice(0, lastQ + 1);
+      state.queue = queued.map(e => ({ id: e.id, marked: true }));
+      if (state.playOrder.length) {
+        const upcoming = e => !isQ(e) && Number(e.key.slice(1)) > state.posIndex;
+        const pulled = queued.filter(e => !isQ(e));
+        const rest = entries.slice(lastQ + 1).map(e => e.id);
+        const left = state.queueView.filter(upcoming).length - pulled.filter(upcoming).length;
+        const played = state.repeat ? [] : state.playOrder.slice(0, state.posIndex);   // not in the sheet
+        const before = [...played, ...rest.slice(left), ...pulled.map(e => e.id)];
+        state.playOrder = [...before, state.playOrder[state.posIndex], ...rest.slice(0, left)];
+        state.posIndex = before.length;
+      }
       renderQueueSheet(); markQueuedRows(); refreshNowPlayingUI(); saveState();
     }
   });
@@ -3051,6 +3092,7 @@
   function toggleRepeat(){
     state.repeat = !state.repeat;
     refreshNowPlayingUI(); saveState();
+    if (!el.queueSheetBackdrop.classList.contains('hidden')) renderQueueSheet();
     toast(state.repeat ? t('repeatOn') : t('repeatOff'));
   }
 
@@ -3193,6 +3235,11 @@
 
   function expandPlayer(){ el.fullPlayer.classList.remove('hidden'); }
   function collapsePlayer(){ el.fullPlayer.classList.add('hidden'); }
+  // The full player is one fixed screen with nothing to scroll; without this, dragging on it moved
+  // the page underneath like a website (scroll bar and all). The progress bar runs on pointer events.
+  document.addEventListener('touchmove', (e) => {
+    if (e.target.closest && e.target.closest('#fullPlayer')) e.preventDefault();
+  }, { passive: false });
 
   /* ================= Media Session (lock screen controls) ================= */
   function updateMediaSession(v){
