@@ -21,7 +21,7 @@ let package = Package(
             bundleIdentifier: "de.colingross.final1percent",   // never change after the first upload
             teamIdentifier: "W78U46ZRF4",
             displayVersion: "1.0",
-            bundleVersion: "8",
+            bundleVersion: "9",
             appIcon: .asset("AppIcon"),
             accentColor: .presetColor(.red),
             supportedDeviceFamilies: [
@@ -38,7 +38,9 @@ let package = Package(
                 // the video import offers "record a video" too; these texts show when that's used
                 .camera(purposeString: "Damit du ein Video direkt aufnehmen und in deine Bibliothek laden kannst."),
                 .microphone(purposeString: "Damit beim Aufnehmen eines Videos auch der Ton mit aufgenommen wird."),
-                .photoLibrary(purposeString: "Damit du Videos und Cover-Bilder aus deiner Mediathek auswählen kannst.")
+                .photoLibrary(purposeString: "Damit du Videos und Cover-Bilder aus deiner Mediathek auswählen kannst."),
+                // "Video sichern" in the share sheet of the download button in a video's settings
+                .photoLibraryAdd(purposeString: "Damit du deine gespeicherten Videos wieder in deine Fotos sichern kannst.")
             ],
             additionalInfoPlistContentFilePath: "AppInfo.plist"
         )
