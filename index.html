@@ -776,6 +776,7 @@
   .clip-cover-thumb img{width:100%;height:100%;object-fit:cover;display:block;}
   .clip-cover-thumb svg{width:22px;height:22px;}
   .dialog input.clip-name-input{margin:8px 0 16px;}
+  .clip-vol-cancel{margin-right:auto;}   /* Abbrechen left, Speichern right */
   /* playlist image already set: the choices stacked full width, like an iOS action sheet */
   .cover-menu-actions{display:flex;flex-direction:column;gap:8px;margin-top:14px;}
   .cover-menu-actions .btn{justify-content:center;padding:12px 14px;font-size:14.5px;}
@@ -789,7 +790,7 @@
     <div class="wordmark"><img class="wordmark-helmet" src="helmet-mark.png" alt="">Final 1%</div>
     <!-- Set by hand on every commit that touches index.html — no build step in this project,
          so nothing computes this automatically. Format: DD.MM.YYYY, HH:MM, local time of the commit. -->
-    <span class="build-date"><span data-i18n="updated">Aktualisiert</span>: 09.10.2026, 15:44</span>
+    <span class="build-date"><span data-i18n="updated">Aktualisiert</span>: 09.10.2026, 16:03</span>
   </header>
 
   <input id="fileInput" type="file" accept="video/*,audio/*,.mp3" multiple class="visually-hidden">
@@ -1026,7 +1027,7 @@
         <button id="clipCoverRemove" class="btn ghost" data-i18n="removeCover">Bild entfernen</button>
       </div>
       <div class="dialog-actions">
-        <button id="clipVolCancel" class="btn ghost" data-i18n="cancel">Abbrechen</button>
+        <button id="clipVolCancel" class="btn ghost clip-vol-cancel" data-i18n="cancel">Abbrechen</button>
         <button id="clipVolSave" class="btn solid" data-i18n="save">Speichern</button>
       </div>
     </div>
