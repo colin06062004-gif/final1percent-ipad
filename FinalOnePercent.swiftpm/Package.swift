@@ -21,7 +21,7 @@ let package = Package(
             bundleIdentifier: "de.colingross.final1percent",   // never change after the first upload
             teamIdentifier: "W78U46ZRF4",
             displayVersion: "1.0",
-            bundleVersion: "4",
+            bundleVersion: "5",
             appIcon: .asset("AppIcon"),
             accentColor: .presetColor(.red),
             supportedDeviceFamilies: [

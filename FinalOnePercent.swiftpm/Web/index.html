@@ -775,7 +775,6 @@
   }
   .clip-cover-thumb img{width:100%;height:100%;object-fit:cover;display:block;}
   .clip-cover-thumb svg{width:22px;height:22px;}
-  .clip-vol-reset{margin-right:auto;}
   .dialog input.clip-name-input{margin:8px 0 16px;}
   /* playlist image already set: the choices stacked full width, like an iOS action sheet */
   .cover-menu-actions{display:flex;flex-direction:column;gap:8px;margin-top:14px;}
@@ -790,7 +789,7 @@
     <div class="wordmark"><img class="wordmark-helmet" src="helmet-mark.png" alt="">Final 1%</div>
     <!-- Set by hand on every commit that touches index.html — no build step in this project,
          so nothing computes this automatically. Format: DD.MM.YYYY, HH:MM, local time of the commit. -->
-    <span class="build-date"><span data-i18n="updated">Aktualisiert</span>: 09.10.2026, 15:43</span>
+    <span class="build-date"><span data-i18n="updated">Aktualisiert</span>: 09.10.2026, 15:44</span>
   </header>
 
   <input id="fileInput" type="file" accept="video/*,audio/*,.mp3" multiple class="visually-hidden">
@@ -1027,7 +1026,6 @@
         <button id="clipCoverRemove" class="btn ghost" data-i18n="removeCover">Bild entfernen</button>
       </div>
       <div class="dialog-actions">
-        <button id="clipVolReset" class="btn ghost clip-vol-reset" data-i18n="resetDefault">Standard</button>
         <button id="clipVolCancel" class="btn ghost" data-i18n="cancel">Abbrechen</button>
         <button id="clipVolSave" class="btn solid" data-i18n="save">Speichern</button>
       </div>
@@ -1140,7 +1138,7 @@
       deletePlText: name => '„' + name + '“ wird gelöscht. Die Videos bleiben in deiner Bibliothek.',
       removeFromPlTitle: 'Aus Playlist entfernen?', remove: 'Entfernen',
       searchLibraryPh: 'In Bibliothek suchen', searchPlaylistPh: 'In Playlist suchen', searchVideosPh: 'Videos suchen', noMatches: 'Keine passenden Videos',
-      aClipSettings: 'Einstellungen dieses Videos', clipVolTitle: 'Lautstärke', resetDefault: 'Standard',
+      aClipSettings: 'Einstellungen dieses Videos', clipVolTitle: 'Lautstärke',
       clipVolHint: 'Gilt dauerhaft für dieses Video, zusätzlich zur Verstärkung in den Einstellungen.',
       tutSetting: 'Tutorial', tutSettingHint: 'Zeigt dir die wichtigsten Funktionen Schritt für Schritt.', tutStart: 'Starten',
       tutNext: 'Weiter', tutDone: 'Fertig', tutSkip: 'Überspringen', tutSkipTitle: 'Tutorial überspringen?',
@@ -1164,7 +1162,6 @@
       clipCoverTitle: 'Cover-Bild', clipCoverPick: 'Bild wählen', clipCoverChange: 'Bild ändern',
       clipCoverSet: 'Cover-Bild gesetzt', clipCoverRemoved: 'Cover-Bild entfernt',
       clipVolSaved: pct => 'Lautstärke ' + pct + '% gespeichert — gilt ab dem nächsten Start des Videos',
-      clipVolResetDone: 'Lautstärke auf Standard (100%) zurückgesetzt',
       removeFromPlText: name => '„' + name + '“ wird aus dieser Playlist entfernt. In deiner Bibliothek bleibt es erhalten.',
       newPlTitle: 'Neue Playlist',
       queueEmpty: 'Nichts mehr in der Schlange.',
@@ -1223,7 +1220,7 @@
       deletePlText: name => '“' + name + '” will be deleted. The videos stay in your library.',
       removeFromPlTitle: 'Remove from playlist?', remove: 'Remove',
       searchLibraryPh: 'Search library', searchPlaylistPh: 'Search in playlist', searchVideosPh: 'Search videos', noMatches: 'No matching videos',
-      aClipSettings: 'Settings for this video', clipVolTitle: 'Volume', resetDefault: 'Default',
+      aClipSettings: 'Settings for this video', clipVolTitle: 'Volume',
       clipVolHint: 'Applies to this video permanently, on top of the boost in Settings.',
       tutSetting: 'Tutorial', tutSettingHint: 'Walks you through the most important features step by step.', tutStart: 'Start',
       tutNext: 'Next', tutDone: 'Done', tutSkip: 'Skip', tutSkipTitle: 'Skip the tutorial?',
@@ -1247,7 +1244,6 @@
       clipCoverTitle: 'Cover image', clipCoverPick: 'Choose image', clipCoverChange: 'Change image',
       clipCoverSet: 'Cover image set', clipCoverRemoved: 'Cover image removed',
       clipVolSaved: pct => 'Volume ' + pct + '% saved — applies from the next time the video starts',
-      clipVolResetDone: 'Volume reset to default (100%)',
       removeFromPlText: name => '“' + name + '” will be removed from this playlist. It stays in your library.',
       newPlTitle: 'New playlist',
       queueEmpty: 'Nothing left in the queue.',
@@ -1374,7 +1370,7 @@
     pdBack: $('#pdBack'), pdTitle: $('#pdTitle'), pdCount: $('#pdCount'), pdList: $('#pdList'), pdEmpty: $('#pdEmpty'),
     clipVolBackdrop: $('#clipVolBackdrop'), clipNameInput: $('#clipNameInput'), fpArt: $('#fpArt'),
     clipCoverInput: $('#clipCoverInput'), clipCoverThumb: $('#clipCoverThumb'), clipCoverPick: $('#clipCoverPick'), clipCoverRemove: $('#clipCoverRemove'), clipVolRange: $('#clipVolRange'), clipVolValue: $('#clipVolValue'),
-    clipVolReset: $('#clipVolReset'), clipVolCancel: $('#clipVolCancel'), clipVolSave: $('#clipVolSave'),
+    clipVolCancel: $('#clipVolCancel'), clipVolSave: $('#clipVolSave'),
     libSearchWrap: $('#libSearchWrap'), libSearch: $('#libSearch'), libNoMatch: $('#libNoMatch'),
     pdSearchWrap: $('#pdSearchWrap'), pdSearch: $('#pdSearch'), pdNoMatch: $('#pdNoMatch'), pickSearch: $('#pickSearch'), pickNoMatch: $('#pickNoMatch'),
     pdPlaySeq: $('#pdPlaySeq'), pdPlayShuffle: $('#pdPlayShuffle'), pdAddVideos: $('#pdAddVideos'), pdToggleTrim: $('#pdToggleTrim'),
@@ -1805,12 +1801,6 @@
     if (level === clipVolumeOf(v)) return;
     await setClipVolume(v, level);
     toast(t('clipVolSaved', Math.round(level * 100)));
-  });
-  el.clipVolReset.addEventListener('click', async () => {
-    const v = clipVolVideo; if (!v) return;
-    closeClipVolume();
-    if (clipVolumeOf(v) !== 1) await setClipVolume(v, 1);
-    toast(t('clipVolResetDone'));
   });
   el.clipVolCancel.addEventListener('click', closeClipVolume);
   el.clipVolBackdrop.addEventListener('click', (e) => { if (e.target === el.clipVolBackdrop) closeClipVolume(); });
