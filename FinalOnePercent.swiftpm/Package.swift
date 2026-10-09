@@ -18,6 +18,8 @@ let package = Package(
         .iOSApplication(
             name: "Final1Percent",
             targets: ["AppModule"],
+            bundleIdentifier: "de.colingross.final1percent",   // never change after the first upload
+            teamIdentifier: "W78U46ZRF4",
             displayVersion: "1.0",
             bundleVersion: "1",
             appIcon: .asset("AppIcon"),
