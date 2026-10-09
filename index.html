@@ -776,6 +776,10 @@
   .clip-cover-thumb img{width:100%;height:100%;object-fit:cover;display:block;}
   .clip-cover-thumb svg{width:22px;height:22px;}
   .clip-vol-reset{margin-right:auto;}
+  .dialog input.clip-name-input{margin:8px 0 0;}
+  /* playlist image already set: the choices stacked full width, like an iOS action sheet */
+  .cover-menu-actions{display:flex;flex-direction:column;gap:8px;margin-top:14px;}
+  .cover-menu-actions .btn{justify-content:center;padding:12px 14px;font-size:14.5px;}
 </style>
 
 </head>
@@ -786,7 +790,7 @@
     <div class="wordmark"><img class="wordmark-helmet" src="helmet-mark.png" alt="">Final 1%</div>
     <!-- Set by hand on every commit that touches index.html — no build step in this project,
          so nothing computes this automatically. Format: DD.MM.YYYY, HH:MM, local time of the commit. -->
-    <span class="build-date"><span data-i18n="updated">Aktualisiert</span>: 09.10.2026, 12:52</span>
+    <span class="build-date"><span data-i18n="updated">Aktualisiert</span>: 09.10.2026, 15:21</span>
   </header>
 
   <input id="fileInput" type="file" accept="video/*,audio/*,.mp3" multiple class="visually-hidden">
@@ -841,7 +845,6 @@
         <button id="pdAddVideos" class="btn ghost">+ Videos</button>
         <button id="pdPlayShuffle" class="btn ghost"></button>
         <button id="pdToggleTrim" class="btn ghost"></button>
-        <button id="pdCoverRemove" class="btn ghost" hidden data-i18n="removeCover">Bild entfernen</button>
       </div>
       <ul id="pdList"></ul>
       <p id="pdNoMatch" class="search-nomatch" hidden></p>
@@ -1004,17 +1007,20 @@
     </div>
   </div>
 
-  <!-- per-video settings (volume, cover), opened from the gear on a library tile -->
+  <!-- per-video settings (name, volume, cover), opened from the gear on a library tile -->
   <div id="clipVolBackdrop" class="dialog-backdrop hidden">
     <div class="dialog">
-      <h3 id="clipVolName"></h3>
+      <h3 data-i18n="clipSettingsTitle">Video-Einstellungen</h3>
+      <div class="clip-section" data-i18n="clipNameTitle">Name</div>
+      <input id="clipNameInput" class="clip-name-input" type="text" maxlength="60" autocomplete="off">
+      <p data-i18n="renameVideoText">Mit „@creator“ ohne Zahl wird automatisch weitergezählt: @name 1, @name 2 …</p>
       <div class="clip-section" data-i18n="clipVolTitle">Lautstärke</div>
       <p data-i18n="clipVolHint">Gilt dauerhaft für dieses Video, zusätzlich zur Verstärkung in den Einstellungen. 200 % = gefühlt doppelt, 50 % = halb so laut.</p>
       <div class="boost-control clip-vol-control">
         <input type="range" id="clipVolRange" min="20" max="200" step="10" value="100" aria-label="Lautstärke" data-i18n-aria="clipVolTitle">
         <span class="boost-value" id="clipVolValue">100%</span>
       </div>
-      <!-- the cover applies right away (like a playlist image); "Speichern" is for the volume -->
+      <!-- the cover applies right away (like a playlist image); "Speichern" is for name and volume -->
       <div class="clip-section" data-i18n="clipCoverTitle">Cover-Bild</div>
       <div class="clip-cover-row">
         <div class="clip-cover-thumb" id="clipCoverThumb"></div>
@@ -1025,6 +1031,18 @@
         <button id="clipVolReset" class="btn ghost clip-vol-reset" data-i18n="resetDefault">Standard</button>
         <button id="clipVolCancel" class="btn ghost" data-i18n="cancel">Abbrechen</button>
         <button id="clipVolSave" class="btn solid" data-i18n="save">Speichern</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- tapping a playlist image that's already set: replace it or remove it -->
+  <div id="coverMenuBackdrop" class="dialog-backdrop hidden">
+    <div class="dialog">
+      <h3 data-i18n="coverMenuTitle">Playlist-Bild</h3>
+      <div class="cover-menu-actions">
+        <button id="coverMenuPick" class="btn ghost" data-i18n="coverMenuPick">Foto auswählen</button>
+        <button id="coverMenuRemove" class="btn danger-ghost" data-i18n="removeCover">Bild entfernen</button>
+        <button id="coverMenuCancel" class="btn ghost" data-i18n="cancel">Abbrechen</button>
       </div>
     </div>
   </div>
@@ -1108,14 +1126,13 @@
       aTrimThis: 'Verkürzung für dieses Video', aCollapse: 'Player einklappen', aPosition: 'Position im Video',
       aHideThis: 'Videobild für dieses Video ausblenden', aShuffle: 'Zufallswiedergabe', aPrev: 'Vorheriges Video',
       aRepeat: 'Wiederholen', aShowQueue: 'Warteschlange anzeigen', aClose: 'Schließen',
-      aDeleteVideo: 'Video löschen', aEditName: 'Videoname bearbeiten',
+      aDeleteVideo: 'Video löschen',
       aRemoveFromPl: 'Aus Playlist entfernen', aEnableInPl: 'Video für diese Playlist wieder aktivieren',
       aDisableInPl: 'Video für diese Playlist deaktivieren', aDrag: 'Ziehen zum Umsortieren',
       aRenamePl: 'Playlist umbenennen', aDeletePl: 'Playlist löschen',
       inQueue: 'In der Warteschlange', playNext: 'Als nächstes',
       trim: 'Verkürzt',
       videos: n => n + (n === 1 ? ' Video' : ' Videos'),
-      renameVideoTitle: 'Video umbenennen',
       renameVideoText: 'Mit „@creator“ ohne Zahl wird automatisch weitergezählt: @name 1, @name 2 …',
       videoNamePh: 'Name des Videos',
       deleteVideoTitle: 'Video löschen?',
@@ -1145,6 +1162,7 @@
       tutToSettings: 'Tippe zum Schluss unten auf „Einstellungen“.',
       tutHideVideo: 'Hier blendest du das Videobild für alle Videos aus, dann läuft nur der Ton. Im Player kannst du das auch für jedes Video einzeln einstellen.',
       tutBoost: 'Hier machst du alle Videos lauter. Über das Zahnrad in der Bibliothek kannst du die Lautstärke auch für jedes Video einzeln anpassen.',
+      clipSettingsTitle: 'Video-Einstellungen', clipNameTitle: 'Name',
       clipCoverTitle: 'Cover-Bild', clipCoverPick: 'Bild wählen', clipCoverChange: 'Bild ändern',
       clipCoverSet: 'Cover-Bild gesetzt', clipCoverRemoved: 'Cover-Bild entfernt',
       clipVolSaved: pct => 'Lautstärke ' + pct + '% gespeichert — gilt ab dem nächsten Start des Videos',
@@ -1159,6 +1177,7 @@
       queued: name => '„' + name + '“ in die Warteschlange',
       nextUp: name => '„' + name + '“ ist jetzt als nächstes dran',
       coverSet: 'Playlist-Bild gesetzt', coverRemoved: 'Playlist-Bild entfernt',
+      coverMenuTitle: 'Playlist-Bild', coverMenuPick: 'Foto auswählen',
       plEmptyToast: 'Playlist ist leer', allDisabled: 'Alle Videos in dieser Playlist sind deaktiviert',
       trimNowOn: 'Playlist verkürzt jetzt jedes Video am Ende um 5 Sekunden', trimNowOff: 'Playlist spielt Videos wieder vollständig',
       libEmptyToast: 'Bibliothek ist leer — importiere zuerst Videos',
@@ -1191,14 +1210,13 @@
       aTrimThis: 'Trimming for this video', aCollapse: 'Collapse player', aPosition: 'Position in video',
       aHideThis: 'Hide picture for this video', aShuffle: 'Shuffle', aPrev: 'Previous video',
       aRepeat: 'Repeat', aShowQueue: 'Show queue', aClose: 'Close',
-      aDeleteVideo: 'Delete video', aEditName: 'Edit video name',
+      aDeleteVideo: 'Delete video',
       aRemoveFromPl: 'Remove from playlist', aEnableInPl: 'Re-enable video in this playlist',
       aDisableInPl: 'Disable video in this playlist', aDrag: 'Drag to reorder',
       aRenamePl: 'Rename playlist', aDeletePl: 'Delete playlist',
       inQueue: 'In queue', playNext: 'Play next',
       trim: 'Trimmed',
       videos: n => n + (n === 1 ? ' video' : ' videos'),
-      renameVideoTitle: 'Rename video',
       renameVideoText: 'Type “@creator” without a number and it counts up by itself: @name 1, @name 2 …',
       videoNamePh: 'Video name',
       deleteVideoTitle: 'Delete video?',
@@ -1228,6 +1246,7 @@
       tutToSettings: 'Finally, tap “Settings” at the bottom.',
       tutHideVideo: 'Here you hide the video picture for all videos, so only the sound plays. In the player you can also set this for each video.',
       tutBoost: 'Here you make all videos louder. With the gear in the library you can also adjust the volume of each video.',
+      clipSettingsTitle: 'Video settings', clipNameTitle: 'Name',
       clipCoverTitle: 'Cover image', clipCoverPick: 'Choose image', clipCoverChange: 'Change image',
       clipCoverSet: 'Cover image set', clipCoverRemoved: 'Cover image removed',
       clipVolSaved: pct => 'Volume ' + pct + '% saved — applies from the next time the video starts',
@@ -1242,6 +1261,7 @@
       queued: name => '“' + name + '” added to the queue',
       nextUp: name => '“' + name + '” plays next',
       coverSet: 'Playlist image set', coverRemoved: 'Playlist image removed',
+      coverMenuTitle: 'Playlist image', coverMenuPick: 'Choose photo',
       plEmptyToast: 'Playlist is empty', allDisabled: 'All videos in this playlist are disabled',
       trimNowOn: 'Playlist now cuts 5 seconds off the end of every video', trimNowOff: 'Playlist plays videos in full again',
       libEmptyToast: 'Library is empty — import some videos first',
@@ -1355,13 +1375,14 @@
     libraryList: $('#libraryList'), libraryEmpty: $('#libraryEmpty'),
     playlistsList: $('#playlistsList'), playlistsEmpty: $('#playlistsEmpty'), newPlaylistBtn: $('#newPlaylistBtn'),
     pdBack: $('#pdBack'), pdTitle: $('#pdTitle'), pdCount: $('#pdCount'), pdList: $('#pdList'), pdEmpty: $('#pdEmpty'),
-    clipVolBackdrop: $('#clipVolBackdrop'), clipVolName: $('#clipVolName'), fpArt: $('#fpArt'),
+    clipVolBackdrop: $('#clipVolBackdrop'), clipNameInput: $('#clipNameInput'), fpArt: $('#fpArt'),
     clipCoverInput: $('#clipCoverInput'), clipCoverThumb: $('#clipCoverThumb'), clipCoverPick: $('#clipCoverPick'), clipCoverRemove: $('#clipCoverRemove'), clipVolRange: $('#clipVolRange'), clipVolValue: $('#clipVolValue'),
     clipVolReset: $('#clipVolReset'), clipVolCancel: $('#clipVolCancel'), clipVolSave: $('#clipVolSave'),
     libSearchWrap: $('#libSearchWrap'), libSearch: $('#libSearch'), libNoMatch: $('#libNoMatch'),
     pdSearchWrap: $('#pdSearchWrap'), pdSearch: $('#pdSearch'), pdNoMatch: $('#pdNoMatch'), pickSearch: $('#pickSearch'), pickNoMatch: $('#pickNoMatch'),
     pdPlaySeq: $('#pdPlaySeq'), pdPlayShuffle: $('#pdPlayShuffle'), pdAddVideos: $('#pdAddVideos'), pdToggleTrim: $('#pdToggleTrim'),
-    pdCover: $('#pdCover'), pdCoverRemove: $('#pdCoverRemove'),
+    pdCover: $('#pdCover'),
+    coverMenuBackdrop: $('#coverMenuBackdrop'), coverMenuPick: $('#coverMenuPick'), coverMenuRemove: $('#coverMenuRemove'), coverMenuCancel: $('#coverMenuCancel'),
     tabs: document.querySelectorAll('.tab'),
     miniPlayer: $('#miniPlayer'), miniThumb: $('#miniThumb'), miniTitle: $('#miniTitle'),
     miniPlayPause: $('#miniPlayPause'), miniNext: $('#miniNext'), miniStop: $('#miniStop'), miniProgress: $('#miniProgress'),
@@ -1678,7 +1699,6 @@
     el.libraryEmpty.hidden = state.videos.length > 0;
     state.videos.slice().sort((a,b) => a.addedAt - b.addedAt).forEach((v) => {
       el.libraryList.appendChild(buildGridTile(v, {
-        onRename: () => renameVideo(v),
         onPlay: () => playQueue(state.videos.map(x => x.id), 'Bibliothek', v.id),
         onDelete: () => deleteVideo(v.id),
         onSettings: () => openClipVolume(v)
@@ -1730,7 +1750,8 @@
   function openClipVolume(v){
     clipVolVideo = v;
     const pct = loudGainToPct(clipVolumeOf(v), 20, 200);
-    el.clipVolName.textContent = v.name;
+    el.clipNameInput.value = v.name;
+    el.clipNameInput.placeholder = t('videoNamePh');
     el.clipVolRange.value = pct;
     el.clipVolValue.textContent = pct + '%';
     renderClipCover(v);
@@ -1781,7 +1802,9 @@
   el.clipVolSave.addEventListener('click', async () => {
     const v = clipVolVideo; if (!v) return;
     const level = loudPctToGain(Number(el.clipVolRange.value));
+    const name = el.clipNameInput.value.trim();
     closeClipVolume();
+    if (name && name !== v.name) await renameVideo(v, name);   // emptied field = keep the old name
     if (level === clipVolumeOf(v)) return;
     await setClipVolume(v, level);
     toast(t('clipVolSaved', Math.round(level * 100)));
@@ -1795,11 +1818,11 @@
   el.clipVolCancel.addEventListener('click', closeClipVolume);
   el.clipVolBackdrop.addEventListener('click', (e) => { if (e.target === el.clipVolBackdrop) closeClipVolume(); });
 
-  /* TikTok-style grid tile for the library: full-bleed thumbnail, editable name
-     overlaid at the bottom in place of a view count. Keeps the .track-row/data-id/
+  /* TikTok-style grid tile for the library: full-bleed thumbnail, name overlaid at the bottom
+     in place of a view count (renamed in the gear's settings, so tapping it plays like the rest). Keeps the .track-row/data-id/
      .queued-badge/.swipe-hint contract so markPlayingRow/markQueuedRows/enableSwipeToQueue
      keep working on it unchanged. */
-  function buildGridTile(v, { onPlay, onDelete, onRename, onSettings }){
+  function buildGridTile(v, { onPlay, onDelete, onSettings }){
     const li = document.createElement('li');
     li.className = 'track-row grid-tile';
     li.dataset.id = v.id;
@@ -1838,12 +1861,10 @@
 
     const caption = document.createElement('div');
     caption.className = 'grid-tile-caption';
-    const nameBtn = document.createElement('button');
-    nameBtn.className = 'grid-tile-name';
-    nameBtn.textContent = v.name;
-    nameBtn.setAttribute('aria-label', t('aEditName'));
-    nameBtn.addEventListener('click', (e) => { e.stopPropagation(); onRename(); });
-    caption.appendChild(nameBtn);
+    const name = document.createElement('div');
+    name.className = 'grid-tile-name';
+    name.textContent = v.name;
+    caption.appendChild(name);
     li.appendChild(caption);
 
     const hint = document.createElement('span');
@@ -1914,14 +1935,7 @@
 
   /* Typing "@creator" without a number continues that creator's count by itself,
      so a second clip from the same account lands as "@creator 2" rather than a clash. */
-  async function renameVideo(v){
-    const input = await showDialog({
-      title: t('renameVideoTitle'),
-      text: t('renameVideoText'),
-      placeholder: t('videoNamePh'), value: v.name, confirmLabel: t('save')
-    });
-    if (!input) return;
-    let name = input.trim();
+  async function renameVideo(v, name){
     const creator = creatorFromName(name);
     if (creator) {
       const rest = name.slice(name.toLowerCase().indexOf(creator) + creator.length).trim();
@@ -2375,12 +2389,20 @@
     }
     el.pdCover.insertAdjacentHTML('beforeend', '<span class="pd-cover-badge">' + ICONS.camera + '</span>');
     el.pdCover.setAttribute('aria-label', p.cover ? t('aCoverChange') : t('aCoverPick'));
-    el.pdCoverRemove.hidden = !p.cover;
   }
 
+  // no image yet: straight to the photo picker; with one set: choose between a new photo and removing it
   el.pdCover.addEventListener('click', () => {
-    if (playlistById(state.activePlaylistId)) el.coverInput.click();
+    const p = playlistById(state.activePlaylistId);
+    if (!p) return;
+    if (p.cover) el.coverMenuBackdrop.classList.remove('hidden');
+    else el.coverInput.click();
   });
+  function closeCoverMenu(){ el.coverMenuBackdrop.classList.add('hidden'); }
+  // still inside the tap, so iOS opens the picker
+  el.coverMenuPick.addEventListener('click', () => { closeCoverMenu(); el.coverInput.click(); });
+  el.coverMenuCancel.addEventListener('click', closeCoverMenu);
+  el.coverMenuBackdrop.addEventListener('click', (e) => { if (e.target === el.coverMenuBackdrop) closeCoverMenu(); });
   el.coverInput.addEventListener('change', async () => {
     const file = (el.coverInput.files || [])[0];
     el.coverInput.value = '';
@@ -2394,7 +2416,8 @@
     renderPlaylistDetail(); renderPlaylists();
     toast(t('coverSet'));
   });
-  el.pdCoverRemove.addEventListener('click', async () => {
+  el.coverMenuRemove.addEventListener('click', async () => {
+    closeCoverMenu();
     const p = playlistById(state.activePlaylistId);
     if (!p || !p.cover) return;
     delete p.cover;
