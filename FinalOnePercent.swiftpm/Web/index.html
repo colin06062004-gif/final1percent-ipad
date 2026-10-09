@@ -776,7 +776,7 @@
   .clip-cover-thumb img{width:100%;height:100%;object-fit:cover;display:block;}
   .clip-cover-thumb svg{width:22px;height:22px;}
   .clip-vol-reset{margin-right:auto;}
-  .dialog input.clip-name-input{margin:8px 0 0;}
+  .dialog input.clip-name-input{margin:8px 0 16px;}
   /* playlist image already set: the choices stacked full width, like an iOS action sheet */
   .cover-menu-actions{display:flex;flex-direction:column;gap:8px;margin-top:14px;}
   .cover-menu-actions .btn{justify-content:center;padding:12px 14px;font-size:14.5px;}
@@ -790,7 +790,7 @@
     <div class="wordmark"><img class="wordmark-helmet" src="helmet-mark.png" alt="">Final 1%</div>
     <!-- Set by hand on every commit that touches index.html — no build step in this project,
          so nothing computes this automatically. Format: DD.MM.YYYY, HH:MM, local time of the commit. -->
-    <span class="build-date"><span data-i18n="updated">Aktualisiert</span>: 09.10.2026, 15:21</span>
+    <span class="build-date"><span data-i18n="updated">Aktualisiert</span>: 09.10.2026, 15:43</span>
   </header>
 
   <input id="fileInput" type="file" accept="video/*,audio/*,.mp3" multiple class="visually-hidden">
@@ -1013,9 +1013,8 @@
       <h3 data-i18n="clipSettingsTitle">Video-Einstellungen</h3>
       <div class="clip-section" data-i18n="clipNameTitle">Name</div>
       <input id="clipNameInput" class="clip-name-input" type="text" maxlength="60" autocomplete="off">
-      <p data-i18n="renameVideoText">Mit „@creator“ ohne Zahl wird automatisch weitergezählt: @name 1, @name 2 …</p>
       <div class="clip-section" data-i18n="clipVolTitle">Lautstärke</div>
-      <p data-i18n="clipVolHint">Gilt dauerhaft für dieses Video, zusätzlich zur Verstärkung in den Einstellungen. 200 % = gefühlt doppelt, 50 % = halb so laut.</p>
+      <p data-i18n="clipVolHint">Gilt dauerhaft für dieses Video, zusätzlich zur Verstärkung in den Einstellungen.</p>
       <div class="boost-control clip-vol-control">
         <input type="range" id="clipVolRange" min="20" max="200" step="10" value="100" aria-label="Lautstärke" data-i18n-aria="clipVolTitle">
         <span class="boost-value" id="clipVolValue">100%</span>
@@ -1133,7 +1132,6 @@
       inQueue: 'In der Warteschlange', playNext: 'Als nächstes',
       trim: 'Verkürzt',
       videos: n => n + (n === 1 ? ' Video' : ' Videos'),
-      renameVideoText: 'Mit „@creator“ ohne Zahl wird automatisch weitergezählt: @name 1, @name 2 …',
       videoNamePh: 'Name des Videos',
       deleteVideoTitle: 'Video löschen?',
       deleteVideoText: name => '„' + name + '“ wird aus der Bibliothek und aus allen Playlists entfernt.',
@@ -1143,7 +1141,7 @@
       removeFromPlTitle: 'Aus Playlist entfernen?', remove: 'Entfernen',
       searchLibraryPh: 'In Bibliothek suchen', searchPlaylistPh: 'In Playlist suchen', searchVideosPh: 'Videos suchen', noMatches: 'Keine passenden Videos',
       aClipSettings: 'Einstellungen dieses Videos', clipVolTitle: 'Lautstärke', resetDefault: 'Standard',
-      clipVolHint: 'Gilt dauerhaft für dieses Video, zusätzlich zur Verstärkung in den Einstellungen. 200 % = gefühlt doppelt, 50 % = halb so laut.',
+      clipVolHint: 'Gilt dauerhaft für dieses Video, zusätzlich zur Verstärkung in den Einstellungen.',
       tutSetting: 'Tutorial', tutSettingHint: 'Zeigt dir die wichtigsten Funktionen Schritt für Schritt.', tutStart: 'Starten',
       tutNext: 'Weiter', tutDone: 'Fertig', tutSkip: 'Überspringen', tutSkipTitle: 'Tutorial überspringen?',
       tutSkipText: 'Du kannst es jederzeit in den Einstellungen unter „Tutorial“ wieder starten.',
@@ -1217,7 +1215,6 @@
       inQueue: 'In queue', playNext: 'Play next',
       trim: 'Trimmed',
       videos: n => n + (n === 1 ? ' video' : ' videos'),
-      renameVideoText: 'Type “@creator” without a number and it counts up by itself: @name 1, @name 2 …',
       videoNamePh: 'Video name',
       deleteVideoTitle: 'Delete video?',
       deleteVideoText: name => '“' + name + '” will be removed from your library and from all playlists.',
@@ -1227,7 +1224,7 @@
       removeFromPlTitle: 'Remove from playlist?', remove: 'Remove',
       searchLibraryPh: 'Search library', searchPlaylistPh: 'Search in playlist', searchVideosPh: 'Search videos', noMatches: 'No matching videos',
       aClipSettings: 'Settings for this video', clipVolTitle: 'Volume', resetDefault: 'Default',
-      clipVolHint: 'Applies to this video permanently, on top of the boost in Settings. 200% = twice as loud, 50% = half as loud.',
+      clipVolHint: 'Applies to this video permanently, on top of the boost in Settings.',
       tutSetting: 'Tutorial', tutSettingHint: 'Walks you through the most important features step by step.', tutStart: 'Start',
       tutNext: 'Next', tutDone: 'Done', tutSkip: 'Skip', tutSkipTitle: 'Skip the tutorial?',
       tutSkipText: 'You can start it again any time in Settings under “Tutorial”.',
