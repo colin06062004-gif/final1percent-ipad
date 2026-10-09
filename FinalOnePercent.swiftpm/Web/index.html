@@ -764,6 +764,7 @@
   .tut-bubble p{margin:0;}
   .tut-skip{position:fixed;top:calc(10px + env(safe-area-inset-top, 0px));right:12px;pointer-events:auto;}
   .tut-next{position:fixed;right:16px;bottom:calc(16px + env(safe-area-inset-bottom, 0px));pointer-events:auto;}
+  .tut-back{position:fixed;left:16px;bottom:calc(16px + env(safe-area-inset-bottom, 0px));pointer-events:auto;}
   /* while the step's own name dialog is open: above the dialog (25) so the hint isn't dimmed by its
      backdrop — the layer itself stays click-through, only the hint shows */
   .tut.over-dialog{z-index:26;}
@@ -798,7 +799,7 @@
     <div class="wordmark"><img class="wordmark-helmet" src="helmet-mark.png" alt="">Final 1%</div>
     <!-- Set by hand on every commit that touches index.html — no build step in this project,
          so nothing computes this automatically. Format: DD.MM.YYYY, HH:MM, local time of the commit. -->
-    <span class="build-date"><span data-i18n="updated">Aktualisiert</span>: 09.10.2026, 20:14</span>
+    <span class="build-date"><span data-i18n="updated">Aktualisiert</span>: 09.10.2026, 20:42</span>
   </header>
 
   <input id="fileInput" type="file" accept="video/*,audio/*,.mp3" multiple class="visually-hidden">
@@ -1066,7 +1067,8 @@
     <div class="tut-block" id="tutBlockHole"></div>
     <div class="tut-bubble" id="tutBubble"><p id="tutText"></p></div>
     <button class="btn ghost tut-skip" id="tutSkip" data-i18n="tutSkip">Überspringen</button>
-    <button class="btn solid tut-next" id="tutNext" data-i18n="tutNext">Weiter</button>
+    <button class="btn ghost tut-back" id="tutBack" data-i18n="tutBack">Zurück</button>
+    <button class="btn ghost tut-next" id="tutNext" data-i18n="tutNext">Weiter</button>
   </div>
 
   <div id="toast" class="toast"></div>
@@ -1153,10 +1155,17 @@
       aClipDownload: 'Video in deine Fotos sichern', clipDownloadFailed: 'Das Video konnte nicht übergeben werden',
       clipVolHint: 'Gilt dauerhaft für dieses Video, zusätzlich zur Verstärkung in den Einstellungen.',
       tutSetting: 'Tutorial', tutSettingHint: 'Zeigt dir die wichtigsten Funktionen Schritt für Schritt.', tutStart: 'Starten',
-      tutNext: 'Weiter', tutDone: 'Fertig', tutSkip: 'Überspringen', tutSkipTitle: 'Tutorial überspringen?',
+      tutNext: 'Weiter', tutBack: 'Zurück', tutDone: 'Tutorial beenden', tutSkip: 'Überspringen', tutSkipTitle: 'Tutorial überspringen?',
       tutSkipText: 'Du kannst es jederzeit in den Einstellungen unter „Tutorial“ wieder starten.',
-      tutFinished: 'Tutorial abgeschlossen — viel Erfolg beim Training!',
+      tutFinished: 'Tutorial abgeschlossen – Now hit that PR 💪',
       tutImport: 'Tippe auf das +, um ein Video aus deiner Galerie in die App zu laden.',
+      tutStored: 'Dein Video ist jetzt lokal in der App gespeichert. Um Speicherplatz zu sparen, solltest du es danach aus deiner Galerie löschen.',
+      tutGear: 'Tippe auf das Zahnrad deines Videos.',
+      tutClipName: 'Hier kannst du den Namen des Videos ändern.',
+      tutClipVolume: 'Hier stellst du die Lautstärke dieses Videos dauerhaft ein. Der Standardwert ist immer 100 %.',
+      tutClipCover: 'Darunter kannst du ein eigenes Cover-Bild für das Video wählen, um sein Aussehen in den Playlists zu ändern.',
+      tutClipDownload: 'Hiermit lädst du das Video wieder in deine Mediathek, falls du es dort gelöscht hast. Es landet an seinem ursprünglichen Platz, nicht ganz oben.',
+      tutClipSave: 'Wenn du Änderungen behalten willst, tippe auf „Speichern“.',
       tutToPlaylists: 'Super! Tippe jetzt unten auf „Playlists“.',
       tutNewPlaylist: 'Tippe auf „Neue Playlist“, um deine erste Playlist zu erstellen.',
       tutNewPlaylistModal: 'Gib deiner Playlist einen Namen und tippe auf „Erstellen“.',
@@ -1167,9 +1176,14 @@
       tutRemove: 'Mit dem X nimmst du ein Video aus der Playlist. In deiner Bibliothek bleibt es erhalten.',
       tutDisable: 'Mit diesem Symbol sperrst du ein Video: Es bleibt in der Playlist, wird beim Abspielen aber übersprungen.',
       tutDrag: 'Halte die sechs Punkte gedrückt und ziehe, um die Reihenfolge zu ändern.',
-      tutToSettings: 'Tippe zum Schluss unten auf „Einstellungen“.',
+      tutToSettings: 'Tippe jetzt unten auf „Einstellungen“.',
       tutHideVideo: 'Hier blendest du das Videobild für alle Videos aus, dann läuft nur der Ton. Im Player kannst du das auch für jedes Video einzeln einstellen.',
       tutBoost: 'Hier machst du alle Videos lauter. Über das Zahnrad in der Bibliothek kannst du die Lautstärke auch für jedes Video einzeln anpassen.',
+      tutRestart: 'Hier kannst du dieses Tutorial jederzeit wieder starten.',
+      tutFpTrim: 'Die Schere: Läuft das Video in einer „Verkürzt“-Playlist, nimmst du es hiermit von der Verkürzung aus – oder schaltest sie für es wieder ein.',
+      tutFpHide: 'Hiermit blendest du das Bild nur für dieses Video aus, dann läuft nur der Ton.',
+      tutFpRepeat: 'Wiederholen: Nach dem letzten Video beginnt die Playlist wieder von vorne.',
+      tutFpQueue: 'Die Warteschlange zeigt, was als Nächstes kommt. Dort kannst du Videos antippen, verschieben oder zur Seite wischen, um sie einzureihen.',
       clipSettingsTitle: 'Video-Einstellungen', clipNameTitle: 'Name',
       clipCoverTitle: 'Cover-Bild', clipCoverPick: 'Bild wählen', clipCoverChange: 'Bild ändern',
       clipCoverSet: 'Cover-Bild gesetzt', clipCoverRemoved: 'Cover-Bild entfernt',
@@ -1235,10 +1249,17 @@
       aClipDownload: 'Save the video to your photos', clipDownloadFailed: 'Couldn’t hand over the video',
       clipVolHint: 'Applies to this video permanently, on top of the boost in Settings.',
       tutSetting: 'Tutorial', tutSettingHint: 'Walks you through the most important features step by step.', tutStart: 'Start',
-      tutNext: 'Next', tutDone: 'Done', tutSkip: 'Skip', tutSkipTitle: 'Skip the tutorial?',
+      tutNext: 'Next', tutBack: 'Back', tutDone: 'Finish tutorial', tutSkip: 'Skip', tutSkipTitle: 'Skip the tutorial?',
       tutSkipText: 'You can start it again any time in Settings under “Tutorial”.',
-      tutFinished: 'Tutorial complete — have a great workout!',
+      tutFinished: 'Tutorial complete – Now hit that PR 💪',
       tutImport: 'Tap the + to load a video from your gallery into the app.',
+      tutStored: 'Your video is now stored locally in the app. To save space, you should delete it from your gallery afterwards.',
+      tutGear: 'Tap the gear on your video.',
+      tutClipName: 'Here you can change the name of the video.',
+      tutClipVolume: 'Here you set the volume of this video permanently. The default is always 100%.',
+      tutClipCover: 'Below that you can pick your own cover image for the video to change how it looks in your playlists.',
+      tutClipDownload: 'This puts the video back into your photo library if you deleted it there. It lands in its original spot, not at the top.',
+      tutClipSave: 'To keep your changes, tap “Save”.',
       tutToPlaylists: 'Great! Now tap “Playlists” at the bottom.',
       tutNewPlaylist: 'Tap “New playlist” to create your first playlist.',
       tutNewPlaylistModal: 'Give your playlist a name and tap “Create”.',
@@ -1249,9 +1270,14 @@
       tutRemove: 'The X takes a video out of the playlist. It stays in your library.',
       tutDisable: 'This symbol locks a video: it stays in the playlist but is skipped during playback.',
       tutDrag: 'Press and drag the six dots to change the order.',
-      tutToSettings: 'Finally, tap “Settings” at the bottom.',
+      tutToSettings: 'Now tap “Settings” at the bottom.',
       tutHideVideo: 'Here you hide the video picture for all videos, so only the sound plays. In the player you can also set this for each video.',
       tutBoost: 'Here you make all videos louder. With the gear in the library you can also adjust the volume of each video.',
+      tutRestart: 'You can start this tutorial again here any time.',
+      tutFpTrim: 'The scissors: if the video plays in a “Trimmed” playlist, this excludes it from trimming, or turns trimming back on for it.',
+      tutFpHide: 'This hides the picture for this video only, so just the sound plays.',
+      tutFpRepeat: 'Repeat: after the last video the playlist starts over.',
+      tutFpQueue: 'The queue shows what plays next. There you can tap videos, reorder them or swipe them aside to line them up.',
       clipSettingsTitle: 'Video settings', clipNameTitle: 'Name',
       clipCoverTitle: 'Cover image', clipCoverPick: 'Choose image', clipCoverChange: 'Change image',
       clipCoverSet: 'Cover image set', clipCoverRemoved: 'Cover image removed',
@@ -3375,54 +3401,127 @@
 
   /* ================= Tutorial (onboarding) ================= */
   /* Starts by itself on a genuinely first open (empty library) and any time from Settings ->
-     Tutorial. Action steps wait until the user has really done the thing — only the highlighted
-     control can be tapped; explanation steps ("info") have "Weiter" instead. One timer re-measures
-     the highlighted element, so the spotlight follows scrolling, re-renders and view changes
-     without hooks into the rest of the app (a timer rather than rAF so throttled tabs keep going).
-     While a dialog or sheet that belongs to the step is open (playlist name, "Videos hinzufügen"),
-     nothing is dimmed or blocked — only a hint stays at the top. */
+     Tutorial. Action steps move on by themselves once the user has done the thing (only the
+     highlighted control can be tapped); "Weiter" and "Zurück" work on every step, so single parts
+     can be looked at again without redoing everything before them. Each step sets up its own
+     screen when it's reached (scene), so stepping back or skipping an action lands in the right
+     place; steps that need something that isn't there (no video, no playlist) are passed over.
+     One timer re-measures the highlighted element, so the spotlight follows scrolling, re-renders
+     and view changes (a timer rather than rAF so throttled tabs keep going). A dialog or sheet the
+     user opens during a step (playlist name, "Videos hinzufügen") stays undimmed with just a hint
+     at the top; the video settings dialog belongs to its steps and gets the spotlight itself. */
+  const tutVideo = () => state.videos.reduce((a, b) => (!a || b.addedAt > a.addedAt ? b : a), null);   // the newest = the one just imported
+  const tutPlaylist = () => playlistById(state.activePlaylistId) || state.playlists.reduce((a, b) => (!a || b.createdAt > a.createdAt ? b : a), null);
+  const tutTile = () => { const v = tutVideo(); return v ? $('#libraryList .grid-tile[data-id="' + v.id + '"]') : null; };
+  const tutHas = {
+    video: () => !!tutVideo(),
+    playlist: () => !!tutPlaylist(),
+    rows: () => { const p = tutPlaylist(); return !!(p && p.videoIds.some(id => videoById(id))); }
+  };
+  function tutCloseAll(){
+    collapsePlayer();
+    [el.pickSheetBackdrop, el.queueSheetBackdrop, el.coverMenuBackdrop].forEach(b => b.classList.add('hidden'));
+    if (!el.clipVolBackdrop.classList.contains('hidden')) closeClipVolume();
+  }
+  const tutScene = {
+    view: (view) => () => { tutCloseAll(); if (state.view !== view) switchView(view); },
+    playlist: () => {
+      tutCloseAll();
+      const p = tutPlaylist();
+      if (state.view !== 'playlistDetail' || state.activePlaylistId !== p.id) openPlaylistDetail(p.id);
+    },
+    clip: () => {
+      collapsePlayer();
+      if (state.view !== 'library') switchView('library');
+      const v = tutVideo();
+      if (el.clipVolBackdrop.classList.contains('hidden') || clipVolVideo !== v) openClipVolume(v);
+    },
+    // the video view as if the video had been tapped, but not started: whatever is loaded, or else
+    // the tutorial's video, ready on the same "press play to start" path as a restored one
+    player: () => {
+      tutCloseAll();
+      if (!getCurrentId()) {
+        const v = tutVideo();
+        const ids = state.videos.slice().sort((a, b) => a.addedAt - b.addedAt).map(x => x.id);
+        Object.assign(state, { queueBase: ids.slice(), queueLabel: 'Bibliothek', queueTrimmed: false, queueSourceId: null,
+                               playOrder: ids, posIndex: ids.indexOf(v.id), currentId: v.id, resumeAt: 0 });
+        state.currentObjectUrl = URL.createObjectURL(v.blob);
+        el.stageVideo.src = state.currentObjectUrl;
+        refreshNowPlayingUI(); updateMediaSession(v); markPlayingRow();
+      }
+      expandPlayer();
+    }
+  };
   const tutSteps = [
-    { text: 'tutImport', target: () => $('#importBtn'), done: s => state.videos.length > s.videos },
-    { text: 'tutToPlaylists', target: () => $('.tab[data-view="playlists"]'), done: () => state.view === 'playlists' },
+    { text: 'tutImport', scene: tutScene.view('library'), target: () => $('#importBtn'), done: s => state.videos.length > s.videos },
+    { text: 'tutStored', info: true, needs: tutHas.video, scene: tutScene.view('library'), target: tutTile },
+    { text: 'tutGear', needs: tutHas.video, scene: tutScene.view('library'),
+      target: () => { const tile = tutTile(); return tile && tile.querySelector('.grid-tile-settings'); },
+      done: () => !el.clipVolBackdrop.classList.contains('hidden') },
+    { text: 'tutClipName', info: true, inDialog: true, needs: tutHas.video, scene: tutScene.clip, target: () => el.clipNameInput },
+    { text: 'tutClipVolume', info: true, inDialog: true, needs: tutHas.video, scene: tutScene.clip, target: () => el.clipVolRange.closest('.clip-vol-control') },
+    { text: 'tutClipCover', info: true, inDialog: true, needs: tutHas.video, scene: tutScene.clip, target: () => $('.clip-cover-row') },
+    { text: 'tutClipDownload', info: true, inDialog: true, needs: tutHas.video, scene: tutScene.clip, target: () => el.clipDownload },
+    // "Weiter" here closes the dialog without saving (the next step's scene)
+    { text: 'tutClipSave', inDialog: true, needs: tutHas.video, scene: tutScene.clip, target: () => el.clipVolSave,
+      done: () => el.clipVolBackdrop.classList.contains('hidden') },
+    { text: 'tutToPlaylists', scene: tutScene.view('library'), target: () => $('.tab[data-view="playlists"]'), done: () => state.view === 'playlists' },
     // creating a playlist opens it right away, so "tap the new playlist" needs no step of its own
-    { text: 'tutNewPlaylist', modalText: 'tutNewPlaylistModal', target: () => el.newPlaylistBtn,
+    { text: 'tutNewPlaylist', modalText: 'tutNewPlaylistModal', scene: tutScene.view('playlists'), target: () => el.newPlaylistBtn,
       done: s => state.playlists.length > s.playlists && state.view === 'playlistDetail' },
-    { text: 'tutAddVideos', modalText: 'tutAddVideosModal', target: () => el.pdAddVideos,
-      done: () => { const p = playlistById(state.activePlaylistId); return !!(p && p.videoIds.length) && el.pickSheetBackdrop.classList.contains('hidden'); } },
-    { text: 'tutShuffle', info: true, target: () => el.pdPlayShuffle },
-    { text: 'tutTrim', info: true, target: () => el.pdToggleTrim },
-    { text: 'tutRemove', info: true, target: () => $('#pdList [data-tut="remove"]') },
-    { text: 'tutDisable', info: true, target: () => $('#pdList [data-tut="disable"]') },
-    { text: 'tutDrag', info: true, target: () => $('#pdList [data-tut="drag"]') },
-    { text: 'tutToSettings', target: () => $('.tab[data-view="settings"]'), done: () => state.view === 'settings' },
-    { text: 'tutHideVideo', info: true, target: () => el.setAudioOnly.closest('.setting-row') },
-    { text: 'tutBoost', info: true, target: () => $('.setting-row-boost') }
+    { text: 'tutAddVideos', modalText: 'tutAddVideosModal', needs: tutHas.playlist, scene: tutScene.playlist, target: () => el.pdAddVideos,
+      done: s => { const p = playlistById(state.activePlaylistId); return !!p && p.videoIds.length > s.plVideos && el.pickSheetBackdrop.classList.contains('hidden'); } },
+    { text: 'tutShuffle', info: true, needs: tutHas.playlist, scene: tutScene.playlist, target: () => el.pdPlayShuffle },
+    { text: 'tutTrim', info: true, needs: tutHas.playlist, scene: tutScene.playlist, target: () => el.pdToggleTrim },
+    { text: 'tutRemove', info: true, needs: tutHas.rows, scene: tutScene.playlist, target: () => $('#pdList [data-tut="remove"]') },
+    { text: 'tutDisable', info: true, needs: tutHas.rows, scene: tutScene.playlist, target: () => $('#pdList [data-tut="disable"]') },
+    { text: 'tutDrag', info: true, needs: tutHas.rows, scene: tutScene.playlist, target: () => $('#pdList [data-tut="drag"]') },
+    { text: 'tutToSettings', scene: () => (tutHas.playlist() ? tutScene.playlist() : tutScene.view('playlists')()),
+      target: () => $('.tab[data-view="settings"]'), done: () => state.view === 'settings' },
+    { text: 'tutHideVideo', info: true, scene: tutScene.view('settings'), target: () => el.setAudioOnly.closest('.setting-row') },
+    { text: 'tutBoost', info: true, scene: tutScene.view('settings'), target: () => $('.setting-row-boost') },
+    { text: 'tutRestart', info: true, scene: tutScene.view('settings'), target: () => el.setTutorial.closest('.setting-row') },
+    { text: 'tutFpTrim', info: true, needs: tutHas.video, scene: tutScene.player, target: () => el.fpTrim },
+    { text: 'tutFpHide', info: true, needs: tutHas.video, scene: tutScene.player, target: () => el.fpHideVideo },
+    { text: 'tutFpRepeat', info: true, needs: tutHas.video, scene: tutScene.player, target: () => el.fpRepeat },
+    { text: 'tutFpQueue', info: true, needs: tutHas.video, scene: tutScene.player, target: () => el.fpQueue }
   ];
-  const tut = { on: false, i: 0, snap: null, timer: 0, scrolled: -1, confirming: false };
+  const tut = { on: false, i: 0, dir: 1, snap: null, timer: 0, scrolled: -1, confirming: false };
   const tutEls = {
-    root: $('#tut'), hole: $('#tutHole'), bubble: $('#tutBubble'), text: $('#tutText'), next: $('#tutNext'), skip: $('#tutSkip'),
+    root: $('#tut'), hole: $('#tutHole'), bubble: $('#tutBubble'), text: $('#tutText'),
+    next: $('#tutNext'), back: $('#tutBack'), skip: $('#tutSkip'),
     blocks: ['#tutBlockTop', '#tutBlockBottom', '#tutBlockLeft', '#tutBlockRight', '#tutBlockHole'].map($)
   };
+  const tutReachable = (i) => !tutSteps[i].needs || tutSteps[i].needs();
+  const tutIsLast = () => !tutSteps.some((s, j) => j > tut.i && tutReachable(j));
   function startTutorial(){
-    // a clean starting point: library, nothing open on top
-    collapsePlayer();
-    [el.pickSheetBackdrop, el.queueSheetBackdrop, el.clipVolBackdrop].forEach(b => b.classList.add('hidden'));
-    switchView('library');
+    switchView('library');   // a clean start, also clears a library search
     tut.on = true;
-    tutGo(0);
+    tutGo(0, 1);
     tutEls.root.hidden = false;
     clearInterval(tut.timer);
     tut.timer = setInterval(tutTick, 120);
     tutTick();
   }
-  function tutGo(i){
-    tut.i = i;
-    tut.snap = { videos: state.videos.length, playlists: state.playlists.length };   // "has the user done it" is measured from here
-    tut.scrolled = -1;
+  // Steps that can't be shown yet are passed over in the direction of travel; the step reached
+  // sets up its screen, and "has the user done it" is measured from that moment.
+  function tutGo(i, dir){
+    while (i >= 0 && i < tutSteps.length && !tutReachable(i)) i += dir;
+    if (i >= tutSteps.length) { endTutorial(true); return; }
+    if (i < 0) i = 0;   // the first step (import) is always there
+    tut.i = i; tut.dir = dir; tut.scrolled = -1;
+    tutSteps[i].scene();
+    const p = playlistById(state.activePlaylistId);
+    tut.snap = { videos: state.videos.length, playlists: state.playlists.length, plVideos: p ? p.videoIds.length : 0 };
   }
   function tutAdvance(){
-    if (tut.i >= tutSteps.length - 1) { endTutorial(true); return; }
-    tutGo(tut.i + 1);
+    if (tutIsLast()) { endTutorial(true); return; }
+    tutGo(tut.i + 1, 1);
+    tutTick();
+  }
+  function tutBack(){
+    if (tut.i === 0) return;
+    tutGo(tut.i - 1, -1);
     tutTick();
   }
   function endTutorial(finished){
@@ -3446,21 +3545,29 @@
   function tutTick(){
     if (!tut.on) return;
     const step = tutSteps[tut.i];
-    if (!step.info && step.done(tut.snap)) { tutAdvance(); return; }
-    const modal = tutModalOpen();
+    if (step.done && step.done(tut.snap)) { tutAdvance(); return; }
+    // the video settings dialog belongs to its steps and gets the spotlight; any other dialog or
+    // sheet (playlist name, "Videos hinzufügen", the skip question) only gets the hint at the top
+    const inOwnDialog = !!step.inDialog && !tut.confirming;
+    const modal = tut.confirming || (tutModalOpen() && !inOwnDialog);
     const target = modal ? null : step.target();
-    const visible = !!(target && target.getClientRects().length);
-    if (step.info && !modal && !visible) { tutAdvance(); return; }   // nothing to point at (e.g. no row) — move on
+    if (!modal && !(target && target.getClientRects().length)) {
+      // nothing to point at (e.g. no row) — pass it over, the way the user was going
+      tutGo(tut.i + (tut.i === 0 ? 1 : tut.dir), tut.i === 0 ? 1 : tut.dir);
+      tutTick();
+      return;
+    }
     tutEls.text.textContent = t(modal && step.modalText ? step.modalText : step.text);
     tutEls.skip.hidden = modal;
-    tutEls.next.hidden = modal || !step.info;
-    tutEls.next.textContent = tut.i === tutSteps.length - 1 ? t('tutDone') : t('tutNext');
+    tutEls.next.hidden = modal;
+    tutEls.back.hidden = modal || tut.i === 0;
+    tutEls.next.textContent = tutIsLast() ? t('tutDone') : t('tutNext');
     // the step's own name dialog (not the skip confirmation, which uses the same dialog)
     const ownDialog = modal && !tut.confirming && !!step.modalText && !el.dialogBackdrop.classList.contains('hidden');
-    tutEls.root.classList.toggle('over-dialog', ownDialog);
+    tutEls.root.classList.toggle('over-dialog', ownDialog || inOwnDialog);
     el.dialogCancel.classList.toggle('tut-locked', ownDialog);
     tutEls.bubble.hidden = modal && (tut.confirming || !step.modalText);
-    if (modal || !visible) {
+    if (modal) {
       tutEls.hole.hidden = true;
       tutEls.blocks.forEach(b => { b.hidden = true; });
       if (ownDialog) {
@@ -3475,10 +3582,11 @@
       return;
     }
     let r = target.getBoundingClientRect();
-    // once per step: an explanation target hidden under the bars or off screen is scrolled into view
+    // once per step: a target in the page that's hidden under the bars or off screen is scrolled into view
     if (tut.scrolled !== tut.i) {
       tut.scrolled = tut.i;
-      if (step.info && (r.top < 90 || r.bottom > window.innerHeight - 170)) {
+      const inPage = !target.closest('.tabbar, .fab-wrap, .topbar, .back-row, #fullPlayer, .dialog-backdrop, .sheet-backdrop');
+      if (inPage && (r.top < 90 || r.bottom > window.innerHeight - 170)) {
         window.scrollBy(0, r.top - window.innerHeight / 2 + r.height / 2);
         r = target.getBoundingClientRect();
       }
@@ -3495,9 +3603,14 @@
     tutPlace(right, x + w, y, W - x - w, h);
     tutPlace(over, x, y, w, h);
     over.hidden = !step.info;   // explanation steps: the highlighted control itself isn't tappable either
+    // Zurück/Weiter sit in the bottom corners; a spotlight down there (tab bar, + button, player
+    // controls) pushes them up to just above it, and the bubble above them
+    tutEls.next.style.bottom = tutEls.back.style.bottom = '';
+    const lift = y + h > tutEls.next.getBoundingClientRect().top - 8;
+    if (lift) tutEls.next.style.bottom = tutEls.back.style.bottom = (H - y + 10) + 'px';
     // the bubble goes below a spotlight in the upper half of the screen, above one in the lower half
     if (y + h / 2 < H / 2) { tutEls.bubble.style.top = (y + h + 14) + 'px'; tutEls.bubble.style.bottom = ''; }
-    else { tutEls.bubble.style.bottom = (H - y + 14) + 'px'; tutEls.bubble.style.top = ''; }
+    else { tutEls.bubble.style.bottom = (H - y + 14 + (lift ? tutEls.next.offsetHeight + 10 : 0)) + 'px'; tutEls.bubble.style.top = ''; }
   }
   // No scrolling while the tutorial runs, so the page stays put under the spotlight (its own
   // window.scrollBy for an off-screen target still works). Its dialogs and sheets keep scrolling:
@@ -3506,11 +3619,17 @@
   document.addEventListener('touchmove', tutNoScroll, { passive: false });
   document.addEventListener('wheel', tutNoScroll, { passive: false });
   tutEls.next.addEventListener('click', tutAdvance);
+  tutEls.back.addEventListener('click', tutBack);
   tutEls.skip.addEventListener('click', async () => {
+    // the skip question shares the dialog layer with the video settings: those close first, and
+    // come back if the tutorial goes on
+    const reopen = !el.clipVolBackdrop.classList.contains('hidden');
+    if (reopen) closeClipVolume();
     tut.confirming = true;
     const ok = await showDialog({ title: t('tutSkipTitle'), text: t('tutSkipText'), confirmLabel: t('tutSkip') });
     tut.confirming = false;
     if (ok) endTutorial(false);
+    else if (reopen) tutSteps[tut.i].scene();
   });
   el.setTutorial.addEventListener('click', startTutorial);
 
