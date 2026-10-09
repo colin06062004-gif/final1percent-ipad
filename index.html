@@ -786,7 +786,7 @@
     <div class="wordmark"><img class="wordmark-helmet" src="helmet-mark.png" alt="">Final 1%</div>
     <!-- Set by hand on every commit that touches index.html — no build step in this project,
          so nothing computes this automatically. Format: DD.MM.YYYY, HH:MM, local time of the commit. -->
-    <span class="build-date"><span data-i18n="updated">Aktualisiert</span>: 08.10.2026, 20:36</span>
+    <span class="build-date"><span data-i18n="updated">Aktualisiert</span>: 09.10.2026, 12:52</span>
   </header>
 
   <input id="fileInput" type="file" accept="video/*,audio/*,.mp3" multiple class="visually-hidden">
@@ -1343,6 +1343,7 @@
     repeat: false,
     earlyAdvanceDone: false, // guards the "skip 5s before end" auto-advance from firing more than once per track
     currentObjectUrl: null,
+    resumeAt: null,      // seconds into a track restored at launch that isn't loaded yet (see restoreState); null otherwise
     boostedCache: new Map()   // videoId -> { gain, url }: its offline-rendered WAV and the gain it was rendered at
                               // (global boost x the video's own volume); a gain mismatch means it's stale
   };
@@ -2422,7 +2423,7 @@
     // While this playlist is the one loaded, the button is its play/pause toggle: pressing it
     // again pauses or resumes the current video instead of starting the playlist over. Only a
     // finished playlist (last video ended) or another source starts it fresh below.
-    if (p && state.queueSourceId === p.id && el.audioPlayer.src && !el.audioPlayer.ended) { togglePlayPause(); return; }
+    if (p && state.queueSourceId === p.id && (el.audioPlayer.src || state.resumeAt != null) && !el.audioPlayer.ended) { togglePlayPause(); return; }
     if (!p || !p.videoIds.length) { toast(t('plEmptyToast')); return; }
     const ids = playlistActiveIds(p);
     if (!ids.length) { toast(t('allDisabled')); return; }
@@ -2682,6 +2683,7 @@
      lock) does not reliably survive an iOS screen lock, but a genuinely audible <audio> element
      that was already playing does. */
   function seekBoth(time){
+    if (state.resumeAt != null) state.resumeAt = time;
     try { el.audioPlayer.currentTime = time; } catch (e) {}
     try { el.stageVideo.currentTime = time; } catch (e) {}
   }
@@ -2761,7 +2763,7 @@
     }
   }
 
-  function loadCurrentTrack(autoplay){
+  function loadCurrentTrack(autoplay, startAt = 0){
     const id = getCurrentId();
     const v = videoById(id);
     if (!v) return;
@@ -2780,9 +2782,10 @@
     if (cachedBoost) { state.boostedCache.delete(v.id); state.boostedCache.set(v.id, entry); }   // most recently used
     el.audioPlayer.src = cachedBoost || state.currentObjectUrl;
     boostUrlsToRevoke = boostUrlsToRevoke.filter(u => { if (u === el.audioPlayer.src) return true; URL.revokeObjectURL(u); return false; });
-    el.audioPlayer.currentTime = 0;
+    el.audioPlayer.currentTime = startAt;
     el.stageVideo.src = state.currentObjectUrl;
-    el.stageVideo.currentTime = 0;
+    el.stageVideo.currentTime = startAt;
+    state.resumeAt = null;
     state.earlyAdvanceDone = false;
     if (autoplay) {
       el.audioPlayer.play().catch(() => {});
@@ -2942,7 +2945,8 @@
     el.fpTitle.textContent = v.name;
     el.fpQueue.classList.toggle('toggled', state.queue.length > 0);
     el.fpTimeDur.textContent = fmtTime(v.duration);
-    if (!scrub) paintProgress(videoDuration() ? el.audioPlayer.currentTime / videoDuration() : 0);
+    const pos = state.resumeAt != null ? state.resumeAt : el.audioPlayer.currentTime;
+    if (!scrub) paintProgress(videoDuration() ? pos / videoDuration() : 0);
     el.fpShuffle.classList.toggle('toggled', state.shuffle);
     el.fpRepeat.classList.toggle('toggled', state.repeat);
     if (el.pdPlayShuffle) el.pdPlayShuffle.classList.toggle('active-toggle', state.shuffle);
@@ -2975,6 +2979,8 @@
 
   function togglePlayPause(){
     const p = el.audioPlayer;
+    // a track restored at launch starts here, through the same loadCurrentTrack as any other start
+    if (state.resumeAt != null) { loadCurrentTrack(true, state.resumeAt); return; }
     if (!p.src) return;
     if (p.paused) { p.play().catch(() => {}); el.stageVideo.play().catch(() => {}); }
     else { p.pause(); el.stageVideo.pause(); }
@@ -3047,7 +3053,7 @@
     el.stageVideo.load();
     if (state.currentObjectUrl) { URL.revokeObjectURL(state.currentObjectUrl); state.currentObjectUrl = null; }
     state.queueBase = []; state.queueLabel = ''; state.queueTrimmed = false; state.queueSourceId = null; state.playOrder = []; state.posIndex = -1;
-    state.queue = []; state.currentId = null;
+    state.queue = []; state.currentId = null; state.resumeAt = null;
     markQueuedRows();
     el.queueSheetBackdrop.classList.add('hidden');
     collapsePlayer();
@@ -3062,8 +3068,7 @@
 
   el.audioPlayer.addEventListener('play', () => {
     setPlayPauseIcon(); if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'playing';
-    // also covers pressing play on the track restored at launch, which never went through
-    // loadCurrentTrack — the queue skips anything already rendered, so resumes cost nothing
+    // also covers resuming after a pause — the queue skips anything already rendered, so that costs nothing
     warmBoostCache([nextTrackId(), getCurrentId()].filter(Boolean));
   });
   el.audioPlayer.addEventListener('pause', () => { setPlayPauseIcon(); if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'paused'; saveState(); });
@@ -3187,7 +3192,7 @@
       album: queueLabelText(),
       artwork: thumbOf(v) ? [{ src: thumbOf(v), sizes: '240x240', type: 'image/jpeg' }] : []
     });
-    navigator.mediaSession.setActionHandler('play', () => { el.audioPlayer.play().catch(()=>{}); el.stageVideo.play().catch(()=>{}); });
+    navigator.mediaSession.setActionHandler('play', () => { if (el.audioPlayer.paused) togglePlayPause(); });
     navigator.mediaSession.setActionHandler('pause', () => { el.audioPlayer.pause(); el.stageVideo.pause(); });
     navigator.mediaSession.setActionHandler('previoustrack', prevTrack);
     navigator.mediaSession.setActionHandler('nexttrack', nextTrack);
@@ -3209,7 +3214,7 @@
           queueBase: state.queueBase, queueLabel: state.queueLabel, queueTrimmed: state.queueTrimmed, playOrder: state.playOrder,
           posIndex: state.posIndex, shuffle: state.shuffle, repeat: state.repeat,
           queue: state.queue, currentId: state.currentId, queueSourceId: state.queueSourceId,
-          positionSec: el.audioPlayer.currentTime || 0
+          positionSec: state.resumeAt != null ? state.resumeAt : (el.audioPlayer.currentTime || 0)
         }
       });
     } catch (e) {}
@@ -3236,12 +3241,18 @@
       state.queueSourceId = s.queueSourceId || null;
       const v = videoById(getCurrentId());
       if (!v) return;
+      // Only the picture is prepared here. #audioPlayer stays empty until play is pressed, and the
+      // track then starts through loadCurrentTrack like any other (see togglePlayPause). Priming
+      // #audioPlayer here and seeking it on loadedmetadata worked in Chromium, but in the iOS app a
+      // track resumed that way froze its progress bar and never fired 'ended', so the playlist stopped.
+      state.resumeAt = s.positionSec || 0;
       state.currentObjectUrl = URL.createObjectURL(v.blob);
-      el.audioPlayer.src = state.currentObjectUrl;
-      el.audioPlayer.addEventListener('loadedmetadata', () => { el.audioPlayer.currentTime = s.positionSec || 0; }, { once: true });
       el.stageVideo.src = state.currentObjectUrl;
-      el.stageVideo.addEventListener('loadedmetadata', () => { el.stageVideo.currentTime = s.positionSec || 0; }, { once: true });
+      el.stageVideo.addEventListener('loadedmetadata', () => { el.stageVideo.currentTime = state.resumeAt || 0; }, { once: true });
       refreshNowPlayingUI();
+      const d = videoDuration();
+      el.miniProgress.style.width = (d ? Math.min(1, state.resumeAt / d) * 100 : 0) + '%';
+      el.fpTimeCur.textContent = fmtTime(state.resumeAt);
       updateMediaSession(v);
       markPlayingRow();
       markQueuedRows();
