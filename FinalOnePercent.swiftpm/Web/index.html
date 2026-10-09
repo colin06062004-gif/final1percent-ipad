@@ -627,7 +627,8 @@
   }
   .sheet-head{display:flex;align-items:center;justify-content:space-between;padding:16px 18px 10px;border-bottom:1px solid rgba(255,255,255,.08);}
   .sheet-head h3{font-size:16px;}
-  .sheet-body{overflow-y:auto;padding:8px 18px 18px;}
+  /* contain: at the list's top or bottom a drag stops there instead of scrolling the page behind */
+  .sheet-body{overflow-y:auto;padding:8px 18px 18px;overscroll-behavior:contain;}
   .pick-row{
     display:flex;align-items:center;gap:12px;padding:9px 4px;
   }
@@ -792,7 +793,7 @@
     <div class="wordmark"><img class="wordmark-helmet" src="helmet-mark.png" alt="">Final 1%</div>
     <!-- Set by hand on every commit that touches index.html — no build step in this project,
          so nothing computes this automatically. Format: DD.MM.YYYY, HH:MM, local time of the commit. -->
-    <span class="build-date"><span data-i18n="updated">Aktualisiert</span>: 09.10.2026, 18:56</span>
+    <span class="build-date"><span data-i18n="updated">Aktualisiert</span>: 09.10.2026, 20:09</span>
   </header>
 
   <input id="fileInput" type="file" accept="video/*,audio/*,.mp3" multiple class="visually-hidden">
@@ -3235,10 +3236,16 @@
 
   function expandPlayer(){ el.fullPlayer.classList.remove('hidden'); }
   function collapsePlayer(){ el.fullPlayer.classList.add('hidden'); }
-  // The full player is one fixed screen with nothing to scroll; without this, dragging on it moved
-  // the page underneath like a website (scroll bar and all). The progress bar runs on pointer events.
+  // The full player and the sheets over it (queue, "Videos hinzufügen") are fixed screens; without
+  // this, dragging on them moved the page underneath like a website (a second scroll bar, and the
+  // queue list stuck while the page scrolled). Only a sheet's own list may scroll, and only if it's
+  // long enough to. The progress bar runs on pointer events.
   document.addEventListener('touchmove', (e) => {
-    if (e.target.closest && e.target.closest('#fullPlayer')) e.preventDefault();
+    const target = e.target.closest ? e.target : null;
+    if (!target) return;
+    const list = target.closest('.sheet-body');
+    if (list) { if (list.scrollHeight <= list.clientHeight) e.preventDefault(); return; }
+    if (target.closest('#fullPlayer, .sheet-backdrop')) e.preventDefault();
   }, { passive: false });
 
   /* ================= Media Session (lock screen controls) ================= */
