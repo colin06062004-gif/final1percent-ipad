@@ -753,6 +753,8 @@
     transition:top .2s ease, left .2s ease, width .2s ease, height .2s ease;
   }
   .tut-block{position:fixed;pointer-events:auto;}
+  /* a step that's only text: the same dimming, no ring, nothing highlighted */
+  .tut-hole.no-spot{box-shadow:0 0 0 200vmax rgba(5,2,3,.76);}
   .tut-bubble{
     position:fixed;left:16px;right:16px;max-width:360px;margin:0 auto;
     padding:14px 16px;border-radius:16px;pointer-events:none;
@@ -763,6 +765,7 @@
   }
   .tut-bubble p{margin:0;}
   .tut-skip{position:fixed;top:calc(10px + env(safe-area-inset-top, 0px));right:12px;pointer-events:auto;}
+  .tut-skip.left{right:auto;left:12px;}   /* when the spotlight is in the top right corner */
   .tut-next{position:fixed;right:16px;bottom:calc(16px + env(safe-area-inset-bottom, 0px));pointer-events:auto;}
   .tut-back{position:fixed;left:16px;bottom:calc(16px + env(safe-area-inset-bottom, 0px));pointer-events:auto;}
   /* while the step's own name dialog is open: above the dialog (25) so the hint isn't dimmed by its
@@ -799,7 +802,7 @@
     <div class="wordmark"><img class="wordmark-helmet" src="helmet-mark.png" alt="">Final 1%</div>
     <!-- Set by hand on every commit that touches index.html — no build step in this project,
          so nothing computes this automatically. Format: DD.MM.YYYY, HH:MM, local time of the commit. -->
-    <span class="build-date"><span data-i18n="updated">Aktualisiert</span>: 09.10.2026, 20:53</span>
+    <span class="build-date"><span data-i18n="updated">Aktualisiert</span>: 11.10.2026, 16:43</span>
   </header>
 
   <input id="fileInput" type="file" accept="video/*,audio/*,.mp3" multiple class="visually-hidden">
@@ -3294,16 +3297,18 @@
 
   function expandPlayer(){ el.fullPlayer.classList.remove('hidden'); }
   function collapsePlayer(){ el.fullPlayer.classList.add('hidden'); }
-  // The full player and the sheets over it (queue, "Videos hinzufügen") are fixed screens; without
-  // this, dragging on them moved the page underneath like a website (a second scroll bar, and the
-  // queue list stuck while the page scrolled). Only a sheet's own list may scroll, and only if it's
-  // long enough to. The progress bar runs on pointer events.
+  // The full player and the sheets and dialogs over the page (queue, "Videos hinzufügen", a video's
+  // settings) are fixed screens; without this, dragging on them moved the page underneath like a
+  // website (a second scroll bar, the queue list sticking). Only a sheet's own list may scroll, and
+  // only if it's long enough to. The progress bar runs on pointer events; sliders, text fields and
+  // the cropper's picture handle their own drags (iOS won't move a slider whose touchmove is cancelled).
   document.addEventListener('touchmove', (e) => {
     const target = e.target.closest ? e.target : null;
     if (!target) return;
     const list = target.closest('.sheet-body');
     if (list) { if (list.scrollHeight <= list.clientHeight) e.preventDefault(); return; }
-    if (target.closest('#fullPlayer, .sheet-backdrop')) e.preventDefault();
+    if (target.closest('input, textarea, .crop-stage')) return;
+    if (target.closest('#fullPlayer, .sheet-backdrop, .dialog-backdrop, .crop-backdrop')) e.preventDefault();
   }, { passive: false });
 
   /* ================= Media Session (lock screen controls) ================= */
@@ -3454,7 +3459,7 @@
   };
   const tutSteps = [
     { text: 'tutImport', scene: tutScene.view('library'), target: () => $('#importBtn'), done: s => state.videos.length > s.videos },
-    { text: 'tutStored', info: true, needs: tutHas.video, scene: tutScene.view('library'), target: tutTile },
+    { text: 'tutStored', info: true, noSpot: true, needs: tutHas.video, scene: tutScene.view('library') },
     { text: 'tutGear', needs: tutHas.video, scene: tutScene.view('library'),
       target: () => { const tile = tutTile(); return tile && tile.querySelector('.grid-tile-settings'); },
       done: () => !el.clipVolBackdrop.classList.contains('hidden') },
@@ -3550,8 +3555,8 @@
     // sheet (playlist name, "Videos hinzufügen", the skip question) only gets the hint at the top
     const inOwnDialog = !!step.inDialog && !tut.confirming;
     const modal = tut.confirming || (tutModalOpen() && !inOwnDialog);
-    const target = modal ? null : step.target();
-    if (!modal && !(target && target.getClientRects().length)) {
+    const target = modal || step.noSpot ? null : step.target();
+    if (!modal && !step.noSpot && !(target && target.getClientRects().length)) {
       // nothing to point at (e.g. no row) — pass it over, the way the user was going
       tutGo(tut.i + (tut.i === 0 ? 1 : tut.dir), tut.i === 0 ? 1 : tut.dir);
       tutTick();
@@ -3581,6 +3586,20 @@
       }
       return;
     }
+    const W = window.innerWidth, H = window.innerHeight;
+    tutEls.next.style.bottom = tutEls.back.style.bottom = '';
+    tutEls.skip.classList.remove('left');
+    tutEls.hole.classList.toggle('no-spot', !!step.noSpot);
+    if (step.noSpot) {
+      // just the text, in the middle: everything dimmed, nothing highlighted or tappable
+      tutEls.hole.hidden = false;
+      tutPlace(tutEls.hole, W / 2, H / 2, 0, 0);
+      tutEls.blocks.forEach((b, k) => { b.hidden = k > 0; });
+      tutPlace(tutEls.blocks[0], 0, 0, W, H);
+      tutEls.bubble.style.top = Math.max(0, (H - tutEls.bubble.offsetHeight) / 2) + 'px';
+      tutEls.bubble.style.bottom = '';
+      return;
+    }
     let r = target.getBoundingClientRect();
     // once per step: a target in the page that's hidden under the bars or off screen is scrolled into view
     if (tut.scrolled !== tut.i) {
@@ -3592,7 +3611,6 @@
       }
     }
     const pad = 6, x = r.left - pad, y = r.top - pad, w = r.width + pad * 2, h = r.height + pad * 2;
-    const W = window.innerWidth, H = window.innerHeight;
     const [top, bottom, left, right, over] = tutEls.blocks;
     tutEls.hole.hidden = false;
     tutPlace(tutEls.hole, x, y, w, h);
@@ -3603,9 +3621,11 @@
     tutPlace(right, x + w, y, W - x - w, h);
     tutPlace(over, x, y, w, h);
     over.hidden = !step.info;   // explanation steps: the highlighted control itself isn't tappable either
+    // "Überspringen" moves to the left corner when the spotlight is under it (the player's scissors)
+    const sr = tutEls.skip.getBoundingClientRect();
+    tutEls.skip.classList.toggle('left', x < sr.right && x + w > sr.left && y < sr.bottom && y + h > sr.top);
     // Zurück/Weiter sit in the bottom corners; a spotlight down there (tab bar, + button, player
     // controls) pushes them up to just above it, and the bubble above them
-    tutEls.next.style.bottom = tutEls.back.style.bottom = '';
     const lift = y + h > tutEls.next.getBoundingClientRect().top - 8;
     if (lift) tutEls.next.style.bottom = tutEls.back.style.bottom = (H - y + 10) + 'px';
     // the bubble goes below a spotlight in the upper half of the screen, above one in the lower half
