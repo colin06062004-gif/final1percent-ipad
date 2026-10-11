@@ -802,7 +802,7 @@
     <div class="wordmark"><img class="wordmark-helmet" src="helmet-mark.png" alt="">Final 1%</div>
     <!-- Set by hand on every commit that touches index.html — no build step in this project,
          so nothing computes this automatically. Format: DD.MM.YYYY, HH:MM, local time of the commit. -->
-    <span class="build-date"><span data-i18n="updated">Aktualisiert</span>: 11.10.2026, 16:43</span>
+    <span class="build-date"><span data-i18n="updated">Aktualisiert</span>: 11.10.2026, 18:47</span>
   </header>
 
   <input id="fileInput" type="file" accept="video/*,audio/*,.mp3" multiple class="visually-hidden">
@@ -3633,9 +3633,10 @@
     else { tutEls.bubble.style.bottom = (H - y + 14 + (lift ? tutEls.next.offsetHeight + 10 : 0)) + 'px'; tutEls.bubble.style.top = ''; }
   }
   // No scrolling while the tutorial runs, so the page stays put under the spotlight (its own
-  // window.scrollBy for an off-screen target still works). Its dialogs and sheets keep scrolling:
-  // "Videos hinzufügen" can be a long list to find the video in.
-  const tutNoScroll = (e) => { if (tut.on && !tutModalOpen()) e.preventDefault(); };
+  // window.scrollBy for an off-screen target still works). Dialogs and sheets the user opens keep
+  // scrolling ("Videos hinzufügen" can be a long list to find the video in); the video settings
+  // dialog of its own steps doesn't — there every touch lands on the tutorial layer above it.
+  const tutNoScroll = (e) => { if (tut.on && (!tutModalOpen() || tutSteps[tut.i].inDialog)) e.preventDefault(); };
   document.addEventListener('touchmove', tutNoScroll, { passive: false });
   document.addEventListener('wheel', tutNoScroll, { passive: false });
   tutEls.next.addEventListener('click', tutAdvance);
