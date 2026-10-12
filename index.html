@@ -8,7 +8,7 @@
 <!-- Set by hand on every commit that touches index.html (no build step, so nothing computes it):
      DD.MM.YYYY, HH:MM, local time of the commit. Not shown in the app any more; it tells which
      version a device or the live site has (view source, or look for it in the page). -->
-<meta name="final1-build" content="12.10.2026, 17:19">
+<meta name="final1-build" content="12.10.2026, 17:25">
 <meta name="description" content="Lade Videos aus deiner Galerie, erstelle Playlists und spiele sie sortiert oder gemischt ab.">
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon-512.png" type="image/png">
@@ -948,9 +948,9 @@
     <button id="importBtn" class="fab-import" aria-label="Videos aus der Galerie importieren" data-i18n-aria="aImport"></button>
   </div>
 
-  <!-- after deleting / removing one video: pick more to go the same way -->
+  <!-- picking videos to delete (library) or take out (playlist), started by a trash / X -->
   <div id="selectBar" class="select-bar" hidden>
-    <button id="selectDone" class="btn ghost" data-i18n="selDone">Fertig</button>
+    <button id="selectDone" class="btn ghost" data-i18n="cancel">Abbrechen</button>
     <button id="selectApply" class="btn danger-ghost"></button>
   </div>
 
@@ -1236,12 +1236,14 @@
       importing: n => 'Importiere ' + n + ' Video' + (n > 1 ? 's' : '') + ' …',
       imported: n => n + ' Video' + (n !== 1 ? 's' : '') + ' hinzugefügt',
       imgLoadFail: 'Bild konnte nicht geladen werden', imgProcessFail: 'Bild konnte nicht verarbeitet werden',
-      videoDeleted: 'Video gelöscht',
       videosDeleted: n => n === 1 ? 'Video gelöscht' : n + ' Videos gelöscht',
       videosRemoved: n => n === 1 ? 'Video aus der Playlist entfernt' : n + ' Videos aus der Playlist entfernt',
-      selDone: 'Fertig', selPick: 'Weitere antippen',
-      selDeleteMore: n => n + (n === 1 ? ' weiteres löschen' : ' weitere löschen'),
-      selRemoveMore: n => n + (n === 1 ? ' weiteres entfernen' : ' weitere entfernen'),
+      selPick: 'Videos antippen',
+      selDelete: n => n === 1 ? '1 Video löschen' : n + ' Videos löschen',
+      selRemove: n => n === 1 ? '1 Video entfernen' : n + ' Videos entfernen',
+      deleteVideosTitle: n => n + ' Videos löschen?',
+      deleteVideosText: 'Sie werden aus der Bibliothek und aus allen Playlists entfernt.',
+      removeVideosText: n => n + ' Videos werden aus dieser Playlist entfernt. In deiner Bibliothek bleiben sie erhalten.',
       queued: name => '„' + name + '“ in die Warteschlange',
       coverSet: 'Playlist-Bild gesetzt', coverRemoved: 'Playlist-Bild entfernt',
       coverMenuTitle: 'Playlist-Bild', coverMenuPick: 'Foto auswählen',
@@ -1335,12 +1337,14 @@
       importing: n => 'Importing ' + n + ' video' + (n > 1 ? 's' : '') + ' …',
       imported: n => n + ' video' + (n !== 1 ? 's' : '') + ' added',
       imgLoadFail: 'Couldn’t load the image', imgProcessFail: 'Couldn’t process the image',
-      videoDeleted: 'Video deleted',
       videosDeleted: n => n === 1 ? 'Video deleted' : n + ' videos deleted',
       videosRemoved: n => n === 1 ? 'Video removed from the playlist' : n + ' videos removed from the playlist',
-      selDone: 'Done', selPick: 'Tap more videos',
-      selDeleteMore: n => 'Delete ' + n + ' more',
-      selRemoveMore: n => 'Remove ' + n + ' more',
+      selPick: 'Tap videos',
+      selDelete: n => n === 1 ? 'Delete 1 video' : 'Delete ' + n + ' videos',
+      selRemove: n => n === 1 ? 'Remove 1 video' : 'Remove ' + n + ' videos',
+      deleteVideosTitle: n => 'Delete ' + n + ' videos?',
+      deleteVideosText: 'They will be removed from your library and from all playlists.',
+      removeVideosText: n => n + ' videos will be removed from this playlist. They stay in your library.',
       queued: name => '“' + name + '” added to the queue',
       coverSet: 'Playlist image set', coverRemoved: 'Playlist image removed',
       coverMenuTitle: 'Playlist image', coverMenuPick: 'Choose photo',
@@ -1783,7 +1787,7 @@
     state.videos.slice().sort((a,b) => a.addedAt - b.addedAt).forEach((v) => {
       el.libraryList.appendChild(buildGridTile(v, {
         onPlay: () => playQueue(state.videos.map(x => x.id), 'Bibliothek', v.id),
-        onDelete: () => deleteVideo(v.id),
+        onDelete: () => startSelecting('library', v.id),
         onSettings: () => openClipVolume(v)
       }));
     });
@@ -2066,18 +2070,6 @@
     markPlayingRow();
   }
 
-  // the trash on a library tile: asks, deletes, then offers to pick more videos to delete too
-  async function deleteVideo(id){
-    const v = videoById(id);
-    if (!v) return;
-    const ok = await showDialog({ title: t('deleteVideoTitle'), text: t('deleteVideoText', v.name), confirmLabel: t('del'), danger: true });
-    if (!ok) return;
-    await removeVideoFromApp(id);
-    renderLibrary(); renderPlaylists();
-    if (state.view === 'playlistDetail') renderPlaylistDetail();
-    toast(t('videoDeleted'));
-    if (state.videos.length) startSelecting('library');
-  }
   async function removeVideoFromApp(id){
     await dbDelete('videos', id);
     dbDelete('videoFlags', id).catch(() => {});
@@ -2101,9 +2093,10 @@
     }
   }
 
-  /* After one video is deleted from the library (or taken out of a playlist), more can be ticked
-     and go the same way in one tap — the first confirmation covers them. Tiles / rows toggle on tap
-     meanwhile; the per-video buttons, the swipe and the mini player step aside until "Fertig". */
+  /* The trash on a library tile (or the X on a playlist row) ticks that video and switches the list
+     to picking: tap more videos to tick or untick them, then "n Videos löschen" / "n Videos entfernen"
+     in the corner asks once and handles them all; "Abbrechen" leaves without changes. Tiles / rows
+     toggle on tap meanwhile; the per-video buttons, the swipe, the mini player and the + step aside. */
   let selecting = null;   // { scope: 'library' | 'playlist', ids: Set } while picking
   // the tick circle; a row rebuilt while picking keeps its tick (the row gets .selected)
   function selectCheck(v, row){
@@ -2114,9 +2107,11 @@
     return check;
   }
   const selectList = () => selecting && (selecting.scope === 'library' ? el.libraryList : el.pdList);
-  function startSelecting(scope){
-    selecting = { scope, ids: new Set() };
+  function startSelecting(scope, firstId){
+    selecting = { scope, ids: new Set([firstId]) };
     selectList().classList.add('selecting');
+    const row = selectList().querySelector('.track-row[data-id="' + firstId + '"]');
+    if (row) row.classList.add('selected');
     document.body.classList.add('selecting');
     el.selectBar.hidden = false;
     updateSelectBar();
@@ -2138,13 +2133,18 @@
   }
   function updateSelectBar(){
     const n = selecting.ids.size;
-    el.selectApply.textContent = n ? t(selecting.scope === 'library' ? 'selDeleteMore' : 'selRemoveMore', n) : t('selPick');
+    el.selectApply.textContent = n ? t(selecting.scope === 'library' ? 'selDelete' : 'selRemove', n) : t('selPick');
     el.selectApply.disabled = !n;
   }
   el.selectDone.addEventListener('click', stopSelecting);
   el.selectApply.addEventListener('click', async () => {
     if (!selecting || !selecting.ids.size) return;
     const { scope, ids } = selecting;
+    const n = ids.size, one = n === 1 ? videoById([...ids][0]) : null;
+    const ok = await showDialog(scope === 'library'
+      ? { title: one ? t('deleteVideoTitle') : t('deleteVideosTitle', n), text: one ? t('deleteVideoText', one.name) : t('deleteVideosText'), confirmLabel: t('del'), danger: true }
+      : { title: t('removeFromPlTitle'), text: one ? t('removeFromPlText', one.name) : t('removeVideosText', n), confirmLabel: t('remove'), danger: true });
+    if (!ok) return;   // still picking — the ticks can be changed
     stopSelecting();
     if (scope === 'library') {
       for (const id of ids) await removeVideoFromApp(id);
@@ -2282,15 +2282,7 @@
       const isDisabled = (p.disabledIds || []).includes(vid);
       el.pdList.appendChild(buildTrackRow(v, {
         onPlay: () => playQueue(playlistActiveIds(p, vid), p.name, vid, undefined, p.trimmed, p.id),
-        onRemove: async () => {
-          const ok = await showDialog({ title: t('removeFromPlTitle'), text: t('removeFromPlText', v.name), confirmLabel: t('remove'), danger: true });
-          if (!ok) return;
-          p.videoIds = p.videoIds.filter(x => x !== vid);
-          if (p.disabledIds) p.disabledIds = p.disabledIds.filter(x => x !== vid);
-          if (p.trimExcludedIds) p.trimExcludedIds = p.trimExcludedIds.filter(x => x !== vid);
-          await dbPut('playlists', p); syncLiveQueueFromPlaylist(p); renderPlaylistDetail(); renderPlaylists();
-          if (p.videoIds.length) startSelecting('playlist');
-        },
+        onRemove: () => startSelecting('playlist', vid),
         disabled: isDisabled,
         onToggleDisabled: async () => {
           p.disabledIds = p.disabledIds || [];
