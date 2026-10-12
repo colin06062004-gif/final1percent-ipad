@@ -5,6 +5,10 @@
 <title>Final 1%</title>
 <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#0E0909">
+<!-- Set by hand on every commit that touches index.html (no build step, so nothing computes it):
+     DD.MM.YYYY, HH:MM, local time of the commit. Not shown in the app any more; it tells which
+     version a device or the live site has (view source, or look for it in the page). -->
+<meta name="final1-build" content="12.10.2026, 17:19">
 <meta name="description" content="Lade Videos aus deiner Galerie, erstelle Playlists und spiele sie sortiert oder gemischt ab.">
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon-512.png" type="image/png">
@@ -112,9 +116,6 @@
     align-items:center;
     gap:8px;
   }
-  /* Manually updated by hand on every commit that changes this file — see the comment on the
-     element itself for why this can't be computed automatically (no build step). */
-  .build-date{font-family:var(--font-mono);font-size:10px;color:var(--ink-faint);white-space:nowrap;}
   /* the background helmet in small (cut out of watermark-helmet.png, 4x for retina) */
   .wordmark-helmet{
     height:24px;width:auto;display:block;
@@ -298,6 +299,30 @@
     background:none;padding:0;width:100%;
   }
   .track-row.grid-tile.playing .grid-tile-name{color:var(--accent-glow);}
+
+  /* ---------- Picking more videos to delete / remove (after the first one) ---------- */
+  .select-check{
+    display:none;flex-shrink:0;align-items:center;justify-content:center;
+    width:24px;height:24px;border-radius:50%;
+    border:2px solid rgba(255,255,255,.7);background:rgba(0,0,0,.35);color:transparent;
+  }
+  .select-check svg{width:13px;height:13px;}
+  .selecting .select-check{display:flex;}
+  .selecting .grid-tile-settings, .selecting .grid-tile-delete, .selecting .track-actions{display:none;}
+  .grid-tile .select-check{position:absolute;top:6px;right:6px;z-index:2;}
+  .track-row .select-check{margin-right:6px;}
+  .track-row.selected .select-check{background:var(--accent);border-color:var(--accent);color:#fff;}
+  .track-row.selected{box-shadow:0 0 0 2px var(--accent);}
+  /* where the mini player sits; it and the + button step aside meanwhile */
+  .select-bar{
+    position:fixed;left:10px;right:10px;bottom:calc(58px + env(safe-area-inset-bottom,0px) + 10px);
+    max-width:500px;margin:0 auto;z-index:8;
+    display:flex;justify-content:space-between;align-items:center;gap:10px;
+  }
+  .select-bar[hidden]{display:none;}
+  .select-bar .btn{padding:11px 16px;font-size:14px;}
+  .select-bar .btn:disabled{opacity:.55;}
+  body.selecting .mini-player, body.selecting .fab-wrap{display:none;}
   .grid-tile .swipe-hint span{display:none;}
 
   .section-head{
@@ -808,9 +833,6 @@
 
   <header class="topbar">
     <div class="wordmark"><img class="wordmark-helmet" src="helmet-mark.png" alt="">Final 1%</div>
-    <!-- Set by hand on every commit that touches index.html — no build step in this project,
-         so nothing computes this automatically. Format: DD.MM.YYYY, HH:MM, local time of the commit. -->
-    <span class="build-date"><span data-i18n="updated">Aktualisiert</span>: 12.10.2026, 16:24</span>
   </header>
 
   <input id="fileInput" type="file" accept="video/*,audio/*,.mp3" multiple class="visually-hidden">
@@ -924,6 +946,12 @@
 
   <div id="fabWrap" class="fab-wrap">
     <button id="importBtn" class="fab-import" aria-label="Videos aus der Galerie importieren" data-i18n-aria="aImport"></button>
+  </div>
+
+  <!-- after deleting / removing one video: pick more to go the same way -->
+  <div id="selectBar" class="select-bar" hidden>
+    <button id="selectDone" class="btn ghost" data-i18n="selDone">Fertig</button>
+    <button id="selectApply" class="btn danger-ghost"></button>
   </div>
 
   <button id="miniPlayer" class="mini-player hidden">
@@ -1130,7 +1158,7 @@
      re-renders what's on screen. Values can be functions for counts/names. */
   const I18N = {
     de: {
-      updated: 'Aktualisiert', tabLibrary: 'Bibliothek', tabSettings: 'Einstellungen',
+      tabLibrary: 'Bibliothek', tabSettings: 'Einstellungen',
       library: 'Bibliothek', queue: 'Warteschlange',
       libEmpty: 'Noch keine Videos geladen.',
       newPlaylist: 'Neue Playlist',
@@ -1209,6 +1237,11 @@
       imported: n => n + ' Video' + (n !== 1 ? 's' : '') + ' hinzugefügt',
       imgLoadFail: 'Bild konnte nicht geladen werden', imgProcessFail: 'Bild konnte nicht verarbeitet werden',
       videoDeleted: 'Video gelöscht',
+      videosDeleted: n => n === 1 ? 'Video gelöscht' : n + ' Videos gelöscht',
+      videosRemoved: n => n === 1 ? 'Video aus der Playlist entfernt' : n + ' Videos aus der Playlist entfernt',
+      selDone: 'Fertig', selPick: 'Weitere antippen',
+      selDeleteMore: n => n + (n === 1 ? ' weiteres löschen' : ' weitere löschen'),
+      selRemoveMore: n => n + (n === 1 ? ' weiteres entfernen' : ' weitere entfernen'),
       queued: name => '„' + name + '“ in die Warteschlange',
       coverSet: 'Playlist-Bild gesetzt', coverRemoved: 'Playlist-Bild entfernt',
       coverMenuTitle: 'Playlist-Bild', coverMenuPick: 'Foto auswählen',
@@ -1224,7 +1257,7 @@
       noStorage: 'Lokaler Speicher nicht verfügbar (privates Fenster?)',
     },
     en: {
-      updated: 'Updated', tabLibrary: 'Library', tabSettings: 'Settings',
+      tabLibrary: 'Library', tabSettings: 'Settings',
       library: 'Library', queue: 'Queue',
       libEmpty: 'No videos yet.',
       newPlaylist: 'New playlist',
@@ -1303,6 +1336,11 @@
       imported: n => n + ' video' + (n !== 1 ? 's' : '') + ' added',
       imgLoadFail: 'Couldn’t load the image', imgProcessFail: 'Couldn’t process the image',
       videoDeleted: 'Video deleted',
+      videosDeleted: n => n === 1 ? 'Video deleted' : n + ' videos deleted',
+      videosRemoved: n => n === 1 ? 'Video removed from the playlist' : n + ' videos removed from the playlist',
+      selDone: 'Done', selPick: 'Tap more videos',
+      selDeleteMore: n => 'Delete ' + n + ' more',
+      selRemoveMore: n => 'Remove ' + n + ' more',
       queued: name => '“' + name + '” added to the queue',
       coverSet: 'Playlist image set', coverRemoved: 'Playlist image removed',
       coverMenuTitle: 'Playlist image', coverMenuPick: 'Choose photo',
@@ -1421,6 +1459,7 @@
     pdBack: $('#pdBack'), pdTitle: $('#pdTitle'), pdCount: $('#pdCount'), pdList: $('#pdList'), pdEmpty: $('#pdEmpty'),
     clipVolBackdrop: $('#clipVolBackdrop'), clipNameInput: $('#clipNameInput'), clipNameClear: $('#clipNameClear'), fpArt: $('#fpArt'),
     clipCoverInput: $('#clipCoverInput'), clipCoverThumb: $('#clipCoverThumb'), clipCoverPick: $('#clipCoverPick'), clipCoverRemove: $('#clipCoverRemove'), clipVolRange: $('#clipVolRange'), clipVolValue: $('#clipVolValue'),
+    selectBar: $('#selectBar'), selectDone: $('#selectDone'), selectApply: $('#selectApply'),
     clipVolCancel: $('#clipVolCancel'), clipVolSave: $('#clipVolSave'), clipDownload: $('#clipDownload'),
     libSearchWrap: $('#libSearchWrap'), libSearch: $('#libSearch'), libNoMatch: $('#libNoMatch'),
     pdSearchWrap: $('#pdSearchWrap'), pdSearch: $('#pdSearch'), pdNoMatch: $('#pdNoMatch'), pickSearch: $('#pickSearch'), pickNoMatch: $('#pickNoMatch'),
@@ -1895,7 +1934,11 @@
     const li = document.createElement('li');
     li.className = 'track-row grid-tile';
     li.dataset.id = v.id;
-    li.addEventListener('click', () => { if (!li.dataset.swiped) onPlay(); });
+    li.addEventListener('click', () => {
+      if (li.dataset.swiped) return;
+      if (selecting) toggleSelected(li); else onPlay();
+    });
+    li.appendChild(selectCheck(v, li));
 
     const thumb = document.createElement('div');
     thumb.className = 'track-thumb';
@@ -1949,6 +1992,7 @@
     li.className = 'track-row';
     li.classList.toggle('disabled', !!disabled);
     li.dataset.id = v.id;
+    li.addEventListener('click', () => { if (selecting && !li.dataset.swiped) toggleSelected(li); });
 
     const thumbWrap = document.createElement('div');
     thumbWrap.className = 'track-thumb';
@@ -1963,7 +2007,7 @@
     main.appendChild(thumbWrap);
     main.appendChild(textCol);
     main.querySelector('.track-name').textContent = v.name;
-    main.addEventListener('click', () => { if (!li.dataset.swiped) onPlay(); });
+    main.addEventListener('click', () => { if (!selecting && !li.dataset.swiped) onPlay(); });
 
     const hint = document.createElement('span');
     hint.className = 'swipe-hint';
@@ -1998,7 +2042,7 @@
       actions.appendChild(handle);
     }
 
-    li.appendChild(main); li.appendChild(actions);
+    li.appendChild(main); li.appendChild(actions); li.appendChild(selectCheck(v, li));
     return li;
   }
 
@@ -2022,11 +2066,19 @@
     markPlayingRow();
   }
 
+  // the trash on a library tile: asks, deletes, then offers to pick more videos to delete too
   async function deleteVideo(id){
     const v = videoById(id);
     if (!v) return;
     const ok = await showDialog({ title: t('deleteVideoTitle'), text: t('deleteVideoText', v.name), confirmLabel: t('del'), danger: true });
     if (!ok) return;
+    await removeVideoFromApp(id);
+    renderLibrary(); renderPlaylists();
+    if (state.view === 'playlistDetail') renderPlaylistDetail();
+    toast(t('videoDeleted'));
+    if (state.videos.length) startSelecting('library');
+  }
+  async function removeVideoFromApp(id){
     await dbDelete('videos', id);
     dbDelete('videoFlags', id).catch(() => {});
     state.videos = state.videos.filter(x => x.id !== id);
@@ -2047,10 +2099,67 @@
       state.playOrder = state.playOrder.filter(x => x !== id);
       if (wasCurrent) nextTrack();
     }
-    renderLibrary(); renderPlaylists();
-    if (state.view === 'playlistDetail') renderPlaylistDetail();
-    toast(t('videoDeleted'));
   }
+
+  /* After one video is deleted from the library (or taken out of a playlist), more can be ticked
+     and go the same way in one tap — the first confirmation covers them. Tiles / rows toggle on tap
+     meanwhile; the per-video buttons, the swipe and the mini player step aside until "Fertig". */
+  let selecting = null;   // { scope: 'library' | 'playlist', ids: Set } while picking
+  // the tick circle; a row rebuilt while picking keeps its tick (the row gets .selected)
+  function selectCheck(v, row){
+    const check = document.createElement('span');
+    check.className = 'select-check';
+    check.innerHTML = ICONS.check;
+    if (selecting && selecting.ids.has(v.id)) row.classList.add('selected');
+    return check;
+  }
+  const selectList = () => selecting && (selecting.scope === 'library' ? el.libraryList : el.pdList);
+  function startSelecting(scope){
+    selecting = { scope, ids: new Set() };
+    selectList().classList.add('selecting');
+    document.body.classList.add('selecting');
+    el.selectBar.hidden = false;
+    updateSelectBar();
+  }
+  function stopSelecting(){
+    if (!selecting) return;
+    selectList().classList.remove('selecting');
+    selectList().querySelectorAll('.track-row.selected').forEach(r => r.classList.remove('selected'));
+    selecting = null;
+    document.body.classList.remove('selecting');
+    el.selectBar.hidden = true;
+  }
+  function toggleSelected(row){
+    if (row.parentElement !== selectList()) return;
+    const id = row.dataset.id;
+    if (selecting.ids.has(id)) selecting.ids.delete(id); else selecting.ids.add(id);
+    row.classList.toggle('selected', selecting.ids.has(id));
+    updateSelectBar();
+  }
+  function updateSelectBar(){
+    const n = selecting.ids.size;
+    el.selectApply.textContent = n ? t(selecting.scope === 'library' ? 'selDeleteMore' : 'selRemoveMore', n) : t('selPick');
+    el.selectApply.disabled = !n;
+  }
+  el.selectDone.addEventListener('click', stopSelecting);
+  el.selectApply.addEventListener('click', async () => {
+    if (!selecting || !selecting.ids.size) return;
+    const { scope, ids } = selecting;
+    stopSelecting();
+    if (scope === 'library') {
+      for (const id of ids) await removeVideoFromApp(id);
+      renderLibrary(); renderPlaylists();
+      toast(t('videosDeleted', ids.size));
+    } else {
+      const p = playlistById(state.activePlaylistId);
+      if (!p) return;
+      p.videoIds = p.videoIds.filter(x => !ids.has(x));
+      if (p.disabledIds) p.disabledIds = p.disabledIds.filter(x => !ids.has(x));
+      if (p.trimExcludedIds) p.trimExcludedIds = p.trimExcludedIds.filter(x => !ids.has(x));
+      await dbPut('playlists', p); syncLiveQueueFromPlaylist(p); renderPlaylistDetail(); renderPlaylists();
+      toast(t('videosRemoved', ids.size));
+    }
+  });
 
   /* ================= Rendering: Playlists ================= */
   function renderPlaylists(){
@@ -2180,6 +2289,7 @@
           if (p.disabledIds) p.disabledIds = p.disabledIds.filter(x => x !== vid);
           if (p.trimExcludedIds) p.trimExcludedIds = p.trimExcludedIds.filter(x => x !== vid);
           await dbPut('playlists', p); syncLiveQueueFromPlaylist(p); renderPlaylistDetail(); renderPlaylists();
+          if (p.videoIds.length) startSelecting('playlist');
         },
         disabled: isDisabled,
         onToggleDisabled: async () => {
@@ -2212,7 +2322,7 @@
       sw = null;
     };
     listEl.addEventListener('pointerdown', (e) => {
-      if (e.target.closest('.drag-handle') || e.target.closest('.icon-btn')) return;
+      if (selecting || e.target.closest('.drag-handle') || e.target.closest('.icon-btn')) return;
       const row = e.target.closest('.track-row');
       if (!row || row.parentElement !== listEl || !row.dataset.id) return;
       sw = { row, x0: e.clientX, y0: e.clientY, pointerId: e.pointerId, active: false, dx: 0 };
@@ -2800,6 +2910,7 @@
 
   /* ================= View switching ================= */
   function switchView(view){
+    stopSelecting();
     state.view = view;
     el.pdSearch.blur();   // leaving the playlist with the keyboard up shouldn't leave it open
     // the library search starts hidden and empty on every visit, like the playlist's
