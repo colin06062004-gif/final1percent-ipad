@@ -782,7 +782,15 @@
   }
   .clip-cover-thumb img{width:100%;height:100%;object-fit:cover;display:block;}
   .clip-cover-thumb svg{width:22px;height:22px;}
-  .dialog input.clip-name-input{margin:8px 0 16px;}
+  .clip-name-wrap{position:relative;margin:8px 0 16px;}
+  .dialog input.clip-name-input{margin:0;padding-right:40px;}
+  /* the X at the right end of the name field empties it in one go */
+  .clip-name-clear{
+    position:absolute;right:4px;top:50%;transform:translateY(-50%);
+    width:32px;height:32px;display:flex;align-items:center;justify-content:center;color:var(--ink-muted);
+  }
+  .clip-name-clear svg{width:16px;height:16px;}
+  .clip-name-clear[hidden]{display:none;}
   /* Abbrechen left, download in the middle, Speichern right */
   .clip-actions{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;}
   .clip-actions #clipVolCancel{justify-self:start;}
@@ -802,7 +810,7 @@
     <div class="wordmark"><img class="wordmark-helmet" src="helmet-mark.png" alt="">Final 1%</div>
     <!-- Set by hand on every commit that touches index.html — no build step in this project,
          so nothing computes this automatically. Format: DD.MM.YYYY, HH:MM, local time of the commit. -->
-    <span class="build-date"><span data-i18n="updated">Aktualisiert</span>: 11.10.2026, 18:47</span>
+    <span class="build-date"><span data-i18n="updated">Aktualisiert</span>: 12.10.2026, 16:13</span>
   </header>
 
   <input id="fileInput" type="file" accept="video/*,audio/*,.mp3" multiple class="visually-hidden">
@@ -1024,7 +1032,10 @@
     <div class="dialog">
       <h3 data-i18n="clipSettingsTitle">Video-Einstellungen</h3>
       <div class="clip-section" data-i18n="clipNameTitle">Name</div>
-      <input id="clipNameInput" class="clip-name-input" type="text" maxlength="60" autocomplete="off">
+      <div class="clip-name-wrap">
+        <input id="clipNameInput" class="clip-name-input" type="text" maxlength="60" autocomplete="off">
+        <button id="clipNameClear" class="clip-name-clear" type="button" aria-label="Namen löschen" data-i18n-aria="aClearName"></button>
+      </div>
       <div class="clip-section" data-i18n="clipVolTitle">Lautstärke</div>
       <p data-i18n="clipVolHint">Gilt dauerhaft für dieses Video, zusätzlich zur Verstärkung in den Einstellungen.</p>
       <div class="boost-control clip-vol-control">
@@ -1155,7 +1166,7 @@
       removeFromPlTitle: 'Aus Playlist entfernen?', remove: 'Entfernen',
       searchLibraryPh: 'In Bibliothek suchen', searchPlaylistPh: 'In Playlist suchen', searchVideosPh: 'Videos suchen', noMatches: 'Keine passenden Videos',
       aClipSettings: 'Einstellungen dieses Videos', clipVolTitle: 'Lautstärke',
-      aClipDownload: 'Video in deine Fotos sichern', clipDownloadFailed: 'Das Video konnte nicht übergeben werden',
+      aClipDownload: 'Video in deine Fotos sichern', aClearName: 'Namen löschen', clipDownloadFailed: 'Das Video konnte nicht übergeben werden',
       clipVolHint: 'Gilt dauerhaft für dieses Video, zusätzlich zur Verstärkung in den Einstellungen.',
       tutSetting: 'Tutorial', tutSettingHint: 'Zeigt dir die wichtigsten Funktionen Schritt für Schritt.', tutStart: 'Starten',
       tutNext: 'Weiter', tutBack: 'Zurück', tutDone: 'Tutorial beenden', tutSkip: 'Überspringen', tutSkipTitle: 'Tutorial überspringen?',
@@ -1249,7 +1260,7 @@
       removeFromPlTitle: 'Remove from playlist?', remove: 'Remove',
       searchLibraryPh: 'Search library', searchPlaylistPh: 'Search in playlist', searchVideosPh: 'Search videos', noMatches: 'No matching videos',
       aClipSettings: 'Settings for this video', clipVolTitle: 'Volume',
-      aClipDownload: 'Save the video to your photos', clipDownloadFailed: 'Couldn’t hand over the video',
+      aClipDownload: 'Save the video to your photos', aClearName: 'Clear name', clipDownloadFailed: 'Couldn’t hand over the video',
       clipVolHint: 'Applies to this video permanently, on top of the boost in Settings.',
       tutSetting: 'Tutorial', tutSettingHint: 'Walks you through the most important features step by step.', tutStart: 'Start',
       tutNext: 'Next', tutBack: 'Back', tutDone: 'Finish tutorial', tutSkip: 'Skip', tutSkipTitle: 'Skip the tutorial?',
@@ -1408,7 +1419,7 @@
     libraryList: $('#libraryList'), libraryEmpty: $('#libraryEmpty'),
     playlistsList: $('#playlistsList'), playlistsEmpty: $('#playlistsEmpty'), newPlaylistBtn: $('#newPlaylistBtn'),
     pdBack: $('#pdBack'), pdTitle: $('#pdTitle'), pdCount: $('#pdCount'), pdList: $('#pdList'), pdEmpty: $('#pdEmpty'),
-    clipVolBackdrop: $('#clipVolBackdrop'), clipNameInput: $('#clipNameInput'), fpArt: $('#fpArt'),
+    clipVolBackdrop: $('#clipVolBackdrop'), clipNameInput: $('#clipNameInput'), clipNameClear: $('#clipNameClear'), fpArt: $('#fpArt'),
     clipCoverInput: $('#clipCoverInput'), clipCoverThumb: $('#clipCoverThumb'), clipCoverPick: $('#clipCoverPick'), clipCoverRemove: $('#clipCoverRemove'), clipVolRange: $('#clipVolRange'), clipVolValue: $('#clipVolValue'),
     clipVolCancel: $('#clipVolCancel'), clipVolSave: $('#clipVolSave'), clipDownload: $('#clipDownload'),
     libSearchWrap: $('#libSearchWrap'), libSearch: $('#libSearch'), libNoMatch: $('#libNoMatch'),
@@ -1785,6 +1796,7 @@
     const pct = loudGainToPct(clipVolumeOf(v), 20, 200);
     el.clipNameInput.value = v.name;
     el.clipNameInput.placeholder = t('videoNamePh');
+    el.clipNameClear.hidden = !v.name;
     el.clipVolRange.value = pct;
     el.clipVolValue.textContent = pct + '%';
     renderClipCover(v);
@@ -1843,6 +1855,13 @@
     toast(t('clipVolSaved', Math.round(level * 100)));
   });
   el.clipVolCancel.addEventListener('click', closeClipVolume);
+  el.clipNameClear.innerHTML = ICONS.close;
+  el.clipNameInput.addEventListener('input', () => { el.clipNameClear.hidden = !el.clipNameInput.value; });
+  el.clipNameClear.addEventListener('click', () => {
+    el.clipNameInput.value = '';
+    el.clipNameClear.hidden = true;
+    el.clipNameInput.focus();   // ready to type the new name
+  });
   /* The stored file goes back out through the iOS share sheet: "Video sichern" puts it in Photos
      (the App Store build declares the photo-library-add permission for that), "In Dateien sichern"
      works too. share() has to be called right inside the tap, so nothing is awaited before it.
@@ -3463,7 +3482,7 @@
     { text: 'tutGear', needs: tutHas.video, scene: tutScene.view('library'),
       target: () => { const tile = tutTile(); return tile && tile.querySelector('.grid-tile-settings'); },
       done: () => !el.clipVolBackdrop.classList.contains('hidden') },
-    { text: 'tutClipName', info: true, inDialog: true, needs: tutHas.video, scene: tutScene.clip, target: () => el.clipNameInput },
+    { text: 'tutClipName', info: true, inDialog: true, needs: tutHas.video, scene: tutScene.clip, target: () => el.clipNameInput.parentElement },
     { text: 'tutClipVolume', info: true, inDialog: true, needs: tutHas.video, scene: tutScene.clip, target: () => el.clipVolRange.closest('.clip-vol-control') },
     { text: 'tutClipCover', info: true, inDialog: true, needs: tutHas.video, scene: tutScene.clip, target: () => $('.clip-cover-row') },
     { text: 'tutClipDownload', info: true, inDialog: true, needs: tutHas.video, scene: tutScene.clip, target: () => el.clipDownload },
