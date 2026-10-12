@@ -11,6 +11,15 @@
 	<!-- The name under the icon. The product name stays without "%" since it also names files. -->
 	<key>CFBundleDisplayName</key>
 	<string>Final 1%</string>
+	<!-- The app speaks German and English (it picks by the device language). Declaring both also
+	     makes iOS's own sheets inside it (photo picker, share sheet) follow the device language. -->
+	<key>CFBundleDevelopmentRegion</key>
+	<string>en</string>
+	<key>CFBundleLocalizations</key>
+	<array>
+		<string>de</string>
+		<string>en</string>
+	</array>
 	<!-- Uses no encryption beyond Apple's own — skips the export question on every upload. -->
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>

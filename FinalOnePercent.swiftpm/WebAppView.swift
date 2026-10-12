@@ -11,6 +11,13 @@ struct WebAppView: UIViewRepresentable {
         config.mediaTypesRequiringUserActionForPlayback = []   // the next video starts by itself when one ends
         config.allowsPictureInPictureMediaPlayback = false
         config.websiteDataStore = .default()                   // persistent, not the throwaway private store
+        // the page starts in the device's language until one is picked in its Settings; inside an app
+        // navigator.languages reports the app's localizations, so hand over the device's own list
+        let languages = (try? JSONSerialization.data(withJSONObject: Locale.preferredLanguages))
+            .flatMap { String(data: $0, encoding: .utf8) } ?? "[]"
+        config.userContentController.addUserScript(WKUserScript(
+            source: "window.final1DeviceLanguages = \(languages);",
+            injectionTime: .atDocumentStart, forMainFrameOnly: true))
 
         let webFolder = Self.webFolderURL()
         if let webFolder {

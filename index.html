@@ -810,7 +810,7 @@
     <div class="wordmark"><img class="wordmark-helmet" src="helmet-mark.png" alt="">Final 1%</div>
     <!-- Set by hand on every commit that touches index.html — no build step in this project,
          so nothing computes this automatically. Format: DD.MM.YYYY, HH:MM, local time of the commit. -->
-    <span class="build-date"><span data-i18n="updated">Aktualisiert</span>: 12.10.2026, 16:13</span>
+    <span class="build-date"><span data-i18n="updated">Aktualisiert</span>: 12.10.2026, 16:24</span>
   </header>
 
   <input id="fileInput" type="file" accept="video/*,audio/*,.mp3" multiple class="visually-hidden">
@@ -1392,7 +1392,7 @@
     playlists: [],     // {id,name,videoIds:[],createdAt,trimmed,cover?} — cover is a square JPEG data URL
     view: 'library',
     activePlaylistId: null,
-    settings: { audioOnly: false, volumeBoost: 1, language: 'de' }, // volumeBoost is the amplitude factor: 1 = 100% = off (the slider shows it on a loudness scale, see loudPctToGain)
+    settings: { audioOnly: false, volumeBoost: 1 },   // language: only once chosen in Settings (see deviceLanguage); volumeBoost is the amplitude factor: 1 = 100% = off (the slider shows it on a loudness scale, see loudPctToGain)
     // playback
     currentId: null,    // id of the loaded track — may come from playOrder OR from the manual queue
     queue: [],          // manual "play next" entries {id, marked}; marked = put there by the user
@@ -2727,9 +2727,18 @@
       state.settings.boostScale = 'loudness';
       saveSettings();
     }
-    lang = state.settings.language === 'en' ? 'en' : 'de';
+    lang = state.settings.language === 'en' || state.settings.language === 'de' ? state.settings.language : deviceLanguage();
     applyStaticTexts();
     applySettings();
+  }
+  // Until a language is picked in Settings the app follows the device: German on a German iPhone
+  // (de, de-AT, de-CH …), English everywhere else. The App Store build hands over iOS's own
+  // preferred-language list (window.final1DeviceLanguages, see WebAppView.swift), because inside
+  // an app navigator.languages follows the app's declared localizations rather than the device.
+  // Not saved, so a device switched to another language later is followed too.
+  function deviceLanguage(){
+    const list = window.final1DeviceLanguages || navigator.languages || [navigator.language];
+    return String(list && list[0] || '').toLowerCase().startsWith('de') ? 'de' : 'en';
   }
   function setLanguage(next){
     if (next === lang) return;
