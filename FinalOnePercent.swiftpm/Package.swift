@@ -11,6 +11,8 @@ import AppleProductTypes
 
 let package = Package(
     name: "Final1Percent",
+    // the permission texts are translated in de.lproj / en.lproj (InfoPlist.strings); English below is the fallback
+    defaultLocalization: "en",
     platforms: [
         .iOS("17.0")
     ],
@@ -21,26 +23,23 @@ let package = Package(
             bundleIdentifier: "de.colingross.final1percent",   // never change after the first upload
             teamIdentifier: "W78U46ZRF4",
             displayVersion: "1.0",
-            bundleVersion: "18",
+            bundleVersion: "19",
             appIcon: .asset("AppIcon"),
             accentColor: .presetColor(.red),
+            // iPhone only (an iPad still runs it in iPhone size, as iOS does with every iPhone app)
             supportedDeviceFamilies: [
-                .pad,
                 .phone
             ],
             supportedInterfaceOrientations: [
-                .portrait,
-                .landscapeRight(.when(deviceFamilies: [.pad])),
-                .landscapeLeft(.when(deviceFamilies: [.pad])),
-                .portraitUpsideDown(.when(deviceFamilies: [.pad]))
+                .portrait
             ],
             capabilities: [
                 // the video import offers "record a video" too; these texts show when that's used
-                .camera(purposeString: "Damit du ein Video direkt aufnehmen und in deine Bibliothek laden kannst."),
-                .microphone(purposeString: "Damit beim Aufnehmen eines Videos auch der Ton mit aufgenommen wird."),
-                .photoLibrary(purposeString: "Damit du Videos und Cover-Bilder aus deiner Mediathek auswählen kannst."),
+                .camera(purposeString: "So you can record a video right away and add it to your library."),
+                .microphone(purposeString: "So the sound is recorded too when you record a video."),
+                .photoLibrary(purposeString: "So you can choose videos and cover images from your photo library."),
                 // "Video sichern" in the share sheet of the download button in a video's settings
-                .photoLibraryAdd(purposeString: "Damit du deine gespeicherten Videos wieder in deine Fotos sichern kannst.")
+                .photoLibraryAdd(purposeString: "So you can save your stored videos back to your photos.")
             ],
             additionalInfoPlistContentFilePath: "AppInfo.plist"
         )

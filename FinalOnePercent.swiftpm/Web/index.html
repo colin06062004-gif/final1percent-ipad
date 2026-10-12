@@ -8,7 +8,7 @@
 <!-- Set by hand on every commit that touches index.html (no build step, so nothing computes it):
      DD.MM.YYYY, HH:MM, local time of the commit. Not shown in the app any more; it tells which
      version a device or the live site has (view source, or look for it in the page). -->
-<meta name="final1-build" content="12.10.2026, 17:25">
+<meta name="final1-build" content="12.10.2026, 18:09">
 <meta name="description" content="Lade Videos aus deiner Galerie, erstelle Playlists und spiele sie sortiert oder gemischt ab.">
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon-512.png" type="image/png">
@@ -3248,10 +3248,23 @@
     // either way, moving on means advancing past it, not reloading it again.
     if (state.posIndex < state.playOrder.length - 1) state.posIndex++;
     else if (state.repeat) state.posIndex = 0;
-    else { el.audioPlayer.pause(); el.stageVideo.pause(); return; }
+    else { el.audioPlayer.pause(); el.stageVideo.pause(); maybeAskForRating(); return; }   // the list played to its end
     state.currentId = state.playOrder[state.posIndex];
     loadCurrentTrack(true);
     if (!el.queueSheetBackdrop.classList.contains('hidden')) renderQueueSheet();
+  }
+  /* The App Store's rating sheet, only in the App Store build (its Swift side answers the message):
+     from the 3rd day the app was used on, when a list has played to its end — never in the tutorial
+     or mid-video — and then not again for four months (iOS itself shows it at most three times a year). */
+  function maybeAskForRating(){
+    const bridge = window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.final1;
+    const s = state.settings;
+    if (!bridge || tut.on || document.visibilityState !== 'visible') return;
+    if ((s.useDays || []).length < 3) return;
+    if (s.ratingAskedAt && Date.now() - s.ratingAskedAt < 120 * 864e5) return;
+    s.ratingAskedAt = Date.now();
+    saveSettings();
+    bridge.postMessage('requestReview');
   }
   function prevTrack(){
     if (el.audioPlayer.currentTime > 3) { seekBoth(0); return; }
@@ -3812,6 +3825,10 @@
       toast(t('noStorage'));
     }
     await loadSettings();
+    // the days the app was opened on (the rating question waits for the 3rd) — the last few are enough
+    const today = new Date().toISOString().slice(0, 10);
+    const useDays = state.settings.useDays || [];
+    if (!useDays.includes(today)) { state.settings.useDays = [...useDays, today].slice(-10); saveSettings(); }
     // per-video volumes saved before Oct 2026 were plain amplitude factors (20-300%): move them
     // onto the loudness scale once, rounded up like the boost (old 300% -> 200%)
     if (state.settings.clipVolScale !== 'loudness') {
