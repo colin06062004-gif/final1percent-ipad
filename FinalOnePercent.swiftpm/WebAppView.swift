@@ -1,6 +1,5 @@
 import SwiftUI
 import WebKit
-import StoreKit
 
 /// The whole app is the web app in the Web folder (index.html, images, fonts), shown full screen.
 /// Library, playlists and settings live in the page's IndexedDB, which the default website data
@@ -19,8 +18,6 @@ struct WebAppView: UIViewRepresentable {
         config.userContentController.addUserScript(WKUserScript(
             source: "window.final1DeviceLanguages = \(languages);",
             injectionTime: .atDocumentStart, forMainFrameOnly: true))
-        // the page's way to ask for things only the app can do: window.webkit.messageHandlers.final1
-        config.userContentController.add(context.coordinator, name: "final1")
 
         let webFolder = Self.webFolderURL()
         if let webFolder {
@@ -48,22 +45,6 @@ struct WebAppView: UIViewRepresentable {
     }
 
     func updateUIView(_ webView: WKWebView, context: Context) {}
-
-    func makeCoordinator() -> Coordinator { Coordinator() }
-
-    /// Messages from the page. "requestReview": the App Store's own rating sheet — the page decides
-    /// when (see maybeAskForRating in index.html), iOS whether it really shows (at most three times
-    /// a year, never in TestFlight).
-    final class Coordinator: NSObject, WKScriptMessageHandler {
-        func userContentController(_ controller: WKUserContentController, didReceive message: WKScriptMessage) {
-            guard message.body as? String == "requestReview" else { return }
-            Task { @MainActor in
-                let scene = UIApplication.shared.connectedScenes
-                    .first { $0.activationState == .foregroundActive } as? UIWindowScene
-                if let scene { AppStore.requestReview(in: scene) }
-            }
-        }
-    }
 
     /// The Web folder wherever the build put the resources: the app bundle itself, or a
     /// resource bundle inside it (Swift packages can do either).
