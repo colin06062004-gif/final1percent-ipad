@@ -8,7 +8,7 @@
 <!-- Set by hand on every commit that touches index.html (no build step, so nothing computes it):
      DD.MM.YYYY, HH:MM, local time of the commit. Not shown in the app any more; it tells which
      version a device or the live site has (view source, or look for it in the page). -->
-<meta name="final1-build" content="12.10.2026, 18:09">
+<meta name="final1-build" content="13.10.2026, 10:44">
 <meta name="description" content="Lade Videos aus deiner Galerie, erstelle Playlists und spiele sie sortiert oder gemischt ab.">
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon-512.png" type="image/png">
@@ -3248,14 +3248,14 @@
     // either way, moving on means advancing past it, not reloading it again.
     if (state.posIndex < state.playOrder.length - 1) state.posIndex++;
     else if (state.repeat) state.posIndex = 0;
-    else { el.audioPlayer.pause(); el.stageVideo.pause(); maybeAskForRating(); return; }   // the list played to its end
+    else { el.audioPlayer.pause(); el.stageVideo.pause(); return; }
     state.currentId = state.playOrder[state.posIndex];
     loadCurrentTrack(true);
     if (!el.queueSheetBackdrop.classList.contains('hidden')) renderQueueSheet();
   }
   /* The App Store's rating sheet, only in the App Store build (its Swift side answers the message):
-     from the 3rd day the app was used on, when a list has played to its end — never in the tutorial
-     or mid-video — and then not again for four months (iOS itself shows it at most three times a year). */
+     when the app is opened on the 3rd day it's used or later (see boot) — never during the tutorial —
+     and then not again for four months (iOS itself shows it at most three times a year). */
   function maybeAskForRating(){
     const bridge = window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.final1;
     const s = state.settings;
@@ -3849,6 +3849,8 @@
       if (state.videos.length) { state.settings.tutorialDone = true; saveSettings(); }
       else startTutorial();
     }
+    // a moment after opening, once the app is on screen
+    setTimeout(maybeAskForRating, 1500);
     // Deliberately NO pre-rendering here: warming the restored queue at launch is what ran iOS out
     // of memory a few seconds after opening — and since it ran on every launch, the app crashed
     // again on every reopen ("ist wiederholt ein Problem aufgetreten"). Rendering starts once the

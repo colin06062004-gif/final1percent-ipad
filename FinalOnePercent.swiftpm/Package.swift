@@ -23,7 +23,7 @@ let package = Package(
             bundleIdentifier: "de.colingross.final1percent",   // never change after the first upload
             teamIdentifier: "W78U46ZRF4",
             displayVersion: "1.0",
-            bundleVersion: "19",
+            bundleVersion: "20",
             appIcon: .asset("AppIcon"),
             accentColor: .presetColor(.red),
             // iPhone only (an iPad still runs it in iPhone size, as iOS does with every iPhone app)
