@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Final 1% – Support</title>
+<meta name="theme-color" content="#0E0909">
+<link rel="icon" href="icon-192.png" type="image/png">
+<link href="fonts/fonts.css" rel="stylesheet">
+<!-- Support page for the App Store listing (Apple requires a URL). Bilingual on one page;
+     styled like the app and datenschutz.html. -->
+<style>
+  :root{
+    --bg:#0E0909; --ink:#F5E7E7; --ink-muted:#A8898B; --accent:#E4202C; --accent-glow:#FF4D5E;
+    --line:rgba(255,255,255,.1);
+  }
+  *{box-sizing:border-box;}
+  html{background:var(--bg);}
+  body{
+    margin:0;color:var(--ink);font:16px/1.6 'Karla',ui-sans-serif,system-ui,sans-serif;
+    background:radial-gradient(120% 60% at 50% 0%, rgba(228,32,44,.18), transparent 60%), var(--bg);
+    min-height:100vh;
+  }
+  main{max-width:720px;margin:0 auto;padding:calc(28px + env(safe-area-inset-top,0px)) 20px 64px;}
+  header{display:flex;align-items:center;gap:10px;margin-bottom:6px;}
+  header img{height:30px;width:auto;}
+  .brand{font-family:'Bricolage Grotesque',ui-sans-serif,system-ui,sans-serif;font-weight:800;font-size:24px;}
+  nav{display:flex;gap:8px;flex-wrap:wrap;margin:18px 0 8px;}
+  nav a{
+    color:var(--ink);text-decoration:none;font-weight:600;font-size:14px;
+    padding:7px 14px;border-radius:999px;border:1px solid var(--line);background:rgba(255,255,255,.06);
+  }
+  h1{font-family:'Bricolage Grotesque',ui-sans-serif,system-ui,sans-serif;font-size:28px;line-height:1.2;margin:28px 0 4px;}
+  h2{font-size:18px;margin:26px 0 6px;color:var(--accent-glow);}
+  p{color:var(--ink);margin:6px 0;}
+  .muted{color:var(--ink-muted);font-size:14px;}
+  a{color:var(--accent-glow);}
+  .contact{
+    display:inline-block;margin:10px 0 4px;padding:12px 20px;border-radius:14px;font-weight:700;text-decoration:none;
+    color:#fff;background:linear-gradient(150deg, rgba(255,77,94,.35), rgba(228,32,44,.2));border:1px solid rgba(255,77,94,.8);
+    box-shadow:0 0 14px -4px rgba(228,32,44,.75);
+  }
+  section + section{margin-top:56px;padding-top:24px;border-top:1px solid var(--line);}
+</style>
+</head>
+<body>
+<main>
+  <header><img src="helmet-mark.png" alt=""><span class="brand">Final 1%</span></header>
+  <nav><a href="#de">Deutsch</a><a href="#en">English</a><a href="datenschutz.html">Datenschutz / Privacy</a></nav>
+
+  <section id="de" lang="de">
+    <h1>Support</h1>
+    <p>Fragen, ein Fehler oder eine Idee für die App? Schreib mir – ich antworte so schnell ich kann.</p>
+    <a class="contact" href="mailto:cg_tt@web.de?subject=Final%201%25%20Support">cg_tt@web.de</a>
+    <p class="muted">Beschreib bei einem Fehler kurz, was du gemacht hast, und nenne dein iPhone-Modell und deine iOS-Version.</p>
+
+    <h2>Wie lade ich Videos in die App?</h2>
+    <p>Tippe in der Bibliothek auf das +. Du kannst Videos aus deiner Mediathek wählen, direkt eines aufnehmen oder über „Datei auswählen“ auch MP3s und andere Dateien aus der Dateien-App laden.</p>
+
+    <h2>Läuft der Ton bei gesperrtem Bildschirm weiter?</h2>
+    <p>Ja. Starte eine Playlist und sperre dein iPhone – die Wiedergabe läuft weiter, auch über mehrere Videos. Über den Sperrbildschirm kannst du pausieren und weiterspringen.</p>
+
+    <h2>Wo sind meine Videos gespeichert?</h2>
+    <p>Nur auf deinem Gerät, im Speicher der App. Wenn du die App löschst, sind die Videos darin ebenfalls weg. Über das Zahnrad an einem Video und den Download-Knopf kannst du es jederzeit zurück in deine Fotos sichern.</p>
+
+    <h2>Ein Video ist zu leise oder zu laut</h2>
+    <p>Über das Zahnrad an einem Video stellst du seine Lautstärke dauerhaft ein (Standard: 100 %). In den Einstellungen kannst du alle Videos zusätzlich verstärken.</p>
+
+    <h2>Kann ich das Tutorial noch einmal sehen?</h2>
+    <p>Ja: Einstellungen → Tutorial → Starten.</p>
+
+    <h2>Wie ändere ich die Sprache?</h2>
+    <p>Die App startet in der Sprache deines iPhones (Deutsch, sonst Englisch). Umstellen kannst du sie unter Einstellungen → Sprache.</p>
+  </section>
+
+  <section id="en" lang="en">
+    <h1>Support</h1>
+    <p>Questions, a bug or an idea for the app? Write to me – I'll answer as soon as I can.</p>
+    <a class="contact" href="mailto:cg_tt@web.de?subject=Final%201%25%20Support">cg_tt@web.de</a>
+    <p class="muted">For a bug, please describe briefly what you did and include your iPhone model and iOS version.</p>
+
+    <h2>How do I add videos to the app?</h2>
+    <p>Tap the + in the library. You can pick videos from your photo library, record one right away, or use “Choose File” to add MP3s and other files from the Files app.</p>
+
+    <h2>Does the sound keep playing with the screen locked?</h2>
+    <p>Yes. Start a playlist and lock your iPhone – playback continues, across several videos. You can pause and skip from the lock screen.</p>
+
+    <h2>Where are my videos stored?</h2>
+    <p>Only on your device, in the app's own storage. If you delete the app, the videos in it are gone too. With the gear on a video and the download button you can save it back to your photos at any time.</p>
+
+    <h2>A video is too quiet or too loud</h2>
+    <p>The gear on a video sets its volume permanently (default: 100%). In Settings you can boost all videos as well.</p>
+
+    <h2>Can I see the tutorial again?</h2>
+    <p>Yes: Settings → Tutorial → Start.</p>
+
+    <h2>How do I change the language?</h2>
+    <p>The app starts in your iPhone's language (German, otherwise English). You can change it under Settings → Language.</p>
+  </section>
+</main>
+</body>
+</html>
