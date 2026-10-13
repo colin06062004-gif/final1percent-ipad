@@ -11,8 +11,6 @@ import AppleProductTypes
 
 let package = Package(
     name: "Final1Percent",
-    // the permission texts are translated in de.lproj / en.lproj (InfoPlist.strings); English below is the fallback
-    defaultLocalization: "en",
     platforms: [
         .iOS("17.0")
     ],
@@ -23,7 +21,7 @@ let package = Package(
             bundleIdentifier: "de.colingross.final1percent",   // never change after the first upload
             teamIdentifier: "W78U46ZRF4",
             displayVersion: "1.0",
-            bundleVersion: "26",
+            bundleVersion: "27",
             appIcon: .asset("AppIcon"),
             accentColor: .presetColor(.red),
             // iPhone only (an iPad still runs it in iPhone size, as iOS does with every iPhone app)
@@ -35,11 +33,12 @@ let package = Package(
             ],
             capabilities: [
                 // the video import offers "record a video" too; these texts show when that's used
-                .camera(purposeString: "So you can record a video right away and add it to your library."),
-                .microphone(purposeString: "So the sound is recorded too when you record a video."),
-                .photoLibrary(purposeString: "So you can choose videos and cover images from your photo library."),
+                // German and English in one text: the sentence under iOS's question isn't translated by iOS
+                .camera(purposeString: "Damit du direkt ein Video aufnehmen kannst. · So you can record a video right away."),
+                .microphone(purposeString: "Damit beim Aufnehmen auch der Ton aufgenommen wird. · So the sound is recorded too."),
+                .photoLibrary(purposeString: "Damit du Videos und Cover-Bilder auswählen kannst. · So you can choose videos and cover images."),
                 // "Video sichern" in the share sheet of the download button in a video's settings
-                .photoLibraryAdd(purposeString: "So you can save your stored videos back to your photos.")
+                .photoLibraryAdd(purposeString: "Damit du Videos zurück in deine Fotos sichern kannst. · So you can save videos back to your photos.")
             ],
             additionalInfoPlistContentFilePath: "AppInfo.plist"
         )
