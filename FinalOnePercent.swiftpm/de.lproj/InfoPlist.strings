@@ -1,5 +1,0 @@
-/* Der Satz unter den Berechtigungsfragen von iOS (Frage und Knöpfe übersetzt iOS selbst). */
-"NSCameraUsageDescription" = "Damit du ein Video direkt aufnehmen und in deine Bibliothek laden kannst.";
-"NSMicrophoneUsageDescription" = "Damit beim Aufnehmen eines Videos auch der Ton mit aufgenommen wird.";
-"NSPhotoLibraryUsageDescription" = "Damit du Videos und Cover-Bilder aus deiner Mediathek auswählen kannst.";
-"NSPhotoLibraryAddUsageDescription" = "Damit du deine gespeicherten Videos wieder in deine Fotos sichern kannst.";

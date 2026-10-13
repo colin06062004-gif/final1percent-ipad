@@ -1,5 +1,0 @@
-/* The sentence under iOS's own permission questions (the question and the buttons iOS translates itself). */
-"NSCameraUsageDescription" = "So you can record a video right away and add it to your library.";
-"NSMicrophoneUsageDescription" = "So the sound is recorded too when you record a video.";
-"NSPhotoLibraryUsageDescription" = "So you can choose videos and cover images from your photo library.";
-"NSPhotoLibraryAddUsageDescription" = "So you can save your stored videos back to your photos.";
