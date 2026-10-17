@@ -8,7 +8,7 @@
 <!-- Set by hand on every commit that touches index.html (no build step, so nothing computes it):
      DD.MM.YYYY, HH:MM, local time of the commit. Not shown in the app any more; it tells which
      version a device or the live site has (view source, or look for it in the page). -->
-<meta name="final1-build" content="13.10.2026, 10:49">
+<meta name="final1-build" content="17.10.2026, 16:14">
 <meta name="description" content="Lade Videos aus deiner Galerie, erstelle Playlists und spiele sie sortiert oder gemischt ab.">
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon-512.png" type="image/png">
@@ -3069,8 +3069,8 @@
   /* Pre-renders boosted audio for the given video ids into state.boostedCache, in the background,
      never awaited by anything that plays audio. This is what makes loadCurrentTrack() safe to
      stay fully synchronous: it only ever reads whatever's already sitting in the cache.
-     Rendering is memory-heavy — for a moment the whole file, its decoded audio, the rendered audio
-     and the WAV all sit in memory (easily 100-200 MB for a few minutes of video). So it runs
+     Rendering is memory-heavy — for a moment the whole file, its decoded audio and the WAV all
+     sit in memory (easily 100 MB for a few minutes of video). So it runs
      strictly one at a time, only for what's about to play, and only BOOST_KEEP results are kept:
      warming whole playlists (at startup and on every slider change), several passes in parallel,
      and never letting go of the results ran iOS out of memory and crashed the app on launch. */
@@ -3116,36 +3116,26 @@
     }
   }
 
-  /* Renders `blob`'s audio through an OfflineAudioContext with a gain node and returns a boosted
-     WAV blob. Deliberately never connects a *live* AudioContext to #audioPlayer or any element
-     that has to survive backgrounding — an OfflineAudioContext never touches real output or a
-     media session at all, it just computes into a buffer, so iOS has nothing here to suspend.
-     decodeAudioData() also runs on a throwaway AudioContext that's closed immediately after and
-     never connected to anything either. #audioPlayer itself only ever gets handed a plain WAV
-     blob afterward — the same kind of file it already plays for the non-boosted case. */
+  /* Decodes `blob`'s audio and returns it as a WAV blob with `gain` applied. Deliberately never
+     creates a real AudioContext: on iOS every live one switches the audio hardware to tiny
+     Web-Audio buffers (128 instead of 4096 frames) while #audioPlayer is playing, and doing that
+     before every video with its own volume is the likely cause of crackling and stuttering
+     reported after a workout's worth of videos (2026-10-17, not yet confirmed on the device).
+     An OfflineAudioContext never touches the audio output or the media session, so decoding on
+     one leaves the playing track alone. The gain is applied while writing the WAV — the same
+     multiplication a GainNode render did, without holding a second full copy of the audio.
+     #audioPlayer itself only ever gets handed a plain WAV blob afterward — the same kind of file
+     it already plays for the non-boosted case. */
   async function renderBoostedAudio(blob, gain){
     const arrayBuffer = await blob.arrayBuffer();
-    const decodeCtx = new (window.AudioContext || window.webkitAudioContext)();
-    let decoded;
-    try {
-      decoded = await decodeCtx.decodeAudioData(arrayBuffer);
-    } finally {
-      decodeCtx.close().catch(() => {});
-    }
-    const offlineCtx = new OfflineAudioContext(decoded.numberOfChannels, decoded.length, decoded.sampleRate);
-    const source = offlineCtx.createBufferSource();
-    source.buffer = decoded;
-    const gainNode = offlineCtx.createGain();
-    gainNode.gain.value = gain;
-    source.connect(gainNode);
-    gainNode.connect(offlineCtx.destination);
-    source.start();
-    const rendered = await offlineCtx.startRendering();
-    return encodeWav(rendered);
+    // decodeAudioData resamples to the context's rate; 48 kHz is what a real context had on the iPhone
+    const decodeCtx = new OfflineAudioContext(1, 1, 48000);
+    const decoded = await decodeCtx.decodeAudioData(arrayBuffer);
+    return encodeWav(decoded, gain);
   }
 
   /* Minimal 16-bit PCM WAV encoder — no library needed for this one shot. */
-  function encodeWav(buffer){
+  function encodeWav(buffer, gain = 1){
     const numChannels = buffer.numberOfChannels;
     const sampleRate = buffer.sampleRate;
     const numFrames = buffer.length;
@@ -3169,12 +3159,14 @@
     view.setUint32(40, dataSize, true);
     const channels = [];
     for (let c = 0; c < numChannels; c++) channels.push(buffer.getChannelData(c));
-    let offset = 44;
+    // an Int16Array writes in the device's byte order, little-endian like WAV on every iPhone and PC,
+    // and is about 3x faster than DataView — this loop runs on the main thread at every track change
+    const pcm = new Int16Array(out, 44);
+    let k = 0;
     for (let i = 0; i < numFrames; i++) {
       for (let c = 0; c < numChannels; c++) {
-        const s = Math.max(-1, Math.min(1, channels[c][i])); // clamp — boosting past 100% can clip
-        view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7fff, true);
-        offset += 2;
+        const s = Math.max(-1, Math.min(1, channels[c][i] * gain)); // clamp — boosting past 100% can clip
+        pcm[k++] = s < 0 ? s * 0x8000 : s * 0x7fff;
       }
     }
     return new Blob([out], { type: 'audio/wav' });
