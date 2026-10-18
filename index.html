@@ -8,7 +8,7 @@
 <!-- Set by hand on every commit that touches index.html (no build step, so nothing computes it):
      DD.MM.YYYY, HH:MM, local time of the commit. Not shown in the app any more; it tells which
      version a device or the live site has (view source, or look for it in the page). -->
-<meta name="final1-build" content="18.10.2026, 15:26">
+<meta name="final1-build" content="18.10.2026, 15:48">
 <meta name="description" content="Lade Videos aus deiner Galerie, erstelle Playlists und spiele sie sortiert oder gemischt ab.">
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon-512.png" type="image/png">
@@ -575,6 +575,7 @@
     font-size:21px;line-height:1.2;overflow-wrap:anywhere;
     display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
   }
+  .media-debug{margin:6px 0 0;font:11px/1.4 var(--font-mono);color:var(--ink-muted);white-space:pre-wrap;}
   .fp-progress-wrap{padding:22px 24px 6px;}
   .fp-progress-bar{
     position:relative;height:4px;border-radius:2px;background:rgba(255,255,255,.14);cursor:pointer;
@@ -987,6 +988,8 @@
     <audio id="audioPlayer" playsinline style="display:none"></audio>
     <div class="fp-meta">
       <h3 class="fp-title" id="fpTitle"></h3>
+      <!-- TEMPORARY media readout, see mediaDebug in the script -->
+      <pre class="media-debug" id="mediaDebug" hidden></pre>
     </div>
     <div class="fp-progress-wrap">
       <div class="fp-progress-bar" id="fpProgressBar" role="slider" aria-label="Position im Video" data-i18n-aria="aPosition">
@@ -1476,7 +1479,7 @@
     fabWrap: $('#fabWrap'),
     fullPlayer: $('#fullPlayer'), fpClose: $('#fpClose'), fpTrim: $('#fpTrim'),
     stageVideo: $('#stageVideo'), audioPlayer: $('#audioPlayer'),
-    fpTitle: $('#fpTitle'),
+    fpTitle: $('#fpTitle'), mediaDebug: $('#mediaDebug'),
     fpProgressBar: $('#fpProgressBar'), fpProgressFill: $('#fpProgressFill'), fpProgressKnob: $('#fpProgressKnob'), fpTimeCur: $('#fpTimeCur'), fpTimeDur: $('#fpTimeDur'),
     fpHideVideo: $('#fpHideVideo'), fpShuffle: $('#fpShuffle'), fpPrev: $('#fpPrev'), fpPlayPause: $('#fpPlayPause'), fpNext: $('#fpNext'), fpRepeat: $('#fpRepeat'), fpQueue: $('#fpQueue'),
     queueSheetBackdrop: $('#queueSheetBackdrop'), queueSheetClose: $('#queueSheetClose'), queueList: $('#queueList'),
@@ -2761,15 +2764,22 @@
     el.fpArt.style.backgroundImage = v && v.cover ? 'url(' + v.cover + ')' : '';
     if (el.fpHideVideo) el.fpHideVideo.classList.toggle('toggled', hiddenForThisVideo);
     // #stageVideo is purely decorative (#audioPlayer is the real, always-audible sound source —
-    // see the playback-engine comment) — no reason to keep it actively decoding while hidden, so
-    // pause it. Coming back to visible re-syncs it to #audioPlayer's position and resumes it; this
-    // only ever runs from a track load or a real settings/hide-button click, never on a timer, so
-    // el.stageVideo.play() here is always safe. Deliberately doesn't touch #audioPlayer at all.
+    // see the playback-engine comment). While hidden it gets no file at all, not just a pause: a
+    // paused element keeps the file open and may keep loading it, a second reader next to
+    // #audioPlayer — and a heavy video (1440p, 50 fps, 18 Mbit/s) stuttered with its picture hidden.
+    // Coming back to visible loads it again at #audioPlayer's position and resumes it if the sound
+    // runs; this only ever runs from a track load or a real settings/hide-button click, never on a
+    // timer, so el.stageVideo.play() here is always safe. Deliberately doesn't touch #audioPlayer at all.
     if (!state.currentObjectUrl) return;
     if (hidden) {
-      if (!el.stageVideo.paused) el.stageVideo.pause();
-    } else if (el.stageVideo.paused && !el.audioPlayer.paused) {
-      if (el.stageVideo.src !== state.currentObjectUrl) el.stageVideo.src = state.currentObjectUrl;
+      if (el.stageVideo.getAttribute('src')) { el.stageVideo.removeAttribute('src'); el.stageVideo.load(); }
+      return;
+    }
+    if (el.stageVideo.src !== state.currentObjectUrl) {
+      el.stageVideo.src = state.currentObjectUrl;
+      el.stageVideo.currentTime = el.audioPlayer.currentTime;
+    }
+    if (el.stageVideo.paused && !el.audioPlayer.paused) {
       el.stageVideo.currentTime = el.audioPlayer.currentTime;
       el.stageVideo.play().catch(() => {});
     }
@@ -3370,6 +3380,55 @@
       v.playbackRate = 1;
     }
   }
+  /* TEMPORARY (2026-10-18), remove once the cause is known: on-device readout for "a heavy video
+     (1440p, 50 fps, 18 Mbit/s) stutters, even with its picture hidden". Tap the video title in the
+     full player to show or hide it. Per player: readyState, networkState, seconds buffered ahead,
+     'waiting'/'stalled' counts and the last event since the file was loaded; "hitch" counts half-second
+     steps in which the sound advanced less than 60 % of the real time (= it stuttered). Line F is
+     the file: size, length, bitrate, type. Codes only, no words, so it needs no translation. */
+  const mediaDebug = { a: {}, v: {}, timer: 0, lastPos: 0, lastWall: 0, hitches: 0 };
+  function watchMedia(key, m){
+    const c = mediaDebug[key];
+    const reset = () => { c.waiting = 0; c.stalled = 0; c.last = '-'; if (key === 'a') mediaDebug.hitches = 0; };
+    reset();
+    m.addEventListener('loadstart', reset);
+    ['waiting', 'stalled', 'playing', 'error'].forEach(ev => m.addEventListener(ev, () => {
+      if (ev === 'waiting') c.waiting++;
+      if (ev === 'stalled') c.stalled++;
+      c.last = ev + '@' + m.currentTime.toFixed(1) + (ev === 'error' && m.error ? ':' + m.error.code : '');
+    }));
+  }
+  watchMedia('a', el.audioPlayer);
+  watchMedia('v', el.stageVideo);
+  function bufferedAhead(m){
+    for (let i = 0; i < m.buffered.length; i++) {
+      if (m.buffered.start(i) <= m.currentTime + 0.1 && m.buffered.end(i) >= m.currentTime) return m.buffered.end(i) - m.currentTime;
+    }
+    return 0;
+  }
+  function paintMediaDebug(){
+    const a = el.audioPlayer, s = el.stageVideo, now = performance.now();
+    if (!a.paused && mediaDebug.lastWall) {
+      const wall = (now - mediaDebug.lastWall) / 1000, moved = a.currentTime - mediaDebug.lastPos;
+      if (wall > 0.2 && moved >= 0 && moved < wall * 0.6) mediaDebug.hitches++;
+    }
+    mediaDebug.lastWall = now; mediaDebug.lastPos = a.currentTime;
+    const line = (k, m, extra) => `${k} rs${m.readyState} ns${m.networkState} +${bufferedAhead(m).toFixed(1)}s W${mediaDebug[k.toLowerCase()].waiting} S${mediaDebug[k.toLowerCase()].stalled} ${mediaDebug[k.toLowerCase()].last}${extra}`;
+    const v = videoById(getCurrentId());
+    const size = v && v.blob ? v.blob.size : 0, dur = a.duration || (v && v.duration) || 0;
+    el.mediaDebug.textContent = [
+      line('A', a, ` hitch${mediaDebug.hitches} t${a.currentTime.toFixed(1)}`),
+      line('V', s, ` src${s.getAttribute('src') ? '+' : '-'} ${s.paused ? 'II' : '>'} x${s.playbackRate}`),
+      `F ${(size / 1e6).toFixed(0)}MB ${dur.toFixed(0)}s ${dur ? (size * 8 / dur / 1e6).toFixed(1) : '?'}Mbit/s ${v && v.blob ? v.blob.type || '?' : '?'}`
+    ].join('\n');
+  }
+  el.fpTitle.addEventListener('click', () => {
+    el.mediaDebug.hidden = !el.mediaDebug.hidden;
+    clearInterval(mediaDebug.timer);
+    mediaDebug.lastWall = 0;
+    if (!el.mediaDebug.hidden) { paintMediaDebug(); mediaDebug.timer = setInterval(paintMediaDebug, 500); }
+  });
+
   /* #stageVideo is muted and purely decorative — iOS will pause it whenever it likes (hidden tab,
      resource pressure, whatever) and that's fine, nobody's looking at it then. Just try to resume
      it, silently, whenever the app is back in view and #audioPlayer (the real player) is running. */
