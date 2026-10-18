@@ -8,7 +8,7 @@
 <!-- Set by hand on every commit that touches index.html (no build step, so nothing computes it):
      DD.MM.YYYY, HH:MM, local time of the commit. Not shown in the app any more; it tells which
      version a device or the live site has (view source, or look for it in the page). -->
-<meta name="final1-build" content="17.10.2026, 16:14">
+<meta name="final1-build" content="18.10.2026, 15:26">
 <meta name="description" content="Lade Videos aus deiner Galerie, erstelle Playlists und spiele sie sortiert oder gemischt ab.">
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon-512.png" type="image/png">
@@ -3343,10 +3343,33 @@
       const hasNext = state.queue.length > 0 || state.posIndex < state.playOrder.length - 1 || state.repeat;
       if (hasNext) { state.earlyAdvanceDone = true; nextTrack(); }
     }
-    // keep the muted visual roughly in sync — cheap drift correction, not frame-accurate
-    if (Math.abs(el.stageVideo.currentTime - el.audioPlayer.currentTime) > 0.5) el.stageVideo.currentTime = el.audioPlayer.currentTime;
+    syncStageVideo();
     throttledSave();
   });
+  /* Keeps the muted picture roughly in step with the sound — cheap drift correction, not frame-accurate.
+     It used to seek on every timeupdate once the picture was 0.5 s off. On a heavy file (50 fps, high
+     bitrate) one seek can take longer than that, so each new seek cancelled the last before it landed:
+     the picture froze and the endless decoding slowed the sound down too. Now a small drift is caught
+     up by playing the picture a little faster or slower, which needs no seek at all; only a big one
+     (over 3 s) still seeks, never while a seek is running and at most every 3 s. A paused picture
+     (hidden, or paused by iOS on a locked screen) is left alone — it is re-synced when it resumes, and
+     seeking it here only decoded frames nobody saw, twice a second. */
+  let syncSeekAt = 0;
+  function syncStageVideo(){
+    const v = el.stageVideo;
+    if (v.paused || v.seeking) return;
+    const drift = el.audioPlayer.currentTime - v.currentTime;   // > 0: the picture is behind
+    if (Math.abs(drift) > 3) {
+      if (performance.now() - syncSeekAt < 3000) return;
+      syncSeekAt = performance.now();
+      v.playbackRate = 1;
+      v.currentTime = el.audioPlayer.currentTime;
+    } else if (Math.abs(drift) > 0.5) {
+      v.playbackRate = drift > 0 ? 1.25 : 0.8;
+    } else if (Math.abs(drift) < 0.1) {
+      v.playbackRate = 1;
+    }
+  }
   /* #stageVideo is muted and purely decorative — iOS will pause it whenever it likes (hidden tab,
      resource pressure, whatever) and that's fine, nobody's looking at it then. Just try to resume
      it, silently, whenever the app is back in view and #audioPlayer (the real player) is running. */
