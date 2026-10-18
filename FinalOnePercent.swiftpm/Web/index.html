@@ -8,7 +8,7 @@
 <!-- Set by hand on every commit that touches index.html (no build step, so nothing computes it):
      DD.MM.YYYY, HH:MM, local time of the commit. Not shown in the app any more; it tells which
      version a device or the live site has (view source, or look for it in the page). -->
-<meta name="final1-build" content="18.10.2026, 15:48">
+<meta name="final1-build" content="18.10.2026, 16:57">
 <meta name="description" content="Lade Videos aus deiner Galerie, erstelle Playlists und spiele sie sortiert oder gemischt ab.">
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon-512.png" type="image/png">
@@ -1453,8 +1453,9 @@
     earlyAdvanceDone: false, // guards the "skip 5s before end" auto-advance from firing more than once per track
     currentObjectUrl: null,
     resumeAt: null,      // seconds into a track restored at launch that isn't loaded yet (see restoreState); null otherwise
-    boostedCache: new Map()   // videoId -> { gain, url }: its offline-rendered WAV and the gain it was rendered at
+    boostedCache: new Map(),  // videoId -> { gain, url }: its offline-rendered WAV and the gain it was rendered at
                               // (global boost x the video's own volume); a gain mismatch means it's stale
+    lightAudio: new Map()     // videoId -> { blob, url } of a heavy video's sound alone, or null if it can't be had (see prepareLightAudio)
   };
 
   const $ = (sel) => document.querySelector(sel);
@@ -1781,6 +1782,7 @@
     }
     renderLibrary();
     toast(t('imported', ok));
+    prepareLightAudio(state.videos.map(v => v.id));   // skips everything already prepared
     // a calm moment: a video was just added — the rating question may follow (from the 3rd day on)
     if (ok) setTimeout(maybeAskForRating, 1500);
   });
@@ -2078,6 +2080,9 @@
   async function removeVideoFromApp(id){
     await dbDelete('videos', id);
     dbDelete('videoFlags', id).catch(() => {});
+    dbDelete('meta', 'audio:' + id).catch(() => {});
+    if (state.lightAudio.get(id)) releaseBoostUrl(state.lightAudio.get(id).url);
+    state.lightAudio.delete(id);
     state.videos = state.videos.filter(x => x.id !== id);
     for (const p of state.playlists) {
       if (p.videoIds.includes(id) || (p.disabledIds || []).includes(id) || (p.trimExcludedIds || []).includes(id)) {
@@ -3037,7 +3042,8 @@
     const entry = gain !== 1 ? state.boostedCache.get(v.id) : null;
     const cachedBoost = entry && entry.gain === gain ? entry.url : null;
     if (cachedBoost) { state.boostedCache.delete(v.id); state.boostedCache.set(v.id, entry); }   // most recently used
-    el.audioPlayer.src = cachedBoost || state.currentObjectUrl;
+    const light = state.lightAudio.get(v.id);   // a heavy video's sound alone, see prepareLightAudio
+    el.audioPlayer.src = cachedBoost || (light && light.url) || state.currentObjectUrl;
     boostUrlsToRevoke = boostUrlsToRevoke.filter(u => { if (u === el.audioPlayer.src) return true; URL.revokeObjectURL(u); return false; });
     el.audioPlayer.currentTime = startAt;
     el.stageVideo.src = state.currentObjectUrl;
@@ -3058,6 +3064,7 @@
     if (nextId && nextId !== v.id) toWarm.push(nextId);  // likely needed soon — get a head start
     if (gain !== 1 && !cachedBoost) toWarm.push(v.id);   // wasn't ready this time — ready for its next start
     if (toWarm.length) warmBoostCache(toWarm);   // skips every video that plays at 100% anyway
+    prepareLightAudio([v.id, nextId].filter(Boolean));   // only does anything for heavy files not prepared yet
   }
 
   // the video's own volume (gear on its library tile); 1 = 100% = unchanged
@@ -3103,7 +3110,8 @@
         const have = state.boostedCache.get(id);
         if (have && have.gain === gain) continue;
         try {
-          const blob = await renderBoostedAudio(v.blob, gain);
+          const light = state.lightAudio.get(id);   // a few MB to read instead of the whole video
+          const blob = await renderBoostedAudio(light ? light.blob : v.blob, gain);
           if (effectiveGain(v) !== gain) continue;      // boost or its own volume changed meanwhile
           const old = state.boostedCache.get(id);
           if (old) releaseBoostUrl(old.url);
@@ -3180,6 +3188,121 @@
       }
     }
     return new Blob([out], { type: 'audio/wav' });
+  }
+
+  /* Heavy files starve #audioPlayer on the iPhone: to get at the sound it has to pull the whole video
+     through the blob loader, and a 1440p 50 fps CapCut export at 19 Mbit/s kept running dry (0.1 s
+     buffered, 'waiting'/'stalled' again and again), with its picture hidden too (readout, 2026-10-18).
+     So for those #audioPlayer plays a copy of just their sound (extractAudioTrack). It's made once per
+     video, in the background, and kept in the 'meta' store under 'audio:<id>', so it's ready before
+     loadCurrentTrack needs it — that one can't wait for anything. Read back from the database it is a
+     file on disk, not something held in memory, so unlike the boost renders all of them can be kept. */
+  const HEAVY_BITRATE = 8e6;   // bits per second; downloaded videos stay well below, the edits from CapCut are ~15-19
+  function isHeavy(v){ return v.duration > 0 && v.blob.size * 8 / v.duration > HEAVY_BITRATE; }
+  let lightQueue = [], lightRunning = false;
+  function prepareLightAudio(videoIds){
+    lightQueue = [...new Set([...videoIds, ...lightQueue])];   // the newest request is the most urgent
+    if (!lightRunning) runLightQueue();
+  }
+  async function runLightQueue(){
+    lightRunning = true;
+    try {
+      while (lightQueue.length) {
+        const v = videoById(lightQueue.shift());
+        if (!v || !isHeavy(v) || state.lightAudio.has(v.id)) continue;
+        const key = 'audio:' + v.id;
+        try {
+          let rec = await dbGet('meta', key);
+          if (!rec) {
+            const blob = await extractAudioTrack(v.blob);
+            if (!videoById(v.id)) continue;            // deleted meanwhile
+            await dbPut('meta', { key, blob });        // null: can't be repacked, isn't tried again
+            rec = await dbGet('meta', key);            // read back, so it's the file on disk from here on
+          }
+          state.lightAudio.set(v.id, rec.blob ? { blob: rec.blob, url: URL.createObjectURL(rec.blob) } : null);
+        } catch (e) { /* plays the file itself this time; tried again on its next start */ }
+      }
+    } finally { lightRunning = false; }
+  }
+
+  /* Repacks the sound of an MP4/MOV `blob` into a small audio-only file of the same kind, without
+     decoding anything: the original samples, their timing and edit list are copied as they are,
+     only the byte offsets are rewritten. Reads just the file's index (moov) and the audio chunks —
+     about 2 MB for a minute and a half, instead of the whole video. Returns null for anything it
+     doesn't understand (no audio track, fragmented MP4, not an MP4 at all), which then simply keeps
+     playing the file itself. */
+  async function extractAudioTrack(blob){
+    const bytes = async (start, end) => new Uint8Array(await blob.slice(start, end).arrayBuffer());
+    const type = (d, at) => String.fromCharCode(d[at], d[at + 1], d[at + 2], d[at + 3]);
+    // top level: find ftyp and moov by their headers only, never reading the media data in between
+    let pos = 0, ftyp = null, moov = null;
+    while (pos + 8 <= blob.size && !(ftyp && moov)) {
+      const h = await bytes(pos, pos + 16), hv = new DataView(h.buffer);
+      let size = hv.getUint32(0);
+      if (size === 1) size = hv.getUint32(8) * 2 ** 32 + hv.getUint32(12);
+      else if (size === 0) size = blob.size - pos;
+      if (size < 8) return null;
+      const t = type(h, 4);
+      if (t === 'ftyp') ftyp = await bytes(pos, pos + size);
+      if (t === 'moov') moov = await bytes(pos, pos + size);
+      pos += size;
+    }
+    if (!ftyp || !moov) return null;
+    const mv = new DataView(moov.buffer);
+    const children = (box) => {
+      const out = [];
+      for (let at = box.start + 8; at + 8 <= box.end; ) {
+        const size = mv.getUint32(at);
+        if (size < 8 || at + size > box.end) break;
+        out.push({ type: type(moov, at + 4), start: at, end: at + size });
+        at += size;
+      }
+      return out;
+    };
+    const find = (box, ...path) => path.reduce((b, t) => b && children(b).find(c => c.type === t), box);
+    const top = children({ start: 0, end: moov.length });
+    if (top.some(b => b.type === 'mvex')) return null;   // fragmented: the samples aren't indexed here
+    const mvhd = top.find(b => b.type === 'mvhd');
+    // the first enabled sound track — the one the player itself would pick
+    const trak = top.find(b => {
+      const tkhd = b.type === 'trak' && find(b, 'tkhd'), hdlr = tkhd && find(b, 'mdia', 'hdlr');
+      return hdlr && (mv.getUint32(tkhd.start + 8) & 1) && type(moov, hdlr.start + 16) === 'soun';
+    });
+    const stbl = trak && find(trak, 'mdia', 'minf', 'stbl');
+    const stsc = stbl && find(stbl, 'stsc'), stsz = stbl && find(stbl, 'stsz');
+    const stco = stbl && (find(stbl, 'stco') || find(stbl, 'co64'));
+    if (!mvhd || !stsc || !stsz || !stco) return null;
+    const wide = stco.type === 'co64';
+    // every chunk's place in the original file and its size (the sum of its samples)
+    const fixedSize = mv.getUint32(stsz.start + 12), sampleCount = mv.getUint32(stsz.start + 16);
+    const runs = mv.getUint32(stsc.start + 12), chunkCount = mv.getUint32(stco.start + 12);
+    const chunks = [];
+    for (let c = 0, r = 0, s = 0; c < chunkCount; c++) {
+      while (r + 1 < runs && mv.getUint32(stsc.start + 16 + 12 * (r + 1)) <= c + 1) r++;   // stsc counts chunks from 1
+      const off = wide ? mv.getUint32(stco.start + 16 + 8 * c) * 2 ** 32 + mv.getUint32(stco.start + 20 + 8 * c)
+                       : mv.getUint32(stco.start + 16 + 4 * c);
+      let size = 0;
+      for (let k = mv.getUint32(stsc.start + 20 + 12 * r); k > 0 && s < sampleCount; k--, s++) {
+        size += fixedSize || mv.getUint32(stsz.start + 20 + 4 * s);
+      }
+      if (off + size > blob.size) return null;
+      chunks.push({ off, size });
+    }
+    if (!chunks.length) return null;
+    // new file: ftyp, a moov with only mvhd and the sound track, then the chunks back to back
+    const trakCopy = moov.slice(trak.start, trak.end), tv = new DataView(trakCopy.buffer);
+    const moovSize = 8 + (mvhd.end - mvhd.start) + trakCopy.length;
+    const head = (size, t) => { const b = new Uint8Array(8); new DataView(b.buffer).setUint32(0, size); for (let i = 0; i < 4; i++) b[4 + i] = t.charCodeAt(i); return b; };
+    let at = ftyp.length + moovSize + 8, total = 0;
+    chunks.forEach((ch, c) => {
+      const o = stco.start - trak.start + 16;
+      if (wide) { tv.setUint32(o + 8 * c, Math.floor(at / 2 ** 32)); tv.setUint32(o + 8 * c + 4, at >>> 0); }
+      else tv.setUint32(o + 4 * c, at);
+      at += ch.size; total += ch.size;
+    });
+    const data = await new Blob(chunks.map(ch => blob.slice(ch.off, ch.off + ch.size))).arrayBuffer();
+    return new Blob([ftyp, head(moovSize, 'moov'), moov.subarray(mvhd.start, mvhd.end), trakCopy, head(8 + total, 'mdat'), data],
+      { type: blob.type || 'video/mp4' });
   }
 
   function refreshNowPlayingUI(){
@@ -3385,7 +3508,8 @@
      full player to show or hide it. Per player: readyState, networkState, seconds buffered ahead,
      'waiting'/'stalled' counts and the last event since the file was loaded; "hitch" counts half-second
      steps in which the sound advanced less than 60 % of the real time (= it stuttered). Line F is
-     the file: size, length, bitrate, type. Codes only, no words, so it needs no translation. */
+     the file: size, length, bitrate, type, and what #audioPlayer reads ("a:", see prepareLightAudio).
+     Codes only, no words, so it needs no translation. */
   const mediaDebug = { a: {}, v: {}, timer: 0, lastPos: 0, lastWall: 0, hitches: 0 };
   function watchMedia(key, m){
     const c = mediaDebug[key];
@@ -3416,10 +3540,12 @@
     const line = (k, m, extra) => `${k} rs${m.readyState} ns${m.networkState} +${bufferedAhead(m).toFixed(1)}s W${mediaDebug[k.toLowerCase()].waiting} S${mediaDebug[k.toLowerCase()].stalled} ${mediaDebug[k.toLowerCase()].last}${extra}`;
     const v = videoById(getCurrentId());
     const size = v && v.blob ? v.blob.size : 0, dur = a.duration || (v && v.duration) || 0;
+    const light = v && state.lightAudio.get(v.id);   // what #audioPlayer reads: the file, the sound-only copy or a volume render
+    const src = !a.src ? '-' : a.src === state.currentObjectUrl ? 'orig' : light && a.src === light.url ? 'm4a' : 'wav';
     el.mediaDebug.textContent = [
       line('A', a, ` hitch${mediaDebug.hitches} t${a.currentTime.toFixed(1)}`),
       line('V', s, ` src${s.getAttribute('src') ? '+' : '-'} ${s.paused ? 'II' : '>'} x${s.playbackRate}`),
-      `F ${(size / 1e6).toFixed(0)}MB ${dur.toFixed(0)}s ${dur ? (size * 8 / dur / 1e6).toFixed(1) : '?'}Mbit/s ${v && v.blob ? v.blob.type || '?' : '?'}`
+      `F ${(size / 1e6).toFixed(0)}MB ${dur.toFixed(0)}s ${dur ? (size * 8 / dur / 1e6).toFixed(1) : '?'}Mbit/s ${v && v.blob ? v.blob.type || '?' : '?'} a:${src}`
     ].join('\n');
   }
   el.fpTitle.addEventListener('click', () => {
@@ -3929,6 +4055,9 @@
     // of memory a few seconds after opening — and since it ran on every launch, the app crashed
     // again on every reopen ("ist wiederholt ein Problem aufgetreten"). Rendering starts once the
     // user actually plays something (loadCurrentTrack); the first track then plays un-boosted.
+    // The sound-only copies of heavy videos are different: a few MB each, one at a time, made once
+    // and then only looked up — so all of them are prepared, the restored track first.
+    prepareLightAudio([getCurrentId(), ...state.videos.map(v => v.id)].filter(Boolean));
   }
   boot();
 
